@@ -6,7 +6,7 @@ import numpy as np
 
 from HamiltonianPy.constant  import CREATION, ANNIHILATION
 from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.optor import AoC, Optor, State
+from HamiltonianPy.optor import AoC, Optor, OptorWithIndex, State
 
 __all__ = ['Model', 'ModelBasic', 'Periodization']
 
@@ -81,7 +81,6 @@ class ModelBasic:# {{{
             if otype == CREATION:
                 state = State(site=site, spin=spin, orbit=orbit)
                 states.append(state)
-
 
         self.cluster = cluster
         self.numbu = numbu
@@ -175,7 +174,7 @@ class Model(ModelBasic):
         return res
     # }}}
 
-    def _quadratic(self, bonds):# {{{
+    def _quadratic(self, bonds, tag='intra'):# {{{
         """
         Generate all possible hopping and/or pairing term on the given bonds.
 
@@ -198,10 +197,17 @@ class Model(ModelBasic):
                 tag0 = (orbit0, spin0, site0)
                 tag1 = (orbit1, spin1, site1)
                 (C0, A0), (C1, A1) = self._AC_Generator(tag0, tag1)
-                hopping = Optor((C0, A1))
+                if tag == 'inter':
+                    hopping = Optor((C0, A1))
+                else:
+                    hopping = OptorWithIndex((C0, A1), statemap=self.StateMap)
                 res.append(hopping)
+
                 if self.numbu:
-                    pair = Optor((A0, A1))
+                    if tag == 'inter':
+                        pair = Optor((A0, A1))
+                    else:
+                        pair = OptorWithIndex((A0, A1), statemap=self.StateMap)
                     res.append(pair)
         return res
     # }}}
@@ -218,7 +224,7 @@ class Model(ModelBasic):
                 tag0 = (orbit0, spin0, site)
                 tag1 = (orbit1, spin1, site)
                 (C0, A0), (C1, A1) = self._AC_Generator(tag0, tag1)
-                optor = Optor((C0, A0, C1, A1))
+                optor = OptorWithIndex((C0, A0, C1, A1), statemap=self.StateMap)
                 res.append(optor)
         return res
     # }}}
@@ -233,7 +239,7 @@ class Model(ModelBasic):
             for orbit, spin in self.internals:
                 tag = (orbit, spin, site)
                 (C, A), = self._AC_Generator(tag)
-                optor = Optor((C, A))
+                optor = OptorWithIndex((C, A), statemap=self.StateMap)
                 res.append(optor)
         return res
     # }}}
@@ -244,11 +250,11 @@ class Model(ModelBasic):
         """
 
         intra, inter = self.cluster.bonds(self.max_neighbor)
-        quadratic_optors = self._quadratic(bonds=intra)
+        quadratic_optors = self._quadratic(bonds=intra, tag='intra')
         hubbard_optors = self._hubbard()
         mu_optors = self._mu()
         resH = mu_optors + quadratic_optors + hubbard_optors
-        resV = self._quadratic(bonds=inter)
+        resV = self._quadratic(bonds=inter, tag='inter')
         self._HOptors = resH
         self._VOptors = resV
     # }}}
@@ -260,7 +266,6 @@ class Model(ModelBasic):
 
         HTerms = []
         VTerms = []
-        Map = self.StateMap
         HOptors = deepcopy(self._HOptors)
         VOptors = deepcopy(self._VOptors)
         lH = len(HOptors)
@@ -269,7 +274,6 @@ class Model(ModelBasic):
         for optor in HOptors:
             coeff = coeff_generator(optor, **coeff_dict)
             if coeff != 0.0:
-                optor.setIndices(stateMap=Map)
                 if optor.isSelfConjugate():
                     optor.coeff = coeff / 2.0
                 else:
@@ -305,14 +309,14 @@ class Model(ModelBasic):
             aoc0, aoc1 = term.aocs
             site0, dR0 = self.cluster.decompose(aoc0.site)
             site1, dR1 = self.cluster.decompose(aoc1.site)
-            aoc0.site = site0
-            aoc1.site = site1
-            lindex0 = self.lAoCMap(aoc0)
-            rindex1 = self.rAoCMap(aoc1)
+            new_aoc0 = aoc0.update(site0)
+            new_aoc1 = aoc1.update(site1)
+            lindex0 = self.lAoCMap(new_aoc0)
+            rindex1 = self.rAoCMap(new_aoc1)
             if self.numbu:
                 if term.ishopping():
-                    rindex0 = self.rAoCMap(aoc0)
-                    lindex1 = self.lAoCMap(aoc1)
+                    rindex0 = self.rAoCMap(new_aoc0)
+                    lindex1 = self.lAoCMap(new_aoc1)
                     row.extend([lindex0, lindex1])
                     col.extend([rindex1, rindex0])
                     coeffs.extend([coeff, - coeff])
