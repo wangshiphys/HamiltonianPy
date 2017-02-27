@@ -3,14 +3,79 @@ from copy import deepcopy
 import numpy as np
 
 from HamiltonianPy.arrayformat import arrayformat
-from HamiltonianPy.constant import CREATION, ANNIHILATION
+from HamiltonianPy.constant import CREATION, ANNIHILATION, SWAP_FACTOR_F
+from HamiltonianPy.exception import SwapError
 
-__all__ = ['State', 'AoC', 'Optor']
+__all__ = ['normalform', 'State', 'AoC', 'Optor', 'OptorWithIndex']
 
 #Useful constant in this module!
 ALTER = 1000
 INDENT = 6
-###############################
+FLOATTYPE = [np.float_, np.float16, np.float32, np.float64]
+###############################################################################
+
+def normalform(aocs):# {{{
+    """
+    Reordering an operator specified by aocs into norm form.
+
+    The norm form of an operator means that all the creation operators appear 
+    to the left of all the annihilation operators. Also, the creation and 
+    annihilation operators are sorted in ascending and descending order
+    respectively according to the single particle state associated with them.
+
+    Paramter:
+    ---------
+    aocs: list
+        A collection of AoCs that consist an operator.
+    
+    RETURN:
+    -------
+    seq: list
+        The norm form of the operator.
+    swap_num: int
+        The number of swap need to reordering the operator.
+    """
+
+    seq = list(deepcopy(aocs))
+    seq_len = len(seq)
+    swap_num = 0
+
+    for length in range(seq_len, 1, -1):
+        for i in range(0, length-1):
+            otype0 = seq[i].otype
+            otype1 = seq[i+1].otype
+
+            case0 = ((otype0 == CREATION) and 
+                     (otype1 == CREATION) and 
+                     (seq[i] > seq[i+1]))
+
+            case1 = ((otype0 == ANNIHILATION) and
+                     (otype1 == ANNIHILATION) and
+                     (seq[i] < seq[i+1]))
+
+            case2 = (otype0 == ANNIHILATION) and (otype1 == CREATION)
+
+            if case0 or case1:
+                buff = seq[i]
+                seq[i] = seq[i+1]
+                seq[i+1] = buff
+                swap_num += 1
+            elif case2:
+                if seq[i].samestate(seq[i+1]):
+                    info = str(seq[i]) + "\n" + str(seq[i + 1]) + "\n"
+                    info += "Swap these two operator would generate "
+                    info += "extra identity operator, which can not " 
+                    info += "be processed by this function properly!"
+                    raise SwapError(info)
+                else:
+                    buff = seq[i]
+                    seq[i] = seq[i+1]
+                    seq[i+1] = buff
+                    swap_num += 1
+
+    return seq, swap_num
+# }}}
+
 
 class State:# {{{
     """
@@ -28,15 +93,20 @@ class State:# {{{
     orbit: int, optional
         The orbit index of the state.
         default: 0
+    tupleform: tuple
+        Combine the above three attributes to a tuple, (orbit, spin, site)
 
     Method:
     -------
     __init__(site, spin=0, orbit=0)
     __str__()
-    _2tuple()
     __hash__()
     __eq__(other)
+    __lt__(other)
+    __gt__(other)
     __ne__(other)
+    __le__(other)
+    __ge__(other)
     """
 
     def __init__(self, site, spin=0, orbit=0):# {{{
@@ -62,6 +132,13 @@ class State:# {{{
             self.orbit = orbit
         else:
             raise ValueError("The invalid orbit parameter!")
+        
+        if site.dtype in FLOATTYPE:
+            buff = np.trunc(site * ALTER) / ALTER
+        else:
+            buff = site
+
+        self.tupleform = (orbit, spin) + tuple(buff)
     # }}}
 
     def __str__(self):# {{{
@@ -75,22 +152,23 @@ class State:# {{{
         return info
     # }}}
 
-    def _2tuple(self):# {{{
-        """
-        Compose the site, spin and orbit index to a hashable tuple!
-        """
-
-        site = np.trunc(self.site * ALTER) / ALTER
-        res = tuple(site) + (self.spin, self.orbit)
-        return res
-    # }}}
-
     def __hash__(self):# {{{
         """
         Return the hash value of instance of the class!
         """
         
-        return hash(self._2tuple())
+        return hash(self.tupleform)
+    # }}}
+
+    def __lt__(self, other):# {{{
+        """
+        Define the '<' operator of instance of this class.
+        """
+
+        if not isinstance(other, self.__class__):
+            raise TypeError("The right operand is not instance of this class!")
+
+        return self.tupleform < other.tupleform
     # }}}
 
     def __eq__(self, other):# {{{
@@ -98,14 +176,41 @@ class State:# {{{
         Define the '==' operator of instance of this class.
         """
 
-        if not isinstance(other, State):
+        if not isinstance(other, self.__class__):
             raise TypeError("The right operand is not instance of this class!")
 
-        return hash(self) == hash(other)
+        return self.tupleform == other.tupleform
+    # }}}
+
+    def __gt__(self, other):# {{{
+        """
+        Define the '>' operator of instance of this class.
+        """
+
+        if not isinstance(other, self.__class__):
+            raise TypeError("The right operand is not instance of this class!")
+
+        return self.tupleform > other.tupleform
+    # }}}
+
+    def __le__(self, other):# {{{
+        """
+        Define the '<=' operator of instance of this class.
+        """
+
+        return (self.__lt__(other)) or (self.__eq__(other))
     # }}}
 
     def __ne__(self, other):# {{{
         return not self.__eq__(other)
+    # }}}
+
+    def __ge__(self, other):# {{{
+        """
+        Define the '>=' operator of instance of this class.
+        """
+
+        return (self.__gt__(other)) or (self.__eq__(other))
     # }}}
 # }}}
 
@@ -130,19 +235,26 @@ class AoC(State):# {{{
     orbit: int, optional
         The orbit index of the state.
         default: 0
+    tupleform: tuple
+        Combine the above four attributes to a tuple, (otype, orbit, spin, site)
 
     Method:
     -------
     __init__(otype, site, spin=0, orbit=0)
     __str__()
-    _2tuple()
-    isConjugateOf(other)
     dagger()
+    isConjugateOf(other)
+    extract()
+    samestate(other)
 
     Inherit from Base class:
     __hash__()
     __eq__(other)
+    __gt__(other)
+    __lt__(other)
     __ne__(other)
+    __ge__(other)
+    __le__(other)
     """
 
     def __init__(self, otype, site, spin=0, orbit=0):# {{{
@@ -159,6 +271,8 @@ class AoC(State):# {{{
             self.otype = otype
         else:
             raise ValueError("The invalid otype!")
+
+        self.tupleform = (otype, ) + self.tupleform
     # }}}
 
     def __str__(self):# {{{
@@ -171,30 +285,6 @@ class AoC(State):# {{{
         return info
     # }}}
 
-    def _2tuple(self):# {{{
-        """
-        Compose the site, spin and orbit index to a hashable tuple!
-        """
-
-        res = (self.otype, ) + State._2tuple(self)
-        return res
-    # }}}
-
-    def isConjugateOf(self, other):# {{{
-        """
-        Determine whether the instance is conjugate of other instance.
-        """
-
-        if not isinstance(other, AoC):
-            raise TypeError("The right operand is not instance of this class!")
-        
-        if (State._2tuple(self) == State._2tuple(other) and
-            self.otype != other.otype):
-            return True
-        else:
-            return False
-    # }}}
-
     def dagger(self):# {{{
         """
         Return the Hermite conjugate of self.
@@ -205,6 +295,17 @@ class AoC(State):# {{{
         return res
     # }}}
 
+    def isConjugateOf(self, other):# {{{
+        """
+        Determine whether the instance is conjugate of other instance.
+        """
+
+        if not isinstance(other, self.__class__):
+            raise TypeError("The right operand is not instance of this class!")
+        
+        return self.__eq__(other.dagger())
+    # }}}
+
     def extract(self):# {{{
         """
         Extract the state information of this creation or annihilation operator.
@@ -212,6 +313,21 @@ class AoC(State):# {{{
 
         return State(site=self.site, spin=self.spin, orbit=self.orbit)
     # }}}
+
+    def samestate(self, other):# {{{
+        """
+        Determine whether the self AoC and other AoC is of the same state.
+        """
+
+        if not isinstance(other, self.__class__):
+            raise TypeError("The right operand is not instance of this class!")
+
+        return self.extract() == other.extract()
+    # }}}
+
+    def update(self, site):
+        aoc = AoC(otype=self.otype, site=site, spin=self.spin, orbit=self.orbit)
+        return aoc
 # }}}
 
 
@@ -222,8 +338,8 @@ class Optor:# {{{
 
     Attribute:
     ----------
-    aocs: tuple
-        The creation and annihilation operators that cconsist of this operator.
+    aocs: list
+        The creation and annihilation operators that consist of this operator.
     coeff: float, int or complex, optional
         The coefficient of the operator.
         default: 1.0
@@ -232,18 +348,18 @@ class Optor:# {{{
         operator.
     otypes: tuple
         The type of this aocs.
-    indices: tuple
-        The state indices of this aocs
 
     
     Method:
     -------
-    __init__(aocs, stateMap, coeff=1.0, check=True)
-    __call__()
+    __init__(aocs, coeff=1.0)
     __str__()
     ispairing()
-    ishooping()
+    ishopping()
     ishubbard()
+    sameoptor(other)
+    dagger()
+    isSelfConjugate()
     """
 
     def __init__(self, aocs, coeff=1.0):# {{{
@@ -252,55 +368,24 @@ class Optor:# {{{
 
         Paramter:
         --------
-        aocs: tuple
+        aocs: tuple or list
             The creation and annihilation operators that cconsist of this operator.
         coeff: float, int or complex, optional
             The coefficient of the operator.
             default: 1.0
         """
 
+        normal_aocs, swap_num = normalform(aocs)
+
         otypes = []
-        for aoc in aocs:
-            if isinstance(aoc, AoC):
-                otypes.append(aoc.otype)
-            else:
-                raise TypeError("The input aocs are not all instance of AoC!")
+        for aoc in normal_aocs:
+            otypes.append(aoc.otype)
 
-        self.aocs = tuple(aocs)
-        self.coeff = coeff
+        self.aocs = tuple(normal_aocs)
+        self.coeff = (SWAP_FACTOR_F ** swap_num) * coeff
         self.otypes = tuple(otypes)
-        self.num = len(aocs)
+        self.num = len(normal_aocs)
         # }}}
-
-    def setIndices(self, stateMap):# {{{
-        """
-        Map the single particle state of these creation and/or annihilation
-        operator to integer number.
-
-        Parameter:
-        ----------
-        stateMap: class IndexMap
-            The Map between the single particle state
-            and it's corresponding index.
-        """
-
-        indices = []
-        for aoc in self.aocs:
-            state = aoc.extract()
-            index = stateMap(state)
-            indices.append(index)
-        self.indices = tuple(indices)
-    # }}}
-
-    def __call__(self):# {{{
-        """
-        Return the single partice indices and the coefficient of this operator.
-        """
-
-        if not hasattr(self, 'indices'):
-            raise ValueError("The optor has not specified with indices!")
-        return (self.indices, self.coeff)
-    # }}}
 
     def __str__(self):# {{{
         """
@@ -340,16 +425,16 @@ class Optor:# {{{
         Determining whether the operator is a hubbard term.
         """
 
-        judge = self.otypes == (1, 0, 1, 0)
-        if (judge and 
-            self.aocs[0].isConjugateOf(self.aocs[1]) and
-            self.aocs[2].isConjugateOf(self.aocs[3])):
+        rule0 = self.otypes==(CREATION, CREATION, ANNIHILATION, ANNIHILATION)
+        rule1 = self.aocs[0].samestate(self.aocs[3])
+        rule2 = self.aocs[1].samestate(self.aocs[2])
+        if (rule0 and rule1 and rule2):
             return True
         else:
             return False
     # }}}
 
-    def __eq__(self, other):# {{{
+    def sameoptor(self, other):# {{{
         """
         Judge whether two instance of this class equal to each other.
 
@@ -361,15 +446,8 @@ class Optor:# {{{
 
         if not isinstance(other, Optor):
             raise TypeError("The right operand is not instance of this class!")
+
         return hash(self.aocs) == hash(other.aocs)
-    # }}}
-
-    def __ne__(self, other):# {{{
-        """
-        Judge whether two instance of this class not equal.
-        """
-
-        return not self.__eq__(other)
     # }}}
 
     def dagger(self):# {{{
@@ -389,9 +467,27 @@ class Optor:# {{{
         Determine whether a operator is the Hermit conjugate of it's self.
         """
 
-        if self.ishubbard():
-            return True
-        else:
-            return self.dagger() == self
+        return self.sameoptor(self.dagger())
     # }}}
+# }}}
+
+
+class OptorWithIndex(Optor):# {{{
+    """
+    A subclass of class Optor with the single particle state associated with
+    index according to the statemap parameter.
+    """
+
+    def __init__(self, aocs, statemap, coeff=1.0):
+        Optor.__init__(self, aocs=aocs, coeff=coeff)
+        
+        indices = []
+        for aoc in self.aocs:
+            state = aoc.extract()
+            index = statemap(state)
+            indices.append(index)
+        self.indices = tuple(indices)
+
+    def __call__(self):
+        return (self.indices, self.coeff)
 # }}}
