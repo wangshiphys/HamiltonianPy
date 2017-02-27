@@ -29,6 +29,14 @@ class ConvergenceError(SelfDefinedError):# {{{
     pass
 # }}}
 
+class SwapError(SelfDefinedError):# {{{
+    """
+    Exceptions raised when swap creation and annihilation operator that with
+    the same single particle state.
+    """
+    pass
+# }}}
+
 #This is a test!
 if __name__ == "__main__":
     raise ConvergenceError('This is a test!')
