@@ -5,6 +5,7 @@ import numpy as np
 from HamiltonianPy.arrayformat import arrayformat
 from HamiltonianPy.constant import CREATION, ANNIHILATION, SWAP_FACTOR_F
 from HamiltonianPy.exception import SwapError
+from HamiltonianPy.indexmap import IndexMap
 
 __all__ = ['normalform', 'State', 'AoC', 'Optor', 'OptorWithIndex']
 
@@ -36,7 +37,7 @@ def normalform(aocs):# {{{
         The number of swap need to reordering the operator.
     """
 
-    seq = list(deepcopy(aocs))
+    seq = list(aocs[:])
     seq_len = len(seq)
     swap_num = 0
 
@@ -55,23 +56,19 @@ def normalform(aocs):# {{{
 
             case2 = (otype0 == ANNIHILATION) and (otype1 == CREATION)
 
-            if case0 or case1:
+            case3 = seq[i].samestate(seq[i+1])
+
+            if case0 or case1 or (case2 and (not case3)):
                 buff = seq[i]
                 seq[i] = seq[i+1]
                 seq[i+1] = buff
                 swap_num += 1
-            elif case2:
-                if seq[i].samestate(seq[i+1]):
-                    info = str(seq[i]) + "\n" + str(seq[i + 1]) + "\n"
-                    info += "Swap these two operator would generate "
-                    info += "extra identity operator, which can not " 
-                    info += "be processed by this function properly!"
-                    raise SwapError(info)
-                else:
-                    buff = seq[i]
-                    seq[i] = seq[i+1]
-                    seq[i+1] = buff
-                    swap_num += 1
+            elif case2 and case3:
+                info = str(seq[i]) + "\n" + str(seq[i + 1]) + "\n"
+                info += "Swap these two operator would generate "
+                info += "extra identity operator, which can not " 
+                info += "be processed by this function properly!"
+                raise SwapError(info)
 
     return seq, swap_num
 # }}}
@@ -246,6 +243,7 @@ class AoC(State):# {{{
     isConjugateOf(other)
     extract()
     samestate(other)
+    update(otype, site, spin, orbit)
 
     Inherit from Base class:
     __hash__()
@@ -267,10 +265,14 @@ class AoC(State):# {{{
         """
 
         State.__init__(self, site=site, spin=spin, orbit=orbit)
+
         if otype in (ANNIHILATION, CREATION):
             self.otype = otype
         else:
             raise ValueError("The invalid otype!")
+        
+        #The call to State.__init__() function would set tuplefrom attribute to
+        #instance of this class, but that's only partial of the final form.
 
         self.tupleform = (otype, ) + self.tupleform
     # }}}
@@ -288,10 +290,15 @@ class AoC(State):# {{{
     def dagger(self):# {{{
         """
         Return the Hermite conjugate of self.
+
+        Return:
+        -------
+        res: A new instance of this class.
         """
 
-        res = deepcopy(self)
-        res.otype = self.otype ^ CREATION
+        #1 ^ 1 = 0 and 0 ^ 1 = 1, xor with 1 flip the bit.
+        otype = self.otype ^ CREATION
+        res = AoC(otype=otype, site=self.site, spin=self.spin, orbit=self.orbit)
         return res
     # }}}
 
@@ -309,6 +316,10 @@ class AoC(State):# {{{
     def extract(self):# {{{
         """
         Extract the state information of this creation or annihilation operator.
+
+        Return:
+        -------
+        res: A new instance of State class.
         """
 
         return State(site=self.site, spin=self.spin, orbit=self.orbit)
@@ -325,9 +336,28 @@ class AoC(State):# {{{
         return self.extract() == other.extract()
     # }}}
 
-    def update(self, site):
-        aoc = AoC(otype=self.otype, site=site, spin=self.spin, orbit=self.orbit)
+    def update(self, otype=None, site=None, spin=None, orbit=None):# {{{
+        """
+        Create a new aoc with the same parameter as self except for those 
+        given to update method.
+
+        Return:
+        -------
+        res: A new instance of AoC.
+        """
+
+        if otype is None:
+            otype = self.otype
+        if site is None:
+            site = self.site
+        if spin is None:
+            spin = self.spin
+        if orbit is None:
+            orbit = self.orbit
+
+        aoc = AoC(otype=otype, site=site, spin=spin, orbit=orbit)
         return aoc
+    # }}}
 # }}}
 
 
@@ -360,6 +390,7 @@ class Optor:# {{{
     sameoptor(other)
     dagger()
     isSelfConjugate()
+    updatecoeff(coeff)
     """
 
     def __init__(self, aocs, coeff=1.0):# {{{
@@ -369,7 +400,7 @@ class Optor:# {{{
         Paramter:
         --------
         aocs: tuple or list
-            The creation and annihilation operators that cconsist of this operator.
+            The creation and annihilation operators that consist this operator.
         coeff: float, int or complex, optional
             The coefficient of the operator.
             default: 1.0
@@ -469,8 +500,15 @@ class Optor:# {{{
 
         return self.sameoptor(self.dagger())
     # }}}
-# }}}
 
+    def updatecoeff(self, coeff):# {{{
+        """
+        Update the coeff attribute of instance of this class.
+        """
+
+        self.coeff = coeff
+    # }}}
+# }}}
 
 class OptorWithIndex(Optor):# {{{
     """
@@ -491,3 +529,19 @@ class OptorWithIndex(Optor):# {{{
     def __call__(self):
         return (self.indices, self.coeff)
 # }}}
+
+
+if __name__ == "__main__":
+    sites = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    spins = (0, 1)
+    orbits = (0, 1)
+    otypes = (0, 1)
+    aocs = []
+    for otype in otypes:
+        for orbit in orbits:
+            for spin in spins:
+                for site in sites:
+                    aoc = AoC(otype=otype, site=site, spin=spin, orbit=orbit)
+                    print(aoc.tupleform)
+                    print("="*30)
+                    aocs.append(aoc)
