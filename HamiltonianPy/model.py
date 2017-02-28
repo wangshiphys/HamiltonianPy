@@ -275,18 +275,18 @@ class Model(ModelBasic):
             coeff = coeff_generator(optor, **coeff_dict)
             if coeff != 0.0:
                 if optor.isSelfConjugate():
-                    optor.coeff = coeff / 2.0
+                    optor.updatecoeff(coeff / 2.0)
                 else:
-                    optor.coeff = coeff
+                    optor.updatecoeff(coeff)
                 HTerms.append(optor)
         
         for optor in VOptors:
             coeff = coeff_generator(optor, **coeff_dict)
             if coeff != 0.0:
                 if optor.isSelfConjugate():
-                    optor.coeff = coeff / 2.0
+                    optor.updatecoeff(coeff / 2.0)
                 else:
-                    optor.coeff = coeff
+                    optor.updatecoeff(coeff)
                 VTerms.append(optor)
         
         self.HTerms = HTerms
@@ -309,8 +309,8 @@ class Model(ModelBasic):
             aoc0, aoc1 = term.aocs
             site0, dR0 = self.cluster.decompose(aoc0.site)
             site1, dR1 = self.cluster.decompose(aoc1.site)
-            new_aoc0 = aoc0.update(site0)
-            new_aoc1 = aoc1.update(site1)
+            new_aoc0 = aoc0.update(site=site0)
+            new_aoc1 = aoc1.update(site=site1)
             lindex0 = self.lAoCMap(new_aoc0)
             rindex1 = self.rAoCMap(new_aoc1)
             if self.numbu:
@@ -443,8 +443,8 @@ class Periodization:# {{{
         aoc = clusterMap(index)
         site = aoc.site
         eqv_site, dR = self.cell.decompose(site)
-        aoc.site = eqv_site
-        res = cellMap(aoc)
+        new_aoc = aoc.update(site=eqv_site)
+        res = cellMap(new_aoc)
         #if aoc.otype == ANNIHILATION:
         #    dR = -dR
         #if tag == 'R':
