@@ -6,7 +6,7 @@ import numpy as np
 
 from HamiltonianPy.constant  import CREATION, ANNIHILATION
 from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.optor import AoC, Optor, OptorWithIndex, State
+from HamiltonianPy.termofH import AoC, ParticleTerm, StateID
 
 __all__ = ['Model', 'ModelBasic', 'Periodization']
 
@@ -197,17 +197,24 @@ class Model(ModelBasic):
                 tag0 = (orbit0, spin0, site0)
                 tag1 = (orbit1, spin1, site1)
                 (C0, A0), (C1, A1) = self._AC_Generator(tag0, tag1)
+
+                #Generate all possible hopping term on this bond!
                 if tag == 'inter':
                     hopping = Optor((C0, A1))
-                else:
+                elif tag == 'intra':
                     hopping = OptorWithIndex((C0, A1), statemap=self.StateMap)
+                else:
+                    raise ValueError("The invalid tag!")
                 res.append(hopping)
 
+                #Generate all possible pairing term on this bond!
                 if self.numbu:
                     if tag == 'inter':
                         pair = Optor((A0, A1))
-                    else:
+                    elif tag == 'intra':
                         pair = OptorWithIndex((A0, A1), statemap=self.StateMap)
+                    else:
+                        raise ValueError("The invalid tag!")
                     res.append(pair)
         return res
     # }}}
@@ -224,7 +231,7 @@ class Model(ModelBasic):
                 tag0 = (orbit0, spin0, site)
                 tag1 = (orbit1, spin1, site)
                 (C0, A0), (C1, A1) = self._AC_Generator(tag0, tag1)
-                optor = OptorWithIndex((C0, A0, C1, A1), statemap=self.StateMap)
+                optor = OptorWithIndex((C0, C1, A1, A0), statemap=self.StateMap)
                 res.append(optor)
         return res
     # }}}
@@ -302,9 +309,10 @@ class Model(ModelBasic):
         col = []
         coeffs = []
         dRs = []
-        vterms = deepcopy(self.VTerms)
-        lv = len(vterms)
-        for term in vterms:
+        #vterms = deepcopy(self.VTerms)
+        #lv = len(vterms)
+        #for term in vterms:
+        for term in self.VTerms:
             coeff = term.coeff
             aoc0, aoc1 = term.aocs
             site0, dR0 = self.cluster.decompose(aoc0.site)

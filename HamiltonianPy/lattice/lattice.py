@@ -354,3 +354,14 @@ class Lattice:
                 break
         return result
     # }}}
+
+
+if __name__ == "__main__":
+    sites = np.array([range(10)]).T
+    tvs = np.array([[10]])
+    l = Lattice(sites, tvs)
+    intra, inter = l.bonds(1)
+    print(intra)
+    print("=" * 20)
+    print(inter)
+

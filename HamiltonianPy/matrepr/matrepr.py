@@ -1,13 +1,19 @@
+"""
+The module provide functions to calculate the matrix representation of creation
+and annihilation operator as well as Hamiltonian term(consist of creation and
+annihilation operators) in occupation number representation.
+"""
+
 from scipy.sparse import csr_matrix, identity
 
 import numpy as np
 
 from HamiltonianPy.matrepr import matreprcext as mrc
-from HamiltonianPy.matrepr.bisearch import bisearch
-from HamiltonianPy.constant import CREATION, ANNIHILATION
-from HamiltonianPy.optor import Optor
+from HamiltonianPy.constant import CREATION, ANNIHILATION, VIEW_AS_ZERO
+
 
 __all__ = ['termmatrix', 'aocmatrix']
+
 
 def hopping_F(term, base):# {{{
     """
@@ -19,8 +25,11 @@ def hopping_F(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The hopping term.
+    term: tuple
+        This parameter should be of this form ((cindex, aindex), coeff). The
+        cindex and aindex represent the indices of the states to create and
+        annihilate a particle respectively and the coeff is the coefficience of
+        this hopping term.
     base: tuple or list
         The base of the Hilbert.
 
@@ -30,27 +39,17 @@ def hopping_F(term, base):# {{{
         The matrix representation of the hopping term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (cindex, aindex), coeff = term()
-    revision = 0.0
-
-    if coeff == 0.0:
+    (cindex, aindex), coeff = term
+    if coeff <= VIEW_AS_ZERO:
         return 0.0
 
-    if term.otypes[1] == CREATION:
-        buff = cindex
-        cindex = aindex
-        aindex = buff
-        coeff = -coeff
-        if cindex == aindex:
-            revision = -coeff * identity(dim, format='csr')
-
-    row, col, elmts = mrc.hopping(cindex, aindex, base)
-    data = (elmts, (row, col))
-    res = revision + coeff * csr_matrix(data, shape=shape)
+    dim = len(base)
+    row, col, entries = mrc.hopping(cindex, aindex, base)
+    data = (entries, (row, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
+
 
 def hubbard_F(term, base):# {{{
     """
@@ -62,8 +61,10 @@ def hubbard_F(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The hubbard term.
+    term: tuple
+        This parameter should be of this form ((index0, index1), coeff). The
+        index0 and index1 represent the indices of the states of the two number
+        operator and the coeff is the coefficience of this hubbard term
     base: tuple or list
         The base of the Hilbert.
 
@@ -73,18 +74,17 @@ def hubbard_F(term, base):# {{{
         The matrix representation of the hubbard term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (cindex0, aindex0, cindex1, aindex1), coeff = term()
-
-    if coeff == 0.0:
+    (index0, index1), coeff = term
+    if coeff <= VIEW_AS_ZERO:
         return 0.0
-
-    row, col, elmts = mrc.hubbard(cindex0, cindex1, base)
-    data = (elmts, (col, col))
-    res = coeff * csr_matrix(data, shape=shape)
+    
+    dim = len(base)
+    row, col, entries = mrc.hubbard(index0, index1, base)
+    data = (entries, (col, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
+
 
 def pairing_F(term, base):# {{{
     """
@@ -96,8 +96,11 @@ def pairing_F(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The pairing term.
+    term: tuple
+        This parameter should be of this form ((index0, index1), coeff, otype).
+        The index0 and index1 represent the indices of the two pairing states, 
+        the coeff is the coefficience of this pairing term and otype is the
+        type of the pairing operator.
     base: tuple or list
         The base of the Hilbert.
 
@@ -107,19 +110,17 @@ def pairing_F(term, base):# {{{
         The matrix representation of the pairing term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (index0, index1), coeff = term()
-    otype = term.otypes[0]
-
-    if coeff == 0.0 or index0 == index1:
+    (index0, index1), coeff, otype = term
+    if coeff <= VIEW_AS_ZERO or index0 == index1:
         return 0.0
 
-    row, col, elmts = mrc.pairing(index0, index1, otype, base)
-    data = (elmts, (row, col))
-    res = coeff * csr_matrix(data, shape=shape)
+    dim = len(base)
+    row, col, entries = mrc.pairing(index0, index1, otype, base)
+    data = (entries, (row, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
+
 
 def general(term, base):# {{{
     """
@@ -128,7 +129,7 @@ def general(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
+    term: tuple
         A general term.
     base: tuple
         The base of the Hilbert.
@@ -142,6 +143,7 @@ def general(term, base):# {{{
     raise NotImplementedError("The function has not been implemented!")
 # }}}
 
+
 def hopping_B(term, base):# {{{
     """
     Calculate the matrix representation of the hopping term in the Hilbert
@@ -152,8 +154,11 @@ def hopping_B(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The hopping term.
+    term: tuple
+        This parameter should be of this form ((cindex, aindex), coeff). The
+        cindex and aindex represent the indices of the states to create and
+        annihilate a particle respectively and the coeff is the coefficience of
+        this hopping term.
     base: np.ndarray
         The base of the Hilbert.
 
@@ -163,21 +168,11 @@ def hopping_B(term, base):# {{{
         The matrix representation of the hopping term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (cindex, aindex), coeff = term()
-    revision = 0.0
-
-    if coeff == 0.0:
+    (cindex, aindex), coeff = term
+    if coeff <= VIEW_AS_ZERO:
         return 0.0
 
-    if term.otypes[1] == CREATION:
-        buff = cindex
-        cindex = aindex
-        aindex = buff
-        if cindex == aindex:
-            revision = coeff * identity(dim, format='csr')
-
+    dim = len(base)
     slct_p = np.bitwise_and(base, 1<<aindex) != 0
     if cindex == aindex:
         col = np.where(slct_p == True)[0]
@@ -187,13 +182,16 @@ def hopping_B(term, base):# {{{
         slct_ket = np.logical_and(slct_p, slct_h)
         col = np.where(slct_ket == True)[0]
         kets = base[slct_ket] + (1<<cindex) - (1<<aindex)
-        row = bisearch(list(kets), list(base))
+        row = np.searchsorted(base, kets)
+        if (np.any(row >= dim)) or (np.any(base[row] != kets)):
+            raise ValueError("There must be some kets not found in the base!")
  
-    elmts = np.ones((len(col),), dtype=np.int64)
-    data = (elmts, (row, col))
-    res = revision + coeff * csr_matrix(data, shape=shape)
+    entries = np.ones((len(col),), dtype=np.int64)
+    data = (entries, (row, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
+
 
 def hubbard_B(term, base):# {{{
     """
@@ -205,8 +203,10 @@ def hubbard_B(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The hubbard term.
+    term: tuple
+        This parameter should be of this form ((index0, index1), coeff). The
+        index0 and index1 represent the indices of the states of the two number
+        operator and the coeff is the coefficience of this hubbard term.
     base: np.ndarray
         The base of the Hilbert.
 
@@ -216,26 +216,25 @@ def hubbard_B(term, base):# {{{
         The matrix representation of the hubbard term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (cindex0, aindex0, cindex1, aindex1), coeff = term()
-
-    if coeff == 0.0:
+    (index0, index1), coeff = term
+    if coeff <= VIEW_AS_ZERO:
         return 0.0
 
-    slct_p0 = np.bitwise_and(base, 1<<aindex0) != 0
-    if aindex0 == aindex1:
+    dim = len(base)
+    slct_p0 = np.bitwise_and(base, 1<<index0) != 0
+    if index0 == index1:
         col = np.where(slct_p0 == True)[0]
     else:
-        slct_p1 = np.bitwise_and(base, 1<<aindex1) != 0
+        slct_p1 = np.bitwise_and(base, 1<<index1) != 0
         slct_ket = np.logical_and(slct_p0, slct_p1)
         col = np.where(slct_ket ==True)[0]
 
-    elmts = np.ones((len(col),), dtype=np.int64)
-    data = (elmts, (col, col))
-    res = coeff * csr_matrix(data, shape=shape)
+    entries = np.ones((len(col),), dtype=np.int64)
+    data = (entries, (col, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
+
 
 def pairing_B(term, base):# {{{
     """
@@ -247,8 +246,11 @@ def pairing_B(term, base):# {{{
 
     Parameter:
     ----------
-    term: Optor
-        The pairing term.
+    term: tuple
+        This parameter should be of this form ((index0, index1), coeff, otype).
+        The index0 and index1 represent the indices of the two pairing states, 
+        the coeff is the coefficience of this pairing term and otype is the
+        type of the pairing operator.
     base: np.ndarray
         The base of the Hilbert.
 
@@ -258,14 +260,11 @@ def pairing_B(term, base):# {{{
         The matrix representation of the pairing term.
     """
 
-    dim = len(base)
-    shape = (dim, dim)
-    (index0, index1), coeff = term()
-    otype = term.otypes[0]
-
-    if coeff == 0.0 or index0 == index1:
+    (index0, index1), coeff, otype = term
+    if coeff <= VIEW_AS_ZERO or index0 == index1:
         return 0.0
 
+    dim = len(base)
     if otype == CREATION:
         slct0 = np.bitwise_and(base, 1<<index0) == 0
         slct1 = np.bitwise_and(base, 1<<index1) == 0
@@ -278,13 +277,18 @@ def pairing_B(term, base):# {{{
     slct_ket = np.logical_and(slct0, slct1)
     col = np.where(slct_ket == True)[0]
     kets = base[slct_ket] + buff * ((1<<index0) + (1<<index1))
-    row = bisearch(list(kets), list(base))
-    data = (elmts, (row, col))
-    res = coeff * csr_matrix(data, shape=shape)
+    row = np.searchsorted(base, kets)
+    if (np.any(row >= dim)) or (np.any(base[row] != kets)):
+        raise ValueError("There must be some kets not found in the base!")
+ 
+    entries = np.ones((len(col),), dtype=np.int64)
+    data = (entries, (row, col))
+    res = coeff * csr_matrix(data, shape=(dim, dim))
     return res
 # }}}
 
-def aocmatrix_F(index, otype, lbase, rbase=None):# {{{
+
+def aocmatrix_F(index, otype, rbase, lbase=None):# {{{
     """
     Calculate the matrix representation of a creation or annihilation operator
     between the Hilbert space specified by the lbase and rbase parameter!
@@ -299,11 +303,11 @@ def aocmatrix_F(index, otype, lbase, rbase=None):# {{{
     otype: int
         The type of the operator, 1 represents creation and 0 represents
         annihilation.
-    lbase: tuple or list
-        The base of the Hilbert space after the operation.
-    rbase: tuple or list, optional
+    rbase: tuple or list
         The base of the Hilbert space before the operation.
-        If not given or None, rbase is the same as lbase.
+    lbase: tuple or list, optional
+        The base of the Hilbert space after the operation.
+        If not given or None, lbase is the same as rbase.
         default: None
 
     Return:
@@ -315,20 +319,20 @@ def aocmatrix_F(index, otype, lbase, rbase=None):# {{{
     if not isinstance(index, int):
         raise TypeError("The input index is not of type int!")
 
-    if rbase is None:
-        rbase = lbase
+    if lbase is None:
+        lbase = rbase
 
     ldim = len(lbase)
     rdim = len(rbase)
-    shape = (ldim, rdim)
 
-    row, col, elmts = mrc.aoc(index, otype, lbase, rbase) 
-    data = (elmts, (row, col))
-    res = csr_matrix(data, shape=shape)
+    row, col, entries = mrc.aoc(index, otype, lbase, rbase) 
+    data = (entries, (row, col))
+    res = csr_matrix(data, shape=(ldim, rdim))
     return res
 # }}}
 
-def aocmatrix_B(index, otype, lbase, rbase=None):# {{{
+
+def aocmatrix_B(index, otype, rbase, lbase=None):# {{{
     """
     Calculate the matrix representation of a creation or annihilation operator
     between the Hilbert space specified by the lbase and rbase parameter!
@@ -343,11 +347,11 @@ def aocmatrix_B(index, otype, lbase, rbase=None):# {{{
     otype: int
         The type of the operator, 1 represents creation and 0 represents
         annihilation.
-    lbase: np.ndarray
-        The base of the Hilbert space after the operation.
-    rbase: np.ndarray, optional
+    rbase: np.ndarray
         The base of the Hilbert space before the operation.
-        If not given or None, rbase is the same as lbase.
+    lbase: np.ndarray, optional
+        The base of the Hilbert space after the operation.
+        If not given or None, lbase is the same as rbase.
         default: None
 
     Return:
@@ -359,12 +363,11 @@ def aocmatrix_B(index, otype, lbase, rbase=None):# {{{
     if not isinstance(index, int):
         raise TypeError("The input index is not of type int!")
 
-    if rbase is None:
-        rbase = lbase
+    if lbase is None:
+        lbase = rbase
 
     ldim = len(lbase)
     rdim = len(rbase)
-    shape = (ldim, rdim)
 
     if otype == CREATION:
         slct = np.bitwise_and(rbase, 1<<index) == 0
@@ -377,24 +380,31 @@ def aocmatrix_B(index, otype, lbase, rbase=None):# {{{
 
     col = np.where(slct == True)[0]
     kets = rbase[slct] + buff * (1<<index)
-    row = bisearch(list(kets), list(lbase))
-    elmts = np.ones((len(col),), dtype=np.int64)
-    data = (elmts, (row, col))
-    res = csr_matrix(data, shape=shape)
+    row = np.searchsorted(lbase, kets)
+    if (np.any(row >= ldim)) or (np.any(lbase[row] != kets)):
+        raise ValueError("There must be some kets not found in the lbase!")
+
+    entires = np.ones((len(col),), dtype=np.int64)
+    data = (entries, (row, col))
+    res = csr_matrix(data, shape=(ldim, rdim))
     return res
 # }}}
 
-def termmatrix(term, base, statistics="F"):# {{{
+
+def termmatrix(term, base, termtype,  statistics='F'):# {{{
     """
     Calculate the matrix representation of a general term in the Hilbert
     space specified by the base parameter!
 
     Parameter:
     ----------
-    term: Optor
+    term: tuple
         A general term.
     base: tuple or list or np.ndarray
         The base of the Hilbert.
+    termtype: str
+        A string that tells whether the term is a hopping, pairing, hubbard or
+        other kind of term.
     statistics: string, optional
         The kind of statistics rule the system obey. This parameter can be 
         only "F" or "B", which represent Fermi and Bose statistics respectively.
@@ -406,13 +416,16 @@ def termmatrix(term, base, statistics="F"):# {{{
         The matrix representation of a general term.
     """
 
-    if statistics == "F":
+    if not isinstance(term, tuple):
+        raise TypeError("The input term is not a tuple!")
+
+    if statistics in ('f', 'F'):
         if not isinstance(base, (tuple, list)):
             raise TypeError("The base parameter is not of type tuple or list!")
         hopping = hopping_F
         hubbard = hubbard_F
         pairing = pairing_F
-    elif statistics == "B":
+    elif statistics in ('b', 'B'):
         if not isinstance(base, np.ndarray):
             raise TypeError("The base parameter is not of type np.ndarray!")
         hopping = hopping_B
@@ -421,20 +434,19 @@ def termmatrix(term, base, statistics="F"):# {{{
     else:
         raise ValueError("The invalid statistics parameter!")
 
-    if not isinstance(term, Optor):
-        raise TypeError("The input term is not instance of Optor!")
-    elif term.ishopping():
+    if termtype.lower() == "hopping":
         res = hopping(term, base)
-    elif term.ishubbard():
+    elif termtype.lower() == "hubbard":
         res = hubbard(term, base)
-    elif term.ispairing():
+    elif termtype.lower() == "pairing":
         res = pairing(term, base)
     else:
         res = general(term, base)
     return res
 # }}}
 
-def aocmatrix(index, otype, lbase, rbase=None, statistics="F"):# {{{
+
+def aocmatrix(index, otype, rbase, lbase=None, statistics="F"):# {{{
     """
     Calculate the matrix representation of a creation or annihilation operator
     between the Hilbert space specified by the lbase and rbase parameter!
@@ -449,11 +461,11 @@ def aocmatrix(index, otype, lbase, rbase=None, statistics="F"):# {{{
     otype: int
         The type of the operator, 1 represents creation and 0 represents
         annihilation.
-    lbase: np.ndarray or tuple or list
-        The base of the Hilbert space after the operation.
-    rbase: np.ndarray or tuple or list, optional
+    rbase: tuple or list
         The base of the Hilbert space before the operation.
-        If not given or None, rbase is the same as lbase.
+    lbase: tuple or list, optional
+        The base of the Hilbert space after the operation.
+        If not given or None, lbase is the same as rbase.
         default: None
     statistics: string, optional
         The kind of statistics rule the system obey. This parameter can be 
@@ -466,25 +478,25 @@ def aocmatrix(index, otype, lbase, rbase=None, statistics="F"):# {{{
         The matrix representation of the operator.
     """
 
-    if statistics == "F":
-        if not isinstance(lbase, (tuple, list)):
-            raise TypeError("The lbase parameter is not of type tuple or list!")
-        if rbase is not None:
-            if not isinstance(rbase, (tuple, list)):
-                raise TypeError("The rbase parameter is "
+    if statistics in ('f', 'F'):
+        if not isinstance(rbase, (tuple, list)):
+            raise TypeError("The rbase parameter is not of type tuple or list!")
+        if lbase is not None:
+            if not isinstance(lbase, (tuple, list)):
+                raise TypeError("The lbase parameter is "
                                 "not of type tuple or list!")
         func = aocmatrix_F
-    elif statistics == "B":
-        if not isinstance(lbase, np.ndarray):
-            raise TypeError("The lbase parameter is not of type np.ndarray")
-        if rbase is not None:
-            if not isinstance(rbase, np.ndarray):
-                raise TypeError("The rbase parameter is "
+    elif statistics in ('b', 'B'):
+        if not isinstance(rbase, np.ndarray):
+            raise TypeError("The rbase parameter is not of type np.ndarray")
+        if lbase is not None:
+            if not isinstance(lbase, np.ndarray):
+                raise TypeError("The lbase parameter is "
                                 "not of type np.ndarray!")
         func = aocmatrix_B
     else:
         raise ValueError("The invalid statistics parameter!")
 
-    res = func(index, otype, lbase, rbase)
+    res = func(index, otype, rbase, lbase)
     return res
 # }}}

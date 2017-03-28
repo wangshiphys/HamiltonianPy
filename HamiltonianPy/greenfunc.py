@@ -8,17 +8,16 @@ import numpy as np
 from HamiltonianPy.constant import CREATION, ANNIHILATION
 from HamiltonianPy.lanczos import Lanczos
 from HamiltonianPy.matrepr.base import base_table
-from HamiltonianPy.matrepr.matrepr import aocmatrix, termmatrix
 
-__all__ = ['GFED']
 
-class GFED_ABC:# {{{
+class GFEDABC_P:# {{{
     """
-    This class provide the method to calculate the cluster Green Function.
+    This class provide the method to calculate the cluster Green Function with
+    particle form Hamiltonian.
 
     Attribute:
     ----------
-    Hterms: list
+    HTerms: list
         A collection of all Hamiltonian terms
     lAoCs: list
         All concerned creation and/or annihilation operators. This is the
@@ -33,53 +32,45 @@ class GFED_ABC:# {{{
         collections all operators in right side of the matrix representation of
         Green function. All operators in this collection is the Hermit conjugate
         of the corresponding operator in lAoCs.
-    StateMap: IndexMap
-        A map from all the single particle state to integer number.
-    lAoCMap: IndexMap
-        A map from all operators in lAoCs to integer number.
-    rAoCMap: IndexMap
-        A map from all operators in rAoCs to integer number.
+    objMaps: dict
+        The keys of this dict should be string such as "sitemap", "statemap",
+        "lAoCMap", "rAoCMap", etc,. The value corresponding to these keys are
+        instance of IndexMap class.
     dof: int
         Total degree of freedom of the system.
     statistics: string, optional
         The statistics rule the system obey. This attribute can be only "F" or 
         "B", which represents Fermi and Bose statistics respectively.
 
-    Special Method:
-    --------------
-    __init__(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap, dof)
-    setHamiltonian()
-    setgs()
-    setprojection()
-    setall()
-    __call__(omega)
-    
     Method:
     -------
-    _excitation(aocs, lbase, rbase)
-    _gf_term(A, B, omega)
-    gf(omega)
-
+    Special Method:
+        __init__(HTerms, lAoCs, rAoCs, objMaps, dof, statistics='F')
+        setHamiltonian()
+        setGS()
+        setProjection()
+        setAll()
+        __call__(omega)
+    General Method:
+        excitation(aocs, rbase, lbase)
+        gf(omega)
+    Pseudo-private Method:
+        _GFTerm(A, B, omega)
     Static Method:
-    --------------
-    _inverse(omega, H, E0, tag='normal')
+        _inverse(omega, H, E0, tag='normal')
     """
 
-    def __init__(self, Hterms, lAoCs, rAoCs, StateMap, 
-                 lAoCMap, rAoCMap, dof, statistics="F"):
-    # {{{
+    def __init__(self, HTerms, lAoCs, rAoCs, objMaps, dof, statistics="F"):# {{{
         """
         Initialize instance of this class.
         
         See also the document of this class.
         """
 
-        self.Hterms = Hterms
+        self.HTerms = HTerms
         self.lAoCs = lAoCs
         self.rAoCs = rAoCs
-        self.StateMap = StateMap
-        self.lAoCMap = lAoCMap
-        self.rAoCMap = rAoCMap
+        self.objMaps = objMaps
         self.dof = dof
         self.statistics = statistics
     # }}}
@@ -89,12 +80,14 @@ class GFED_ABC:# {{{
         Calculate the Hamiltonian matrix of the cluster.
 
         Must be overloaded by subclass method.
+        If numbu representation is used, this method should set only one
+        attribute: H, else this method should set three attributes: H, Hp, Hh
         """
 
         raise NotImplementedError
     # }}}
 
-    def setgs(self):# {{{
+    def setGS(self):# {{{
         """
         Calculate the ground state and ground state energy of the Hamiltonian!
         """
@@ -109,7 +102,7 @@ class GFED_ABC:# {{{
         print('=' * len(info))
     # }}}
 
-    def setprojection(self):# {{{
+    def setProjection(self):# {{{
         """
         Project the Hamiltonian matrix and ground state to the Krylov space.
         """
@@ -117,29 +110,28 @@ class GFED_ABC:# {{{
         raise NotImplementedError
     # }}}
 
-    def setall(self):# {{{
+    def setAll(self):# {{{
         """
-        Set all attribute needed!
+        Set all attributes needed!
         """
 
         self.setHamiltonian()
-        self.setgs()
-        self.setprojection()
+        self.setGS()
+        self.setProjection()
     # }}}
 
-    def _excitation(self, aocs, lbase, rbase):# {{{
+    def excitation(self, aocs, rbase, lbase=None):# {{{
         """
         Calculate the excitation state from the ground state.
         """
 
         t0 = time()
         res = OrderedDict()
+        statemap = self.objMaps["statemap"]
+        ket = self.GS
         for aoc in aocs:
-            otype = aoc.otype
-            index = self.StateMap(aoc.extract())
-            M = aocmatrix(index=index, otype=otype, lbase=lbase, 
-                          rbase=rbase, statistics=self.statistics)
-            res[aoc] = M.dot(self.GS)
+            M = aoc.matrixRepr(statemap=statemap, rbase=rbase, lbase=lbase)
+            res[aoc] = M.dot(ket)
         t1 = time()
         info = "The time spend of excitation {0:.2f}.".format(t1 - t0)
         print(info)
@@ -187,13 +179,13 @@ class GFED_ABC:# {{{
         dim = H.shape[0]
         I = np.identity(dim, dtype=np.float64)
         matrix = omega * I + coeff * (H - E0 * I)
-        vec = np.zeros((dim, 1), dtype=np.complex128)
+        vec = np.zeros((dim, 1), dtype=np.float64)
         vec[0] = 1.0
         res = solve(matrix, vec)
         return res
     # }}}
     
-    def _gf_term(self, A, B, omega):# {{{
+    def _GFTerm(self, A, B, omega):# {{{
         """
         Calculate a specific green function G_AB = <{A(omega), B}>.
         """
@@ -218,17 +210,19 @@ class GFED_ABC:# {{{
         rdim = len(self.rAoCs)
         shape = (ldim, rdim)
         res = np.zeros(shape, dtype=np.complex128)
+        lAoCMap = self.objMaps['lAoCMap']
+        rAoCMap = self.objMaps['rAoCMap']
         for laoc in self.lAoCs:
-            row = self.lAoCMap(laoc)
+            row = laoc.getIndex(lAoCMap)
             for raoc in self.rAoCs:
-                col = self.rAoCMap(raoc)
-                res[row, col] = self._gf_term(A=raoc, B=laoc, omega=omega)
+                col = raoc.getIndex(rAoCMap)
+                res[row, col] = self._GFTerm(A=raoc, B=laoc, omega=omega)
         return res
     # }}}
 
     def __call__(self, omega):# {{{
         """
-        Make instance of this clas callable.
+        Make instance of this clasallable.
         """
 
         return self.gf(omega)
@@ -236,21 +230,22 @@ class GFED_ABC:# {{{
 # }}}
 
 
-class GFED_Numbu(GFED_ABC):# {{{
+class GFEDNumbu(GFEDABC_P):# {{{
     """
-    See also document of GFED_ABC class.
+    See also document of GFEDABC_P class.
     """
 
     def setHamiltonian(self):# {{{
         """
-        See also document of GFED_ABC class.
+        See also document of GFEDABC_P class.
         """
 
         t0 = time()
         H = 0.0
         base = base_table(self.dof)
-        for term in self.Hterms:
-            H += termmatrix(term, base)
+        statemap = self.objMaps["statemap"]
+        for term in self.HTerms:
+            H += term.matrixRepr(statemap=statemap, base=base)
         H += H.conjugate().transpose()
         self.H = H
         t1 = time()
@@ -259,9 +254,9 @@ class GFED_Numbu(GFED_ABC):# {{{
         print('=' * len(info))
     # }}}
 
-    def setprojection(self):# {{{
+    def setProjection(self):# {{{
         base = base_table(self.dof)
-        excitation = self._excitation(aocs=self.rAoCs, lbase=base, rbase=base)
+        excitation = self.excitation(aocs=self.rAoCs, rbase=base, lbase=base)
         lanczosH = Lanczos(self.H)
 
         t0 = time()
@@ -274,19 +269,18 @@ class GFED_Numbu(GFED_ABC):# {{{
 # }}}
 
 
-class GFED_NotNumbu(GFED_ABC):# {{{
+class GFEDNotNumbu(GFEDABC_P):# {{{
     """
-    See also the document of the GFED_ABC class.
+    See also the document of the GFEDABC_P class.
     """
 
-    def __init__(self, Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap, 
-                 dof, occupy=None):# {{{
+    def __init__(self, HTerms, lAoCs, rAoCs, objMaps, dof, 
+                 statistics='F', occupy=None):# {{{
         if not(isinstance(occupy, int) or (occupy is None)):
             raise TypeError("The invalid occupy parameter!")
 
         self.occupy = occupy
-        GFED_ABC.__init__(self, Hterms, lAoCs, rAoCs,
-                          StateMap, lAoCMap, rAoCMap, dof)
+        GFEDABC_P.__init__(self, HTerms, lAoCs, rAoCs, objMaps, dof, statistics)
     # }}}
 
     def _base(self):# {{{
@@ -309,17 +303,18 @@ class GFED_NotNumbu(GFED_ABC):# {{{
         Hp = 0.0
         Hh = 0.0
         basep, base, baseh = self._base()
+        statemap = self.objMaps["statemap"]
         
         if self.occupy is None:
-            for term in self.Hterms:
-                H += termmatrix(term, base)
+            for term in self.HTerms:
+                H += term.matrixRepr(statemap=statemap, base=base)
             H += H.conjugate().transpose()
             Hp = Hh = H
         else:
-            for term in self.Hterms:
-                H += termmatrix(term, base)
-                Hp += termmatrix(term, basep)
-                Hh += termmatrix(term, baseh)
+            for term in self.HTerms:
+                H += term.matrixRepr(statemap=statemap, base=base)
+                Hp += term.matrixRepr(statemap=statemap, base=basep)
+                Hh += term.matrixRepr(statemap=statemap, base=baseh)
             H += H.conjugate().transpose()
             Hp += Hp.conjugate().transpose()
             Hh += Hh.conjugate().transpose()
@@ -329,12 +324,12 @@ class GFED_NotNumbu(GFED_ABC):# {{{
         self.Hh = Hh
     # }}}
 
-    def setprojection(self):# {{{
+    def setProjection(self):# {{{
         As = self.rAoCs
         Cs = self.lAoCs
         basep, base, baseh = self._base()
-        h_excitation = self._excitation(aocs=As, lbase=baseh, rbase=base)
-        p_excitation = self._excitation(aocs=Cs, lbase=basep, rbase=base)
+        h_excitation = self.excitation(aocs=As, lbase=baseh, rbase=base)
+        p_excitation = self.excitation(aocs=Cs, lbase=basep, rbase=base)
         lanczosHp = Lanczos(self.Hp)
         lanczosHh = Lanczos(self.Hh)
 
@@ -353,8 +348,8 @@ class GFED_NotNumbu(GFED_ABC):# {{{
 # }}}
 
 
-def GFED(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap, 
-         dof, occupy=None,numbu=False):# {{{
+def ParticleGF(HTerms, lAoCs, rAoCs, objMaps, dof, 
+               statistics='F', occupy=None, numbu=False):# {{{
     """
     Return corresponding Green function instance according the input paramter.
 
@@ -375,7 +370,7 @@ def GFED(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap,
         collections all operators in right side of the matrix representation of
         Green function. All operators in this collection is the Hermit conjugate
         of the corresponding operator in lAoCs.
-    StateMap: IndexMap
+    stateMap: IndexMap
         A map from all the single particle state to integer number.
     lAoCMap: IndexMap
         A map from all operators in lAoCs to integer number.
@@ -392,15 +387,18 @@ def GFED(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap,
 
     Return:
     -------
-    res: GFED_Numbut or GFED_NotNumbu
+    res: GFEDNumbu or GFEDNotNumbu
     """
 
     if numbu:
-        gf = GFED_Numbu(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap, dof)
+        gf = GFEDNumbu(HTerms, lAoCs, rAoCs, objMaps, dof, statistics)
     else:
-        gf = GFED_NotNumbu(Hterms, lAoCs, rAoCs, StateMap, lAoCMap, rAoCMap,
-                           dof, occupy)
+        gf = GFEDNotNumbu(HTerms, lAoCs, rAoCs, objMaps, dof, statistics, occupy)
 
-    gf.setall()
+    gf.setAll()
     return gf
 # }}}
+
+
+def SpinGF():
+    pass

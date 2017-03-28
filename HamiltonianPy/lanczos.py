@@ -30,7 +30,7 @@ class Lanczos:# {{{
     dim: int
         The dimension of the csr_matrix.
     step: int
-        The number of lanczos iteration (stopping critertion).
+        The maximum number of lanczos iteration (stopping critertion).
     tol: float
         Relative accuracy for eigenvalues (stopping criterion).
     v0: ndarray, optional
@@ -112,6 +112,7 @@ class Lanczos:# {{{
         for i in range(self.dim):
             v_new -= c1 * v
             v_new -= v_old
+            #The v_old is not needed anymore, delete it to save memory!
             del v_old
             c0 = norm(v_new)
             if c0 < VIEW_AS_ZERO:
@@ -230,6 +231,7 @@ class Lanczos:# {{{
         for i in range(1, self.step):
             v_new -= c1 * v
             v_new -= v_old
+            #The v_old is not needed anymore, delete it to save memory!
             del v_old
             c0 = norm(v_new)
             if c0 < VIEW_AS_ZERO:

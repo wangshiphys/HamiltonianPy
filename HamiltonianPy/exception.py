@@ -29,12 +29,20 @@ class ConvergenceError(SelfDefinedError):# {{{
     pass
 # }}}
 
-class SwapError(SelfDefinedError):# {{{
+class SwapError(Exception):# {{{
     """
     Exceptions raised when swap creation and annihilation operator that with
     the same single particle state.
     """
-    pass
+    def __init__(self, aoc0, aoc1):
+        self.aoc0 = aoc0
+        self.aoc1 = aoc1
+
+    def __str__(self):
+        info = str(self.aoc0) + "\n" + str(self.aoc1) + "\n"
+        info += "Swap these two operators would generate extra "
+        info += "identity operator, which can not be processed properly."
+        return info
 # }}}
 
 #This is a test!

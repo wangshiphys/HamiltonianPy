@@ -40,7 +40,7 @@ class IndexMap:
         Paramter:
         ---------
         objs:
-            The objects which are asked construct a map.
+            The objects which are asked to construct a map.
         """
 
         obj2index_table = OrderedDict()
@@ -48,7 +48,7 @@ class IndexMap:
         obj_type = objs[0].__class__
         for index, obj in enumerate(objs):
             if not isinstance(obj, obj_type):
-                raise TypeError("The input objs are not all of the came type!")
+                raise TypeError("The input objs are not all of the same type!")
             hash(obj)
             obj2index_table[deepcopy(obj)] = index
             index2obj_table.append(deepcopy(obj))
