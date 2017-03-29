@@ -9,6 +9,8 @@ __all__ = ['Bond']
 #Useful constant in the module
 INDENT = 6
 PRECISION = 4
+ALTER = 1000
+FLOAT_TYPE = [np.float64, np.float32]
 ##############################
 
 class Bond:
@@ -76,7 +78,23 @@ class Bond:
         self.end = end
     # }}}
 
-    def setdistance(self):# {{{
+    def getStart(self):# {{{
+        """
+        Access the start attribute of instance of this class.
+        """
+
+        return np.array(self.start[:])
+    # }}}
+
+    def getEnd(self):# {{{
+        """
+        Access the end attribute of instance of this class.
+        """
+
+        return np.array(self.end[:])
+    # }}}
+
+    def setDistance(self):# {{{
         """
         Set the distance attribute.
         """
@@ -85,7 +103,7 @@ class Bond:
         self.distance = np.round(distance, decimals=PRECISION)
     # }}}
 
-    def setdisplace(self):# {{{
+    def setDisplace(self):# {{{
         """
         Set the displace attribute.
         """
@@ -94,7 +112,7 @@ class Bond:
         self.displace = np.round(displace, decimals=PRECISION)
     # }}}
 
-    def setazimuth(self, tag='degree'):# {{{
+    def setAzimuth(self, tag='degree'):# {{{
         """
         Set the theta and phi attribute.
 
@@ -125,7 +143,7 @@ class Bond:
             self.phi = np.round(np.arctan2(y, x) * trans, decimals=PRECISION)
     # }}}
 
-    def setall(self, tag='degree'):# {{{
+    def setAll(self, tag='degree'):# {{{
         """
         Set all the attributes of the instance of this class!
 
@@ -134,9 +152,9 @@ class Bond:
             Default: degree.
         """
 
-        self.setdistance()
-        self.setdisplace()
-        self.setazimuth(tag=tag)
+        self.setDistance()
+        self.setDisplace()
+        self.setAzimuth(tag=tag)
     # }}}
 
     def __str__(self):# {{{
@@ -144,7 +162,7 @@ class Bond:
         Return the print string of instance of this class.
         """
 
-        self.setall()
+        self.setAll()
         prefix = "\n" + " " * INDENT
         info = prefix + "Space dimension: {0}".format(self.dim)
         info += prefix + "start: " + arrayformat(self.start)
@@ -155,6 +173,52 @@ class Bond:
         return info
     # }}}
 
+    def __hash__(self):# {{{
+        """
+        Return the hash value of instance of this class.
+        """
+
+        if self.start.dtype in FLOAT_TYPE:
+            tmp0 = np.trunc(self.start * ALTER) / ALTER
+        else:
+            tmp0 = self.start
+        if self.end.dtype in FLOAT_TYPE:
+            tmp1 = np.trunc(self.end * ALTER) / ALTER
+        else:
+            tmp1 = self.end
+
+        tmp = tuple(tmp0) + tuple(tmp1)
+        return hash(tmp)
+    # }}}
+
+    def __eq__(self, other):# {{{
+        """
+        Define the == operator between two instance of this class.
+        """
+        if isinstance(other, self.__class__):
+            return self.__hash__() == other.__hash__()
+        else:
+            raise TypeError("The right operand is not instance of Bond class.")
+    # }}}
+    
+    def opposite(self):# {{{
+        """
+        Return the a bond that is opposite to self.
+        """
+
+        return Bond(start=self.getEnd(), end=self.getStart())
+    # }}}
+
+    def oppositeTo(self, other):# {{{
+        """
+        Return whether the self bond is opposite to the other bond.
+        """
+
+        if isinstance(other, self.__class__):
+            return self.opposite().__eq__(other)
+        else:
+            raise TypeError("The other parameter is not instance of Bond class.")
+    # }}}
 
 #This is a test!
 if __name__ == "__main__":

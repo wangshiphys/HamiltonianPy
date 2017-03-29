@@ -4,18 +4,18 @@ HamiltonianPy setup file, used to install HamiltonianPy.
 
 from setuptools import Extension, find_packages, setup
 
-cext_path = 'HamiltonianPy/matrepr/extension/cext/'
+cext_path = 'HamiltonianPy/extpkg/cext/'
 src_path = cext_path + 'src/'
 include_path = cext_path + 'include/'
-parent_pkg = 'HamiltonianPy.matrepr.'
+parent_pkg = 'HamiltonianPy.extpkg.'
 
 compile_option = ['-fopenmp']
 link_option = ['-lgomp']
 #compile_option = None
 #link_option = None
 
-src1=[src_path + 'bisearch.c', src_path + 'numof1.c', src_path + 'repr.c', 
-      src_path + 'convert.c', src_path + 'reprmod.c']
+cfiles=['bisearch.c', 'numof1.c', 'repr.c', 'convert.c', 'reprmod.c']
+src1=[src_path + cfile for cfile in cfiles]
 ext1 = Extension(name=parent_pkg + 'matreprcext',
                 sources=src1,
                 depends=src1,
@@ -24,8 +24,8 @@ ext1 = Extension(name=parent_pkg + 'matreprcext',
                 extra_link_args = link_option,
                 )
 
-src2=[src_path + 'bisearch.c', src_path + 'convert.c', 
-      src_path + 'bisearchmod.c']
+cfiles=['bisearch.c', 'convert.c', 'bisearchmod.c']
+src2=[src_path + cfile for cfile in cfiles]
 ext2 = Extension(name=parent_pkg + 'bisearch',
                 sources=src2,
                 depends=src2,
@@ -34,7 +34,8 @@ ext2 = Extension(name=parent_pkg + 'bisearch',
                 extra_link_args = link_option,
                 )
 
-src3=[src_path + 'numof1.c', src_path + 'convert.c', src_path + 'numof1mod.c']
+cfiles=['numof1.c', 'convert.c', 'numof1mod.c']
+src3=[src_path + cfile for cfile in cfiles]
 ext3 = Extension(name=parent_pkg + 'numof1',
                 sources=src3,
                 depends=src3,
@@ -43,7 +44,8 @@ ext3 = Extension(name=parent_pkg + 'numof1',
                 extra_link_args = link_option,
                 )
 
-src4=[src_path + 'convert.c', src_path + 'bitselectmod.c']
+cfiles=['convert.c', 'bitselectmod.c']
+src4=[src_path + cfile for cfile in cfiles]
 ext4 = Extension(name=parent_pkg + 'bitselect',
                 sources=src4,
                 depends=src4,
@@ -55,7 +57,7 @@ ext4 = Extension(name=parent_pkg + 'bitselect',
 
 setup_params = dict(
     name="HamiltonianPy",
-    version="1.0.dev0",
+    version="1.0.dev1",
     description="Construct and solve a model Hamiltonian numerically!",
     author="wangshiphys",
     author_email="wangshiphys@gmail.com",

@@ -8,7 +8,8 @@ from HamiltonianPy.exception import SwapError
 from HamiltonianPy.indexmap import IndexMap
 from HamiltonianPy.matrepr import aocmatrix, termmatrix
 
-__all__ = [SiteID, StateID, AoC, SpinOptor, SpinInteraction, ParticleTerm]
+__all__ = ["SiteID", "StateID", "AoC", "SpinOptor", 
+           "SpinInteraction", "ParticleTerm"]
 
 #Useful constant in this module!
 ALTER = 1000
@@ -843,10 +844,34 @@ class SpinInteraction:# {{{
             self.updateCoeff(coeff)
 
         tot = len(sitemap)
-        res = identity(2**tot, dtype=np.int64, format="csr")
-        for optor in self.components:
-            res = res.dot(optor.matrixRepr(sitemap))
-        
+        optors = self.components
+        if len(optors) == 2 and (not optors[0].sameSite(optors[1])):
+            tmp0 = optors[0].getSiteID().getIndex(sitemap)
+            tmp1 = csr_matrix(optors[0].matrix())
+            tmp2 = optors[1].getSiteID().getIndex(sitemap)
+            tmp3 = csr_matrix(optors[1].matrix())
+            tmp = [(tmp0, tmp1), (tmp2, tmp3)]
+            (index0, S0), (index1, S1) = sorted(tmp, key=lambda item: item[0])
+            dim0 = 2 ** (index0)
+            dim1 = 2 ** (index1 - index0 - 1)
+            dim2 = 2 ** (tot - index1 - 1)
+            if dim0 == 1:
+                res = S0
+            else:
+                I = identity(dim0, dtype=np.int64, format="csr")
+                res = kron(S0, I, format="csr")
+            if dim1 == 1:
+                res = kron(S1, res, format="csr")
+            else:
+                I = identity(dim1, dtype=np.int64, format="csr")
+                res = kron(S1, kron(I, res, format="csr"), format="csr")
+            if dim2 != 1:
+                I = identity(dim2, dtype=np.int64, format="csr")
+                res = kron(I, res, format="csr")
+        else:
+            res = identity(2**tot, dtype=np.int64, format="csr")
+            for optor in self.components:
+                res = res.dot(optor.matrixRepr(sitemap))
         res.eliminate_zeros()
         return self.coeff * res
     # }}}
@@ -974,7 +999,7 @@ class ParticleTerm:# {{{
                 else:
                     return False
             elif tag in ('n', 'N'):
-                c2 = self.aocs[0].sameState(self.aocs[1]
+                c2 = self.aocs[0].sameState(self.aocs[1])
                 if c0 and c1 and c2:
                     return True
                 else:

@@ -26,7 +26,7 @@ class RunTimeEnv:
         default: None, which means the maximum number of the system.
     """
 
-    def __init__(self, rd=False, path="./", num_threads=None):
+    def __init__(self, rd=False, path="./", num_threads=None):# {{{
         """
         Initilize the instance of this class.
         """
@@ -40,8 +40,9 @@ class RunTimeEnv:
 
         self.rd = rd
         self.path = path
+    # }}}
 
-    def __enter__(self):
+    def __enter__(self):# {{{
         """
         Construct the run time environment.
         """
@@ -63,8 +64,9 @@ class RunTimeEnv:
             sys.stdout = self.fp = fp
 
         return self
+    # }}}
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):# {{{
         """
         Close the opened file and restore sys.stdout before exit the run time 
         environment if redirected!
@@ -87,5 +89,5 @@ class RunTimeEnv:
             self.fp.write(info)
             sys.stdout = self._stdout
             self.fp.close()
-
         return False
+    # }}}

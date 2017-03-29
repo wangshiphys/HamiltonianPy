@@ -7,7 +7,7 @@ import numpy as np
 
 from HamiltonianPy.constant import CREATION, ANNIHILATION
 from HamiltonianPy.lanczos import Lanczos
-from HamiltonianPy.matrepr.base import base_table
+from HamiltonianPy.base import base_table
 
 
 class GFEDABC_P:# {{{

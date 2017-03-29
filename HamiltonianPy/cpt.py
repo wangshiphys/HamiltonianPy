@@ -3,11 +3,11 @@ from numpy.linalg import inv
 import matplotlib.pyplot as plt
 import numpy as np
 
-from HamiltonianPy.matrepr.base import base_table
-from HamiltonianPy.matrepr.matrepr import termmatrix
+from HamiltonianPy.base import base_table
+from HamiltonianPy.matrepr import termmatrix
 from HamiltonianPy.model import Model, Periodization
 from HamiltonianPy.greenfunc import GFED
-from HamiltonianPy.lattice.lattice import Lattice
+from HamiltonianPy.lattice import Lattice
 
 
 def CPT(cluster_info, cell_info, coeff_dict, coeff_generator, omegas, ks, 

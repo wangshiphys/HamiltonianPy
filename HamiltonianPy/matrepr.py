@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix, identity
 
 import numpy as np
 
-from HamiltonianPy.matrepr import matreprcext as mrc
+from HamiltonianPy.extpkg import matreprcext as mrc
 from HamiltonianPy.constant import CREATION, ANNIHILATION, VIEW_AS_ZERO
 
 
