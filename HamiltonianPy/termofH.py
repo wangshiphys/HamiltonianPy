@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix, identity, kron
 import numpy as np
 
 from HamiltonianPy.constant import CREATION, ANNIHILATION, SWAP_FACTOR_F
-from HamiltonianPy.constant import SIGMA_MATRIX, SPIN_MATRIX, SPIN_OTYPE
+from HamiltonianPy.constant import SPIN_MATRIX, SPIN_OTYPE
 from HamiltonianPy.exception import SwapError
 from HamiltonianPy.indexmap import IndexMap
 from HamiltonianPy.matrepr import aocmatrix, termmatrix
@@ -607,9 +607,9 @@ class SpinOptor(SiteID):# {{{
         #The keys of the dict are 'x', 'y', 'z', 'p', 'm' and the value are
         #cooresponding Pauli or spin matrix.
         if self.Pauli:
-            matrix = SIGMA_MATRIX
+            matrix = SPIN_MATRIX["sigma"]
         else:
-            matrix = SPIN_MATRIX
+            matrix = SPIN_MATRIX['s']
 
         return matrix[self.otype]
     # }}}
@@ -740,6 +740,7 @@ class SpinInteraction:# {{{
         sameAs(other)
         conjugateOf(other)
         updateCoeff(coeff)
+        matrixForm(optors, totspin, coeff=1.0)
         matrixRepr(sitemap, coeff)
     """
 
@@ -821,6 +822,65 @@ class SpinInteraction:# {{{
         else:
             raise TypeError("The wrong type of coeff parameter!")
     # }}}
+    
+    @staticmethod
+    def matrixForm(optors, totspin, coeff=1.0):# {{{
+        """
+        This static method calculate the matrix representation of spin
+        interaction specified by the optors parameter.
+
+        Parameter:
+        ----------
+        optors: sequence
+            A sequence a length 3 tuple. The first entry of the tuple is a
+            integer index of the spin operator, the second entry is the type
+            of the spin operator which should be only one of ('x', 'y', 'z',
+            'p', 'm'), and the third determine whether to use sigma or S matrix.
+        totspin: int
+            The total number of spins concerned.
+        coeff: int, float or complex, optional
+            The coefficience of the term.
+            default: 1.0
+
+        Return:
+        -------
+        res: csr_matrix
+            The matrix representation of this term.
+        """
+
+        optors = sorted(optors, key=lambda item: item[0])
+        if len(optors) == 2 and optors[0][0] != optors[1][0]:
+            index0, otype0, sigma0 = optors[0]
+            index1, otype1, sigma1 = optors[1]
+            S0 = csr_matrix(SPIN_MATRIX[sigma0][otype0])
+            S1 = csr_matrix(SPIN_MATRIX[sigma1][otype1])
+            dim0 = 2 ** (index0)
+            dim1 = 2 ** (index1 - index0 - 1)
+            dim2 = 2 ** (totspin - index1 - 1)
+            if dim0 == 1:
+                res = S0
+            else:
+                I = identity(dim0, dtype=np.int64, format="csr")
+                res = kron(S0, I, format="csr")
+            if dim1 == 1:
+                res = kron(S1, res, format="csr")
+            else:
+                I = identity(dim1, dtype=np.int64, format="csr")
+                res = kron(S1, kron(I, res, format="csr"), format="csr")
+            if dim2 != 1:
+                I = identity(dim2, dtype=np.int64, format="csr")
+                res = kron(I, res, format="csr")
+        else:
+            res = identity(2**totspin, dtype=np.int64, format="csr")
+            for index, otype, sigma in optors:
+                I0 = identity(2**index, dtype=np.int64, format="csr")
+                I1 = identity(2**(totspin-index-1), dtype=np.int64, format="csr")
+                S = csr_matrix(SPIN_MATRIX[sigma][otype])
+                res = res.dot(kron(I1, kron(S, I0, format="csr"), format="csr"))
+        
+        res.eliminate_zeros()
+        return coeff * res
+    # }}}
 
     def matrixRepr(self, sitemap, coeff=None):# {{{
         """
@@ -843,37 +903,18 @@ class SpinInteraction:# {{{
         if coeff is not None:
             self.updateCoeff(coeff)
 
-        tot = len(sitemap)
-        optors = self.components
-        if len(optors) == 2 and (not optors[0].sameSite(optors[1])):
-            tmp0 = optors[0].getSiteID().getIndex(sitemap)
-            tmp1 = csr_matrix(optors[0].matrix())
-            tmp2 = optors[1].getSiteID().getIndex(sitemap)
-            tmp3 = csr_matrix(optors[1].matrix())
-            tmp = [(tmp0, tmp1), (tmp2, tmp3)]
-            (index0, S0), (index1, S1) = sorted(tmp, key=lambda item: item[0])
-            dim0 = 2 ** (index0)
-            dim1 = 2 ** (index1 - index0 - 1)
-            dim2 = 2 ** (tot - index1 - 1)
-            if dim0 == 1:
-                res = S0
+        totspin = len(sitemap)
+        optors = []
+        for optor in self.components:
+            index = optor.getSiteID().getIndex(sitemap)
+            otype = optor.getOtype()
+            if optor.Pauli:
+                sigma = "sigma"
             else:
-                I = identity(dim0, dtype=np.int64, format="csr")
-                res = kron(S0, I, format="csr")
-            if dim1 == 1:
-                res = kron(S1, res, format="csr")
-            else:
-                I = identity(dim1, dtype=np.int64, format="csr")
-                res = kron(S1, kron(I, res, format="csr"), format="csr")
-            if dim2 != 1:
-                I = identity(dim2, dtype=np.int64, format="csr")
-                res = kron(I, res, format="csr")
-        else:
-            res = identity(2**tot, dtype=np.int64, format="csr")
-            for optor in self.components:
-                res = res.dot(optor.matrixRepr(sitemap))
-        res.eliminate_zeros()
-        return self.coeff * res
+                sigma = 's'
+            optors.append((index, otype, sigma))
+        res = self.matrixForm(optors, totspin, self.coeff)
+        return res
     # }}}
 # }}}
 

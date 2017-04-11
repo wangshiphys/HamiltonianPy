@@ -46,15 +46,17 @@ SIGMA_M.setflags(write=False)
 SIGMA_MATRIX = {'x': SIGMA_X, 'y': SIGMA_Y, 'z': SIGMA_Z, 
                 'p': SIGMA_P, 'm':SIGMA_M}
 
-#The spin matrix.
-SPIN_X = 0.5 * SIGMA_X 
-SPIN_X.setflags(write=False)
-SPIN_Y = 0.5 * SIGMA_Y
-SPIN_Y.setflags(write=False)
-SPIN_Z = 0.5 * SIGMA_Z
-SPIN_Z.setflags(write=False)
-SPIN_P = 0.5 * SIGMA_P
-SPIN_P.setflags(write=False)
-SPIN_M = 0.5 * SIGMA_M
-SPIN_M.setflags(write=False)
-SPIN_MATRIX = {'x': SPIN_X, 'y': SPIN_Y, 'z': SPIN_Z, 'p': SPIN_P, 'm':SPIN_M}
+#The S matrix.
+S_X = 0.5 * SIGMA_X 
+S_X.setflags(write=False)
+S_Y = 0.5 * SIGMA_Y
+S_Y.setflags(write=False)
+S_Z = 0.5 * SIGMA_Z
+S_Z.setflags(write=False)
+S_P = 0.5 * SIGMA_P
+S_P.setflags(write=False)
+S_M = 0.5 * SIGMA_M
+S_M.setflags(write=False)
+S_MATRIX = {'x': S_X, 'y': S_Y, 'z': S_Z, 'p': S_P, 'm':S_M}
+
+SPIN_MATRIX = {"sigma": SIGMA_MATRIX, "s": S_MATRIX}
