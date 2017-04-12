@@ -1,176 +1,201 @@
-from numpy.linalg import norm
+"""
+This module define Bond class that represents the bond connecting two points.
+"""
 
 import numpy as np
 
-from HamiltonianPy.arrayformat import arrayformat
+from HamiltonianPy.constant import FLOAT_TYPE, NDIGITS
 
-__all__ = ['Bond']
+__all__ = ["Bond"]
 
-#Useful constant in the module
-INDENT = 6
-PRECISION = 4
-ALTER = 1000
-FLOAT_TYPE = [np.float64, np.float32]
-##############################
-
-class Bond:
+class Bond:# {{{
     """
-    This class provide a unified description of the bond between two points.
+    This class provide a unified description of a bond connecting two points.
 
     Attributes:
     -----------
+    p0: np.array
+        One endpoint of the bond.
+    p1: np.array
+        Another endpoint of the bond. p0 and p1 should be the same shape, 
+        and only support shape (1,), (2,), (3,).
     dim: int
         The space dimension of the bond.
-    start: ndarray
-        The starting point of the bond.
-    end: ndarray
-        The end point of the bond.
-    distance: float
-        The distance between the two points.
-    displace: ndarray
-        The vector pointing from start to end.
-    theta: float
-        In one dimension, theta is the angle between the bond and axis, which is
-        either zero or pi.
-        In two dimension, theta is the angle between the bond and the x axis,
-        which range [-pi, pi]
-        In three dimension, theta is the angle between the bond and the z aixs,
-        which range [0, pi]
-    phi: float
-        In one or two dimension, the instance does not have this attribute.
-        In three dimension, phi is the angle between the projection of the bond
-        in xy-plane and the x axis, which range [-pi, pi].
+    directional: boolean
+        Whether the direction of the bond should be considered. If True, the
+        order of p0, p1 is concerned and Bond(p0, p1) != Bond(p1, p0) unless 
+        p0 = p1, if False, the order of p0, p1 is not concerned and 
+        Bond(p0, p1) = Bond(p1, p0).
+
+    Methods:
+    --------
+    Special methods:
+        __init__(p0, p1, directional=True)
+        __hash__()
+        __eq__()
+        __ne__()
+        __str__()
+    General methods:
+        getEndpoints()
+        getLength(ndigits=None)
+        getDisplace(ndigits=None)
+        getAzimuth(radian=True, ndigits=None)
+        tupleform()
+        opposite()
+        oppositeTo(other)
     """
 
-    def __init__(self, start, end):# {{{
+    def __init__(self, p0, p1, directional=True):# {{{
         """
-        Initilize this class!
-        
-        Parameter:
-        ----------
-        start: ndarray
-            The starting point of the bond.
-        end: ndarray
-            The end point of the bond.
+        Initialize instance of this class.
         """
 
-        if not (isinstance(start, np.ndarray) and 
-                isinstance(end, np.ndarray)):
-            raise TypeError("The input start or end is not ndarray!")
-
-        shape0 = start.shape
-        shape1 = end.shape
-        if shape0 != shape1:
-            raise ValueError("The dimension of the two "
-                             "input points does not match!")
+        if isinstance(p0, np.ndarray) and p0.shape in [(1,), (2,), (3,)]:
+            shape = p0.shape
+            self.p0 = np.array(p0[:])
         else:
-            if shape0 == (1,):
-                dim = 1
-            elif shape0 == (2,):
-                dim = 2
-            elif shape0 == (3,):
-                dim = 3
-            else:
-                raise ValueError("The unsupported space dimension!")
-        
-        self.dim = dim
-        self.start = start
-        self.end = end
+            raise TypeError("The invalid p0 parameter.")
+        if isinstance(p1, np.ndarray) and p1.shape == shape:
+            self.dim = shape[0]
+            self.p1 = np.array(p1[:])
+        else:
+            raise TypeError("The invalid p1 parameter.")
+
+        self.directional = directional
     # }}}
 
-    def getStart(self):# {{{
+    def getEndpoints(self):# {{{
         """
-        Access the start attribute of instance of this class.
+        Access the p0 and p1 attribute of instance of this class.
         """
 
-        return np.array(self.start[:])
+        p0 = np.array(self.p0[:])
+        p1 = np.array(self.p1[:])
+        return p0, p1
     # }}}
 
-    def getEnd(self):# {{{
+    def getLength(self, ndigits=None):# {{{
         """
-        Access the end attribute of instance of this class.
-        """
-
-        return np.array(self.end[:])
-    # }}}
-
-    def setDistance(self):# {{{
-        """
-        Set the distance attribute.
-        """
-
-        distance = norm(self.start - self.end)
-        self.distance = np.round(distance, decimals=PRECISION)
-    # }}}
-
-    def setDisplace(self):# {{{
-        """
-        Set the displace attribute.
-        """
-
-        displace = self.end - self.start
-        self.displace = np.round(displace, decimals=PRECISION)
-    # }}}
-
-    def setAzimuth(self, tag='degree'):# {{{
-        """
-        Set the theta and phi attribute.
+        Return the length of bond.
 
         Parameter:
         ----------
-        tag: string, optional
-            Define the form of the angle.
-            Default: degree.
-        """
-
-        if tag == 'degree':
-            trans = 180 / np.pi
-        else :
-            trans = 1.0
+        ndigits: None or int, optional
+            Number of digits to preserve after the decimal point.
+            default: None
         
-        if self.dim == 1:
-            if self.end >= self.start:
-                self.theta = 0.0
+        Return:
+        -------
+        res: The length of the bond.
+        """
+        
+        length = np.linalg.norm(self.p0 - self.p1)
+        if isinstance(ndigits, int):
+            length = np.around(length, decimals=ndigits)
+        return length
+    # }}}
+
+    def getDisplace(self, ndigits=None):# {{{
+        """
+        Return the displace from p0 to p1.
+
+        For bond which is not directional, the method is meaningless.
+        
+        Parameter:
+        ----------
+        ndigits: None or int, optional
+            Number of digits to preserve after the decimal point.
+            default: None
+        
+        Return:
+        -------
+        res: The displace from p0 to p1.
+        """
+        
+        if self.directional:
+            dr = self.p1 - self.p0
+            if isinstance(ndigits, int):
+                dr = np.around(dr, decimals=ndigits)
+            return dr
+        else:
+            raise NotImplementedError("This method should not be implemented "
+                  "for bond which the direction is not concerned.")
+    # }}}
+
+    def getAzimuth(self, radian=True, ndigits=None):# {{{
+        """
+        Return the angle between the bond and the coordinate system.
+
+        For bond which is not directional, the method is meaningless.
+        
+        Parameter:
+        ----------
+        radian: boolean, optional
+            Determine the unit of angle, radian or degree.
+            default: True
+        ndigits: None or int, optional
+            Number of digits to preserve after the decimal point.
+            default: None
+        
+        Return:
+        -------
+        res: np.float64 or np.array
+            For 1D or 2D system, the azimuth is the angle between the
+            directional bond and the x axis. For 3D, there are two angles,
+            alpha: the angle between the directional bond and the z axis, beta:
+            the angle between the projection of bond on the xy plane and the x
+            aixs.
+        """
+
+        if self.directional:
+            if radian:
+                coeff = 1.0
             else:
-                self.theta = np.round(np.pi * trans, decimals=PRECISION)
-        elif self.dim == 2:
-            x, y = self.end - self.start
-            self.theta = np.round(np.arctan2(y, x) * trans, decimals=PRECISION)
-        elif self.dim == 3:
-            x, y, z = self.end - self.start
-            theta = np.arctan2(np.sqrt(x**2 + y**2), z) * trans
-            self.theta = np.round(theta, decimals=PRECISION)
-            self.phi = np.round(np.arctan2(y, x) * trans, decimals=PRECISION)
+                coeff = 180 / np.pi
+
+            dr = self.p1 - self.p0
+            if self.dim == 1:
+                if dr[0] >= 0:
+                    theta = 0
+                else:
+                    theta = np.pi
+            elif self.dim == 2:
+                x, y = dr
+                theta = np.arctan2(y, x)
+            else:
+                x, y, z = dr
+                alpha = np.arctan2(np.sqrt(x**2+y**2), z)
+                beta = np.arctan2(y, x)
+                theta = np.array([alpha, beta])
+
+            theta = coeff * theta
+            if isinstance(ndigits, int):
+                theta = np.around(theta, decimals=ndigits)
+            return theta
+        else:
+            raise NotImplementedError("This method should not be implemented "
+                  "for bond which the direction is not concerned.")
     # }}}
 
-    def setAll(self, tag='degree'):# {{{
+    def tupleform(self):# {{{
         """
-        Set all the attributes of the instance of this class!
-
-        tag: string, optional
-            Define the form of the angle.
-            Default: degree.
+        The tuple form of this bond.
         """
 
-        self.setDistance()
-        self.setDisplace()
-        self.setAzimuth(tag=tag)
-    # }}}
+        if self.p0.dtype in FLOAT_TYPE:
+            p0 = np.around(self.p0, decimals=NDIGITS)
+        else:
+            p0 = self.p0
+        if self.p1.dtype in FLOAT_TYPE:
+            p1 = np.around(self.p1, decimals=NDIGITS)
+        else:
+            p1 = self.p1
 
-    def __str__(self):# {{{
-        """
-        Return the print string of instance of this class.
-        """
-
-        self.setAll()
-        prefix = "\n" + " " * INDENT
-        info = prefix + "Space dimension: {0}".format(self.dim)
-        info += prefix + "start: " + arrayformat(self.start)
-        info += prefix + "end: " + arrayformat(self.end)
-        info += prefix + "displace: dr: " + arrayformat(self.displace)
-        info += prefix + "distance: ds = {0}".format(self.distance)
-        info += prefix + "azimuth: theta = {0} degree.\n".format(self.theta)
-        return info
+        res = (tuple(p0), tuple(p1))
+        if not self.directional:
+            res = tuple(sorted(res))
+        res += (self.directional, )
+        return res
     # }}}
 
     def __hash__(self):# {{{
@@ -178,35 +203,56 @@ class Bond:
         Return the hash value of instance of this class.
         """
 
-        if self.start.dtype in FLOAT_TYPE:
-            tmp0 = np.trunc(self.start * ALTER) / ALTER
-        else:
-            tmp0 = self.start
-        if self.end.dtype in FLOAT_TYPE:
-            tmp1 = np.trunc(self.end * ALTER) / ALTER
-        else:
-            tmp1 = self.end
-
-        tmp = tuple(tmp0) + tuple(tmp1)
-        return hash(tmp)
+        return hash(self.tupleform())
     # }}}
 
     def __eq__(self, other):# {{{
         """
-        Define the == operator between two instance of this class.
-        """
-        if isinstance(other, self.__class__):
-            return self.__hash__() == other.__hash__()
-        else:
-            raise TypeError("The right operand is not instance of Bond class.")
-    # }}}
-    
-    def opposite(self):# {{{
-        """
-        Return the a bond that is opposite to self.
+        Define the == operator between instance of this class.
         """
 
-        return Bond(start=self.getEnd(), end=self.getStart())
+        if isinstance(other, self.__class__):
+            return self.tupleform() == other.tupleform()
+        else:
+            raise TypeError("The right operand is not instance of this class.")
+    # }}}
+
+    def __ne__(self, other):# {{{
+        """
+        Define the != operator between instance of this class.
+        """
+
+        return not self.__eq__(other)
+    # }}}
+
+    def __str__(self):# {{{
+        """
+        Return a string that descriibles the content of the instance.
+        """
+
+        p0, p1 = self.getEndpoints()
+        length = self.getLength(ndigits=NDIGITS)
+        info = "p0: " + str(p0) + "\n"
+        info += "p1: " + str(p1) + "\n"
+        info += "length: " + str(length) + "\n"
+        if self.directional:
+            displace = self.getDisplace(ndigits=NDIGITS)
+            azimuth = self.getAzimuth(ndigits=NDIGITS)
+            info += "displace: " + str(displace) + "\n"
+            info += "azimuth: " + str(azimuth) + "\n"
+        return info
+    # }}}
+
+    def opposite(self):# {{{
+        """
+        Return a bond that is opposite to self.
+        """
+
+        if self.directional:
+            return Bond(p0=self.p1, p1=self.p0, directional=True)
+        else:
+            raise NotImplementedError("This method should not be implemented "
+                  "for bond which the direction is not concerned.")
     # }}}
 
     def oppositeTo(self, other):# {{{
@@ -214,15 +260,33 @@ class Bond:
         Return whether the self bond is opposite to the other bond.
         """
 
-        if isinstance(other, self.__class__):
-            return self.opposite().__eq__(other)
+        if self.directional:
+            if isinstance(other, self.__class__):
+                return self.opposite().__eq__(other)
+            else:
+                raise TypeError("The right operand is not instance of this class.")
         else:
-            raise TypeError("The other parameter is not instance of Bond class.")
+            raise NotImplementedError("This method should not be implemented "
+                  "for bond which the direction is not concerned.")
     # }}}
+# }}}
 
-#This is a test!
+
+
 if __name__ == "__main__":
-    p0 = np.array([0, 0])
-    p1 = np.array([1, 1])
-    bond = Bond(p0, p1)
-    print(bond)
+    p0 = np.array([np.exp(-2/3), np.sin(2 * np.pi/5)])
+    p1 = np.array([np.sqrt(2)/2, np.sqrt(3)/4])
+    bond0 = Bond(p0=p0, p1=p1, directional=True)
+    bond1 = Bond(p0=p0, p1=p1, directional=False)
+    bond2 = Bond(p0=p1, p1=p0, directional=True)
+    bond3 = Bond(p0=p1, p1=p0, directional=False)
+    print(bond0)
+    print(bond1)
+    print(bond2)
+    print(bond3)
+    print(bond0 == bond1)
+    print(bond0 == bond2)
+    print(bond0 == bond3)
+    print(bond1 == bond2)
+    print(bond1 == bond3)
+    print(bond2 == bond3)

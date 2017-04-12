@@ -2,7 +2,6 @@
 This module provide description of lattice with translation symmetry.
 """
 
-from copy import deepcopy
 from itertools import product
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm, solve
@@ -12,23 +11,18 @@ from scipy.spatial.distance import pdist
 import matplotlib.pyplot as plt
 import numpy as np
 
-from HamiltonianPy.arrayformat import arrayformat
+from HamiltonianPy.bond import Bond
+from HamiltonianPy.constant import NDIGITS
+
+#Useful constant in module
+ERR = 1e-4
+##########################
 
 __all__ = ["Lattice"]
 
-#Useful constant in this module.
-INDENT = 6
-PRECISION = 4
-###############################
-
-class Lattice:
+class Lattice:# {{{
     """
     This class provide a description of a cluster with translation symmetry!
-
-    The unified description of a lattice, the index of a given site, the
-    neighbors of a given site, the relative location of a given site in the
-    lattice with respect to the reference cluster, etc. This class provide
-    some method to give answer to these most concerned questions!
 
     Attributes:
     -----------
@@ -49,21 +43,25 @@ class Lattice:
         The number of site in the cluster.
     dim: int
         The dimension of the lattice.
-    distance: list
-        All possible distance between any two sites in the cluster.
+    dist: tuple
+        A collection of possible distance between two points of the lattice.
 
     Methods:
     --------
-    __init__(points, tvs)
-    __str__()
-    setdist(scope=None)
-    decompose(site)
-    sites(site, scope=1)
-    show_lattice(site=None, n=1)
-    neighbor_dist(nth)
-    neighbors(site, nth)
-    bonds(max_neighbor)
-    incluster(site)
+    Special methods:
+        __init__(points, tvs)
+        __str__()
+    General methods:
+        getPoints()
+        getTVs()
+        getBs()
+        decompose(site)
+        sitesFactory(site, scope=1)
+        show(site=None, n=1)
+        neighborDist(nth)
+        neighbors(site, nth)
+        bonds(neighbor, only=False)
+        incluster(site)
     """
 
     def __init__(self, points, tvs):# {{{
@@ -73,64 +71,65 @@ class Lattice:
         See also the docstring of this class!
         """
 
-        if not (isinstance(points, np.ndarray) and isinstance(tvs, np.ndarray)):
-            raise TypeError("The input parameter is not ndarray!")
+        if isinstance(points, np.ndarray) and len(points.shape) == 2:
+            num, dim = points.shape
+            if dim <= 3:
+                self.num = num
+                self.dim = dim
+                self.points = np.array(points[:, :])
+            else:
+                raise ValueError("Not supported space dimension.")
+        else:
+            raise TypeError("The invalid points parameter.")
 
-        num, dim = points.shape
-        dim1, dim2 = tvs.shape
+        if isinstance(tvs, np.ndarray) and tvs.shape == (dim, dim):
+            self.tvs = np.array(tvs[:, :])
+        else:
+            raise TypeError("The invalid tvs parameter.")
 
-        if dim != dim1 or dim != dim2:
-            raise ValueError("The dimension of the cluster points and "
-                             "the translation vectors does not match!")
-        elif dim > 3:
-            raise ValueError("Unsupported space dimension!")
-
-        self.drs = np.round(points - points[0], decimals=PRECISION)
+        self.drs = points - points[0]
         self.bs = 2 * np.pi * solve(tvs, np.identity(dim)).T
-        self.points = points
-        self.tvs = tvs
-        self.num = num
-        self.dim = dim
-
-        self.points.flags.writeable = False
-        self.tvs.flags.writeable = False
-        self.drs.flags.writeable = False
-        self.bs.flags.writeable = False
+        tmp = set(np.around(pdist(points), decimals=NDIGITS))
+        tmp.add(0.0)
+        self.dist = tuple(sorted(tmp))
     # }}}
 
     def __str__(self):# {{{
         """
-        Return the printing string of instance if the class.
+        Return a string that descriibles the content of the instance.
         """
 
-        prefix = "\n" + " " * INDENT
-        info = "\npoints:" + prefix
-        info += arrayformat(self.points).replace("\n", prefix)
-        info += "\ntvs:" + prefix + arrayformat(self.tvs).replace("\n", prefix)
-        info += "\ndrs:" + prefix + arrayformat(self.drs).replace("\n", prefix)
-        info += "\nbs:" + prefix + arrayformat(self.bs).replace("\n", prefix)
-        info += "\nSite number: {0}".format(self.num)
-        info += "\nDimension: {0}\n".format(self.dim)
+        info = "Site number: {0}\n".format(self.num)
+        info += "Space dimension: {0}\n".format(self.dim)
+        info += "points:\n" + str(self.points) + '\n'
+        info += "tvs:\n" + str(self.tvs) + '\n'
+        info += "drs:\n" + str(self.drs) + '\n'
+        info += "bs:\n" + str(self.bs) + '\n'
         return info
     # }}}
 
-    def setdist(self, scope=None):# {{{
+    def getPoints(self):# {{{
         """
-        Set all the possible distance between two points in the scope!
+        Access the points attribute of instance of this class.
         """
 
-        if scope is None:
-            sites = self.points
-        elif isinstance(scope, int):
-            sites = self.sites(self.points[0], scope)
-        else:
-            raise TypeError("The input scope is not an integer!")
+        return np.array(self.points[:, :])
+    # }}}
 
-        dist_set = set(np.round(pdist(sites), decimals=PRECISION))
-        dist_set.add(0.0)
-        dist_list = list(dist_set)
-        dist_list.sort()
-        self.dist = tuple(dist_list)
+    def getTVs(self):# {{{
+        """
+        Access the tvs attribute of instance of this class.
+        """
+
+        return np.array(self.tvs[:, :])
+    # }}}
+
+    def getBs(self):# {{{
+        """
+        Access the bs attribute of instance of this class.
+        """
+
+        return np.array(self.bs[:, :])
     # }}}
 
     def decompose(self, site):# {{{
@@ -153,8 +152,7 @@ class Lattice:
             The elements of the tuple are ndarrays.
             The first ndarray is the coordinate of the point within the cluster
             which is equivalent to the input site. The second ndarray is the
-            displace between the input site and the equivalent site, which is an
-            integer composation of the translation vectors.
+            displace between the input site and the equivalent site
         """
 
         if not isinstance(site, np.ndarray):
@@ -163,21 +161,22 @@ class Lattice:
             raise ValueError("The dimension of the input site "
                              "and the lattice does not match!")
        
+        scope = (0, 1, -1, 2, -2)
         relative = site - self.points[0]
         guess = solve(self.tvs.T, relative).astype(int)
-        scope = (0, 1, -1, 2)
-        for cfg in product(scope, repeat=self.dim):
-            dR = np.dot(guess + np.array(cfg), self.tvs)
-            ds = np.round(relative - dR, decimals=PRECISION)
+        cfgs = guess + np.array(list(product(scope, repeat=self.dim)))
+        dRs = np.dot(cfgs, self.tvs)
+        relative = np.around(relative, decimals=NDIGITS)
+        for dR in dRs:
             for dr, eqv_site in zip(self.drs, self.points):
-                if np.all(ds==dr):
-                    return deepcopy(eqv_site), dR
-
+                tmp = np.around(dR + dr, decimals=NDIGITS)
+                if np.all(tmp == relative):
+                    return np.array(eqv_site[:]), dR
         raise ValueError("Failed to decompse the input site."
                          "It might not belong to the lattice.")
     # }}}
 
-    def sites(self, site, scope=1):# {{{
+    def sitesFactory(self, site, scope=1):# {{{
         """
         Return the neighboring sites of the given site.
 
@@ -195,21 +194,22 @@ class Lattice:
             The coordinates of the neighboring sites.
         """
 
-        if scope < 0:
-            raise ValueError("Got a negative input scope!")
+        if isinstance(scope, int) and scope >= 1:
+            trash, dR = self.decompose(site)
+            cluster = self.points + dR
 
-        eqv_site, dR = self.decompose(site)
-        cluster = self.points + dR
-
-        buff = []
-        dR_scope = list(range(0, scope+1)) + list(range(-scope, 0))
-        for cfg in product(dR_scope, repeat=self.dim):
-            buff.append(cluster + np.dot(np.array(cfg), self.tvs))
-        res = np.concatenate(buff, axis=0)
-        return res
+            tmp = []
+            dR_scope = list(range(0, scope+1)) + list(range(-scope, 0))
+            dRs = np.dot(list(product(dR_scope, repeat=self.dim)), self.tvs)
+            for dR in dRs:
+                tmp.append(cluster + dR)
+            res = np.concatenate(tmp, axis=0)
+            return res
+        else:
+            raise ValueError("The invalid scope parameter.")
     # }}}
 
-    def show_lattice(self, site=None, n=1):# {{{
+    def show(self, site=None, n=1):# {{{
         """
         Plot the lattice.
 
@@ -225,36 +225,29 @@ class Lattice:
 
         if site is None:
             site = self.points[0]
-        sites = self.sites(site, n)
+        sites = self.sitesFactory(site, n)
 
-        x = []
-        y = []
-        z = []
+        markersize = 200
         fig = plt.figure()
         if self.dim == 1:
-            for buff in sites:
-                x.append(buff[0])
-                y.append(0.0)
-            plt.scatter(x, y, s=100, c='r', marker='o', edgecolor='r')
+            for x in sites:
+                plt.scatter(x, 0.0, marker='o', s=markersize)
         elif self.dim == 2:
-            for buff in sites:
-                x.append(buff[0])
-                y.append(buff[1])
-            plt.scatter(x, y, s=100, c='r', marker='o', edgecolor='r')
+            for x, y in sites:
+                plt.scatter(x, y, marker='o', s=markersize)
         elif self.dim == 3:
-            for buff in sites:
-                x.append(buff[0])
-                y.append(buff[1])
-                z.append(buff[2])
             ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(x, y, z, s=100, c='r', marker='o', edgecolor='r')
+            for x, y, z in sites:
+                ax.scatter(x, y, z, marker='o', s=markersize)
         else:
             raise TypeError("Unsupportted dimension!")
 
+        plt.gca().set_aspect("equal", adjustable="box")
+        plt.axis("off")
         plt.show()
     # }}}
 
-    def neighbor_dist(self, nth):# {{{
+    def neighborDist(self, nth):# {{{
         """
         Return the neighbor distance specified by the parameter nth.
 
@@ -271,12 +264,15 @@ class Lattice:
         result: float
             The nth neighbor distance.
         """
+        
+        if not isinstance(nth, int):
+            raise TypeError("The nth parameter is not of type int.")
 
-        if hasattr(self, 'dist'):
-            if nth >= len(self.dist):
-                self.setdist(scope=nth+1)
-        else:
-            self.setdist(scope=nth+1)
+        if len(self.dist) <= nth:
+            sites = self.sitesFactory(self.points[0], scope)
+            tmp = set(np.around(pdist(sites), decimals=NDIGITS))
+            tmp.add(0.0)
+            self.dist = tuple(sorted(tmp))
         return self.dist[nth]
     # }}}
 
@@ -299,28 +295,61 @@ class Lattice:
             The neighboring sites of site specified by nth.
         """
 
-        sites = self.sites(site, nth + 2)
-        judge = self.neighbor_dist(nth)
+        sites = self.sitesFactory(site, nth + 2)
+        judge = self.neighborDist(nth)
         tree = KDTree(sites)
-        result = sites[tree.query_ball_point(site, r=judge+1e-4)]
+        result = sites[tree.query_ball_point(site, r=judge+ERR)]
         return result
     # }}}
 
-    def bonds(self, max_neighbor):# {{{
-        judge = self.neighbor_dist(nth=max_neighbor)
-        sites = self.sites(self.points[0], max_neighbor+1)
+    def bonds(self, neighbor, only=False):# {{{
+        """
+        Return all bonds specified by the neighbor and only parameter.
+
+        Parameter:
+        ----------
+        neighbor: int
+            Specify the distance order of two points belong the lattice.
+            0 means onsite, 1 represents nearest neighbor, 2 represents
+            next-nearest neighbor, etc.
+        only: boolean, optional
+            If True, only these bonds whose length equals to the length
+            specified by neighbor parameter is concerned, if False, all the
+            bonds whose length equal or less than the length specified by
+            neighbor parameter is concerned is concerned.
+
+        Return:
+        -------
+        intra: list of Bond
+            A collection of the bonds that both endpoints belong the cluster.
+        inter: list of Bond
+            A collection of the bonds that one endpoints belong the cluster and
+            the other does not.
+        """
+
+        judge = self.neighborDist(nth=neighbor)
+        sites = self.sitesFactory(self.points[0], neighbor+1)
         tree = KDTree(sites)
-        pairs = tree.query_pairs(r=judge+5e-4)
+        pairs_outer = tree.query_pairs(r=judge+ERR)
+        if only and neighbor > 1:
+            judge = self.neighborDist(nth=neighbor-1)
+            pairs_inner = tree.query_pairs(r=judge+ERR)
+        else:
+            pairs_inner = set()
+
+        pairs = pairs_outer.difference(pairs_inner)
+
         intra = []
         inter = []
-        for pair in pairs:
-            p0, p1 = sites[pair, :]
-            if pair[0] < self.num and pair[1] < self.num:
-                intra.append((p0, p1))
-            elif pair[0] < self.num:
-                inter.append((p0, p1))
-            elif pair[1] < self.num:
-                inter.append((p1, p0))
+        for index0, index1 in pairs:
+            p0 = sites[index0, :]
+            p1 = sites[index1, :]
+            if index0 < self.num and index1 < self.num:
+                intra.append(Bond(p0, p1, directional=True))
+            elif index0 < self.num:
+                inter.append(Bond(p0, p1, directional=True))
+            elif index1 < self.num:
+                inter.append(Bond(p1, p0, directional=True))
         return intra, inter
     # }}}
 
@@ -345,23 +374,30 @@ class Lattice:
             raise ValueError("The dimension of the input site and "
                              "the lattice does not match!")
 
-        round_site = np.round(site, decimals=PRECISION)
+        round_site = np.around(site, decimals=NDIGITS)
         result = False
-        for site1 in self.points:
-            round_site1 = np.round(site1, decimals=PRECISION)
-            if np.all(round_site == round_site1):
+        for tmp in self.points:
+            tmp = np.around(tmp, decimals=NDIGITS)
+            if np.all(round_site == tmp):
                 result = True
                 break
         return result
     # }}}
-
+# }}}
 
 if __name__ == "__main__":
-    sites = np.array([range(10)]).T
-    tvs = np.array([[10]])
-    l = Lattice(sites, tvs)
-    intra, inter = l.bonds(1)
-    print(intra)
-    print("=" * 20)
-    print(inter)
+    numx = 2
+    numy = 2
+    cell_points = np.array([[0, 0]])
+    cell_tvs = np.array([[1, 0], [0, 1]])
+    points = [cell_points + np.dot([x, y], cell_tvs) for x in range(numx) for y in range(numy)]
+    points = np.concatenate(points, axis=0)
+    tvs = cell_tvs * np.array([[numx, numx], [numy, numy]])
 
+    cluster = Lattice(points, tvs)
+    intra, inter = cluster.bonds(2, only=True)
+    for bond in intra:
+        print(bond)
+    print("=" * 20)
+    for bond in inter:
+        print(bond)

@@ -4,6 +4,7 @@ import numpy as np
 
 from HamiltonianPy.constant import CREATION, ANNIHILATION, SWAP_FACTOR_F
 from HamiltonianPy.constant import SPIN_MATRIX, SPIN_OTYPE
+from HamiltonianPy.constant import NDIGITS, FLOAT_TYPE
 from HamiltonianPy.exception import SwapError
 from HamiltonianPy.indexmap import IndexMap
 from HamiltonianPy.matrepr import aocmatrix, termmatrix
@@ -11,10 +12,6 @@ from HamiltonianPy.matrepr import aocmatrix, termmatrix
 __all__ = ["SiteID", "StateID", "AoC", "SpinOptor", 
            "SpinInteraction", "ParticleTerm"]
 
-#Useful constant in this module!
-ALTER = 1000
-FLOAT_TYPE = [np.float64, np.float32]
-#####################################
 
 def normalize(optors):# {{{
     """
@@ -106,7 +103,7 @@ class SiteID:# {{{
         """
 
         if isinstance(site, np.ndarray) and site.shape in [(1,), (2,), (3,)]:
-            self.site = site
+            self.site = np.array(site[:])
         else:
             raise TypeError("The invalid site parameter.")
     # }}}
@@ -193,7 +190,7 @@ class SiteID:# {{{
         """
 
         if self.site.dtype in FLOAT_TYPE:
-            tmp = np.trunc(self.site * ALTER) / ALTER
+            tmp = np.around(self.site, decimals=NDIGITS)
         else:
             tmp = self.site
         return tuple(tmp)

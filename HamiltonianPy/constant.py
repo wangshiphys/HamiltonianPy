@@ -25,6 +25,10 @@ COMPLEX_TYPE = (np.complex_, np.complex64, np.complex128)
 SPIN_UP = 1
 SPIN_DOWN = 0
 
+#The number of digits after the decimal point should be consider when 
+#processing float point numbers.
+NDIGITS = 4
+
 #All possible type of the spin operator.
 SPIN_OTYPE = ('x', 'y', 'z', 'p', 'm')
 
