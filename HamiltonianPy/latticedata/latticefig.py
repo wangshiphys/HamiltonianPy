@@ -7,8 +7,7 @@ from scipy.spatial import KDTree, distance
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from HamiltonianPy.latticedata import honeycomb, kagome, square, triangular
+from time import time
 
 __all__ = ["show"]
 
@@ -28,7 +27,8 @@ def sitesGenerator(numx, numy, lattice):# {{{
         The number of sites along the second space base vector.
     lattice: str
         The type of the lattice.
-        It can be only "square", "honeycomb", "kagome", "triangular"
+        It can be only "square", "honeycomb", "kagome", "triangular", 's', 'h',
+        't', 'k'
 
     Return:
     -------
@@ -38,21 +38,22 @@ def sitesGenerator(numx, numy, lattice):# {{{
     """
 
     lattice = lattice.lower()
-    if lattice in ("honeycomb", 'h'):
-        cellinfo = honeycomb.cellinfo
-    elif lattice in ("kagome", 'k'):
-        cellinfo = kagome.cellinfo
-    elif lattice in ("square", 's'):
-        cellinfo = square.cellinfo
+    tvs = np.array([[1, 0], [1.0/2, np.sqrt(3)/2]])
+
+    if lattice in ("square", 's'):
+        ps = np.array([[0, 0]])
+        tvs = np.array([[1, 0], [0, 1]])
     elif lattice in ("triangular", 't'):
-        cellinfo = triangular.cellinfo
+        ps = np.array([[0, 0]])
+    elif lattice in ("honeycomb", 'h'):
+        ps = np.array([[0, 0], [0, 1/np.sqrt(3)]])
+    elif lattice in ("kagome", 'k'):
+        ps = np.array([[0, 0], [1.0/4, np.sqrt(3)/4], [1.0/2, 0]])
     else:
         raise ValueError("The invalid lattice parameter.")
 
-    ps = cellinfo["points"]
-    tvs = cellinfo["tvs"]
-    tmp = [ps + np.dot([x, y], tvs) for x in range(numx) for y in range(numy)]
-    return np.concatenate(tmp, axis=0)
+    dRs = np.dot([(x, y) for x in range(numx) for y in range(numy)], tvs)
+    return np.concatenate([dRs + p for p in ps], axis=0)
 # }}}
 
 def bondsGenerator(sites):# {{{
@@ -82,7 +83,7 @@ def bondsGenerator(sites):# {{{
     return bonds
 # }}}
 
-def show(lattice, numx=4, numy=4, link=True, 
+def show(lattice, numx=9, numy=9, link=True, 
          pcolor='k', psize=6, lcolor='k',lwidth=2):# {{{
     """
     Show the lattice specified by lattice parameter.
@@ -116,10 +117,10 @@ def show(lattice, numx=4, numy=4, link=True,
     """
 
     sites = sitesGenerator(numx=numx, numy=numy, lattice=lattice)
-    bonds = bondsGenerator(sites=sites)
-    
+
     plt.figure()
     if link:
+        bonds = bondsGenerator(sites=sites)
         for (x0, y0), (x1, y1) in bonds:
             plt.plot([x0, x1], [y0, y1], color=lcolor, linewidth=lwidth)
 
@@ -131,3 +132,36 @@ def show(lattice, numx=4, numy=4, link=True,
     plt.axis("off")
     plt.show()
 # }}}
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(
+    description="Draw some 2D lattice according to the lattice parameter.")
+
+    parser.add_argument("lattice", help="Which kind of 2D lattice to draw.",
+    choices=("square", "triangular", "honeycomb", "kagome", 's', 't','h', 'k'),
+    type=str)
+
+    parser.add_argument("--scope", type=int, default=[9, 9], nargs=2, 
+    help="The number of cells in the a0 and a1 direction(default: %(default)s).")
+
+    parser.add_argument("-l", "--link", action="store_true", 
+    help="Whether to draw the nearest neighbor bond.")
+
+    parser.add_argument("--pcolor", default='k', 
+    help="Color of the point(default : black).")
+
+    parser.add_argument("--lcolor", default='k', 
+    help="Color of the bond(default: black).")
+
+    parser.add_argument("--psize", default=6, type=int, 
+    help="Size of the point(default: %(default)s).")
+
+    parser.add_argument("--lwidth", default=2, type=int, 
+    help="Width of the bond(default: %(default)s).")
+
+    args = parser.parse_args()
+    kwargs = {"lattice": args.lattice, "numx": args.scope[0], 
+              "numy": args.scope[1], "link": args.link, "pcolor": args.pcolor, 
+              "psize": args.psize, "lcolor": args.lcolor, "lwidth": args.lwidth}
+    show(**kwargs)
