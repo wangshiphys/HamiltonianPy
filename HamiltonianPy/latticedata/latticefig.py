@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 This module provide function to show the honeycomb, kagome, square, triangular
 lattice.
@@ -7,7 +8,6 @@ from scipy.spatial import KDTree, distance
 
 import matplotlib.pyplot as plt
 import numpy as np
-from time import time
 
 __all__ = ["show"]
 
@@ -127,7 +127,7 @@ def show(lattice, numx=9, numy=9, link=True,
     for x, y in sites:
         plt.plot(x, y, marker='o', color=pcolor, markersize=psize)
     
-    plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
+    plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
     plt.gca().set_aspect("equal", adjustable="box")
     plt.axis("off")
     plt.show()

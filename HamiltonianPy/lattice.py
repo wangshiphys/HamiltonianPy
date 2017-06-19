@@ -4,7 +4,7 @@ This module provide description of lattice with translation symmetry.
 
 from itertools import product
 from mpl_toolkits.mplot3d import Axes3D
-from numpy.linalg import norm, solve
+from numpy.linalg import inv, norm
 from scipy.spatial import KDTree
 from scipy.spatial.distance import pdist
 
@@ -15,7 +15,7 @@ from HamiltonianPy.bond import Bond
 from HamiltonianPy.constant import NDIGITS
 
 #Useful constant in module
-ERR = 1e-4
+ERR = 1e-6
 ##########################
 
 __all__ = ["Lattice"]
@@ -35,16 +35,13 @@ class Lattice:# {{{
     bs: ndarray
         A collection of the base vectors of the reciprocal space.
         It is a two dimension numpy array and every row represents a vector.
-    drs: ndarray
-        A collection of the relative displace of every site in the cluster to
-        the zeroth site in the cluster.
-        It is a two dimension numpy array and every row represents a displace.
-    num: int
+    sitenum: int
         The number of site in the cluster.
-    dim: int
-        The dimension of the lattice.
-    dist: tuple
-        A collection of possible distance between two points of the lattice.
+    spacedim: int
+        The dimension of the space in which the points are described.
+    perioddim: int
+        The number of linear independent directions along which the lattice is
+        translational invariant.
 
     Methods:
     --------
@@ -55,8 +52,8 @@ class Lattice:# {{{
         getPoints()
         getTVs()
         getBs()
-        decompose(site)
-        sitesFactory(site, scope=1)
+        decompose(site, extend=3)
+        sitesFactory(site=None, scope=1)
         show(site=None, n=1)
         neighborDist(nth)
         neighbors(site, nth)
@@ -68,42 +65,40 @@ class Lattice:# {{{
         """
         Initialize the instance of this class.
 
-        See also the docstring of this class!
+        See also the document string of this class!
         """
 
-        if isinstance(points, np.ndarray) and len(points.shape) == 2:
-            num, dim = points.shape
-            if dim <= 3:
-                self.num = num
-                self.dim = dim
+        if isinstance(points, np.ndarray) and points.ndim == 2:
+            sitenum, spacedim = points.shape
+            if spacedim <= 3:
+                self.sitenum = sitenum
+                self.spacedim = spacedim
                 self.points = np.array(points[:, :])
             else:
                 raise ValueError("Not supported space dimension.")
         else:
             raise TypeError("The invalid points parameter.")
 
-        if isinstance(tvs, np.ndarray) and tvs.shape == (dim, dim):
+        if (isinstance(tvs, np.ndarray) and tvs.ndim == 2 and 
+            tvs.shape[0] <= spacedim and tvs.shape[1] == spacedim):
+            self.perioddim = tvs.shape[0]
             self.tvs = np.array(tvs[:, :])
         else:
             raise TypeError("The invalid tvs parameter.")
 
-        self.drs = points - points[0]
-        self.bs = 2 * np.pi * solve(tvs, np.identity(dim)).T
-        tmp = set(np.around(pdist(points), decimals=NDIGITS))
-        tmp.add(0.0)
-        self.dist = tuple(sorted(tmp))
+        self.bs = 2 * np.pi * np.dot(inv(np.dot(tvs, tvs.T)), tvs)
     # }}}
 
     def __str__(self):# {{{
         """
-        Return a string that descriibles the content of the instance.
+        Return a string that describes the content of the instance.
         """
 
-        info = "Site number: {0}\n".format(self.num)
-        info += "Space dimension: {0}\n".format(self.dim)
+        info = "Site number: {0}\n".format(self.sitenum)
+        info += "Space dimension: {0}\n".format(self.spacedim)
+        info += "Translation dimension: {0}\n".format(self.perioddim)
         info += "points:\n" + str(self.points) + '\n'
         info += "tvs:\n" + str(self.tvs) + '\n'
-        info += "drs:\n" + str(self.drs) + '\n'
         info += "bs:\n" + str(self.bs) + '\n'
         return info
     # }}}
@@ -132,19 +127,48 @@ class Lattice:# {{{
         return np.array(self.bs[:, :])
     # }}}
 
-    def decompose(self, site):# {{{
+    def _scopeGuess(self, site, extend=3):# {{{
         """
-        Decompse the site with respect to the translation vectors and incluster
-        displace.
+        Guess the scope where we can find the given site. The local variable 
+        max_trans means the possible maximum translation along a given 
+        translation vector.
+        
+        This method is only for internal use.
+        """
+
+        scopes = []
+        distance = norm(site - self.points[0])
+        for tv in self.tvs:
+            max_trans = int(distance / norm(tv)) + extend
+            scopes.append(range(-max_trans, max_trans+1))
+        self._dRsTree = KDTree(np.dot(list(product(*scopes)), self.tvs))
+    # }}}
+
+    def decompose(self, site, extend=3):# {{{
+        """
+        Decompse the site with respect to the translation vectors and site in
+        the cluster.
         
         This method describle how to reach the given site through translates
-        along the tanslation vectors and incluster displace. In this method,
-        fractional translation along a translation vector is not allowed.
+        one site of the cluster along the tanslation vectors. Fractional 
+        translation along a translation vector is invalid.
+        The basic idea is that: we first calculate a collection of possible 
+        translations for the given site,  and then for every site in the 
+        cluster we search the collection to determine if we can reach the given
+        site.
+        The possible translations is calculated as follow: The distance between
+        the given site and the zeroth site in the cluster is calculated. For
+        every translation vector, we divide this distance by the length of the
+        translation vector, round off the quotient and add the "extend" and then
+        we get the possible maximum translation  along the translation vector.
 
         Parameter:
         ----------
         site: ndarray
             The site to be decompsed.
+        extend: int, optional
+            Determine the scope of the possible maximum translation.
+            default: 3
 
         Return:
         -------
@@ -157,33 +181,46 @@ class Lattice:# {{{
 
         if not isinstance(site, np.ndarray):
             raise TypeError("The input site is not a ndarray!")
-        if site.shape != (self.dim, ):
+        if site.shape != (self.spacedim, ):
             raise ValueError("The dimension of the input site "
-                             "and the lattice does not match!")
-       
-        scope = (0, 1, -1, 2, -2)
-        relative = site - self.points[0]
-        guess = solve(self.tvs.T, relative).astype(int)
-        cfgs = guess + np.array(list(product(scope, repeat=self.dim)))
-        dRs = np.dot(cfgs, self.tvs)
-        relative = np.around(relative, decimals=NDIGITS)
-        for dR in dRs:
-            for dr, eqv_site in zip(self.drs, self.points):
-                tmp = np.around(dR + dr, decimals=NDIGITS)
-                if np.all(tmp == relative):
+                             "and the lattice does not match!") 
+        if not isinstance(extend, int) or extend < 0:
+            raise ValueError("The invalid extend parameter.")
+
+        EXC_MSG = "Failed to decompse the input site. "
+        EXC_MSG += "It might not belong to the lattice or not located in "
+        EXC_MSG += "the scope determined by this method. Check carefully."
+
+        if hasattr(self, "_dRsTree"):
+            for i in range(2):
+                for eqv_site in self.points:
+                    dR = site - eqv_site
+                    ds, index = self._dRsTree.query(dR)
+                    if ds < ERR:
+                        return np.array(eqv_site[:]), dR
+                if i == 0:
+                    self._scopeGuess(site, extend=extend)
+                else:
+                    raise ValueError(EXC_MSG)
+        else:
+            self._scopeGuess(site, extend=extend)
+            for eqv_site in self.points:
+                dR = site - eqv_site
+                ds, index = self._dRsTree.query(dR)
+                if ds < ERR:
                     return np.array(eqv_site[:]), dR
-        raise ValueError("Failed to decompse the input site."
-                         "It might not belong to the lattice.")
+            raise ValueError(EXC_MSG)
     # }}}
 
-    def sitesFactory(self, site, scope=1):# {{{
+    def sitesFactory(self, site=None, scope=1):# {{{
         """
         Return the neighboring sites of the given site.
 
         Parameter:
         ----------
-        site: ndarray
+        site: ndarray, optional
             The original site coordinate.
+            default: None
         scope: int, optional
             Specify the range of the neighboring sites.
             default: 1
@@ -194,13 +231,18 @@ class Lattice:# {{{
             The coordinates of the neighboring sites.
         """
 
-        if isinstance(scope, int) and scope >= 1:
+        if site is None:
+            dR = 0
+        else:
             trash, dR = self.decompose(site)
-            cluster = self.points + dR
 
+        if isinstance(scope, int) and scope >= 1:
+            cluster = self.points + dR
             tmp = []
-            dR_scope = list(range(0, scope+1)) + list(range(-scope, 0))
-            dRs = np.dot(list(product(dR_scope, repeat=self.dim)), self.tvs)
+            #This first element of dR_scope is 0. It ensures that these points in 
+            #the cluster are place in the res before points not in the cluster.
+            dR_scope = sorted(range(-scope, scope+1), key=lambda item: abs(item))
+            dRs = np.dot(list(product(dR_scope, repeat=self.perioddim)), self.tvs)
             for dR in dRs:
                 tmp.append(cluster + dR)
             res = np.concatenate(tmp, axis=0)
@@ -223,19 +265,17 @@ class Lattice:# {{{
             default: 1
         """
 
-        if site is None:
-            site = self.points[0]
         sites = self.sitesFactory(site, n)
 
         markersize = 200
         fig = plt.figure()
-        if self.dim == 1:
+        if self.spacedim == 1:
             for x in sites:
                 plt.scatter(x, 0.0, marker='o', s=markersize)
-        elif self.dim == 2:
+        elif self.spacedim == 2:
             for x, y in sites:
                 plt.scatter(x, y, marker='o', s=markersize)
-        elif self.dim == 3:
+        elif self.spacedim == 3:
             ax = fig.add_subplot(111, projection='3d')
             for x, y, z in sites:
                 ax.scatter(x, y, z, marker='o', s=markersize)
@@ -268,12 +308,12 @@ class Lattice:# {{{
         if not isinstance(nth, int):
             raise TypeError("The nth parameter is not of type int.")
 
-        if len(self.dist) <= nth:
-            sites = self.sitesFactory(self.points[0], scope)
+        if not hasattr(self, "_dist") or len(self._dist) <= nth:
+            sites = self.sitesFactory(scope=nth+1)
             tmp = set(np.around(pdist(sites), decimals=NDIGITS))
             tmp.add(0.0)
-            self.dist = tuple(sorted(tmp))
-        return self.dist[nth]
+            self._dist = tuple(sorted(tmp))
+        return self._dist[nth]
     # }}}
 
     def neighbors(self, site, nth):# {{{
@@ -313,10 +353,10 @@ class Lattice:# {{{
             0 means onsite, 1 represents nearest neighbor, 2 represents
             next-nearest neighbor, etc.
         only: boolean, optional
-            If True, only these bonds whose length equals to the length
+            If True, only these bonds which length equals to the length
             specified by neighbor parameter is concerned, if False, all the
-            bonds whose length equal or less than the length specified by
-            neighbor parameter is concerned is concerned.
+            bonds which length equal or less than the length specified by
+            neighbor parameter is concerned.
 
         Return:
         -------
@@ -328,7 +368,7 @@ class Lattice:# {{{
         """
 
         judge = self.neighborDist(nth=neighbor)
-        sites = self.sitesFactory(self.points[0], neighbor+1)
+        sites = self.sitesFactory(scope=neighbor+1)
         tree = KDTree(sites)
         pairs_outer = tree.query_pairs(r=judge+ERR)
         if only and neighbor > 1:
@@ -344,11 +384,11 @@ class Lattice:# {{{
         for index0, index1 in pairs:
             p0 = sites[index0, :]
             p1 = sites[index1, :]
-            if index0 < self.num and index1 < self.num:
+            if index0 < self.sitenum and index1 < self.sitenum:
                 intra.append(Bond(p0, p1, directional=True))
-            elif index0 < self.num:
+            elif index0 < self.sitenum:
                 inter.append(Bond(p0, p1, directional=True))
-            elif index1 < self.num:
+            elif index1 < self.sitenum:
                 inter.append(Bond(p1, p0, directional=True))
         return intra, inter
     # }}}
@@ -370,34 +410,16 @@ class Lattice:# {{{
 
         if not isinstance(site, np.ndarray):
             raise TypeError("The input site is not a ndarray!")
-        if site.shape != (self.dim, ):
+        if site.shape != (self.spacedim, ):
             raise ValueError("The dimension of the input site and "
                              "the lattice does not match!")
-
-        round_site = np.around(site, decimals=NDIGITS)
-        result = False
-        for tmp in self.points:
-            tmp = np.around(tmp, decimals=NDIGITS)
-            if np.all(round_site == tmp):
-                result = True
-                break
-        return result
+        return np.any(norm(site - self.points, axis=1) < ERR)
     # }}}
 # }}}
 
 if __name__ == "__main__":
-    numx = 2
-    numy = 2
-    cell_points = np.array([[0, 0]])
-    cell_tvs = np.array([[1, 0], [0, 1]])
-    points = [cell_points + np.dot([x, y], cell_tvs) for x in range(numx) for y in range(numy)]
-    points = np.concatenate(points, axis=0)
-    tvs = cell_tvs * np.array([[numx, numx], [numy, numy]])
-
-    cluster = Lattice(points, tvs)
-    intra, inter = cluster.bonds(2, only=True)
-    for bond in intra:
-        print(bond)
-    print("=" * 20)
-    for bond in inter:
-        print(bond)
+    points = np.array([[0, 0], [1/4, np.sqrt(3)/4], [1/2, 0]])
+    tvs = np.array([[1/2, np.sqrt(3)/2], [1, 0]])
+    #tvs = np.array([[1, 0]])
+    lattice = Lattice(points, tvs)
+    lattice.show()
