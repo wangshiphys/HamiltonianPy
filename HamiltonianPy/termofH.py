@@ -1,68 +1,18 @@
+from itertools import product
 from scipy.sparse import csr_matrix, identity, kron
 
 import numpy as np
 
 from HamiltonianPy.constant import CREATION, ANNIHILATION, SWAP_FACTOR_F
-from HamiltonianPy.constant import SPIN_MATRIX, SPIN_OTYPE
+from HamiltonianPy.constant import SPIN_MATRIX, SPIN_OTYPE, SPIN_DOWN, SPIN_UP
 from HamiltonianPy.constant import NDIGITS, FLOAT_TYPE
-from HamiltonianPy.exception import SwapError
+from HamiltonianPy.exception import SwapFermionError
 from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.matrepr import aocmatrix, termmatrix
 
-__all__ = ["SiteID", "StateID", "AoC", "SpinOptor", 
+import HamiltonianPy.extpkg.matrixrepr as cextmr
+
+__all__ = ["SiteID", "StateID", "AoC", "SpinOperator", 
            "SpinInteraction", "ParticleTerm"]
-
-
-def normalize(optors):# {{{
-    """
-    Reordering an operator specified by optors into norm form.
-
-    For operator consist of creation and annihilation operator, the norm form 
-    of an operator means that all the creation operators appear to the left of 
-    all the annihilation operators. Also, the creation and annihilation 
-    operators are sorted in ascending and descending order respectively 
-    according to the single particle state associated with them.
-
-    Paramter:
-    ---------
-    optors: list
-        A collection of optors that consist an operator.
-    
-    RETURN:
-    -------
-    seq: list
-        The norm form of the operator.
-    swap_num: int
-        The number of swap need to reordering the operator.
-    """
-
-    seq = list(optors[:])
-    seq_len = len(seq)
-    swap_num = 0
-
-    C = CREATION
-    A = ANNIHILATION
-    for length in range(seq_len, 1, -1):
-        for i in range(0, length-1):
-            tmp0 = seq[i]
-            tmp1 = seq[i+1]
-            otype0 = tmp0.getOtype()
-            otype1 = tmp1.getOtype()
-            id0 = tmp0.getStateID()
-            id1 = tmp1.getStateID()
-            case0 = (otype0 == C) and (otype1 == C) and (id0 > id1)
-            case1 = (otype0 == A) and (otype1 == A) and (id0 < id1)
-            case2 = (otype0 == A) and (otype1 == C)
-            case3 = (id0 == id1)
-
-            if case0 or case1 or (case2 and (not case3)):
-                seq[i] = tmp1
-                seq[i+1] = tmp0
-                swap_num += 1
-            elif case2 and case3:
-                raise SwapError(seq[i], seq[i+1])
-    return seq, swap_num
-# }}}
 
 
 class SiteID:# {{{
@@ -110,7 +60,7 @@ class SiteID:# {{{
 
     def __str__(self):# {{{
         """
-        Return a string that describles the content of the instance.
+        Return a string that describes the content of the instance.
         """
 
         return "site: " + str(self.site)
@@ -190,10 +140,11 @@ class SiteID:# {{{
         """
 
         if self.site.dtype in FLOAT_TYPE:
-            tmp = np.around(self.site, decimals=NDIGITS)
+            factor = 10 ** NDIGITS
+            res = tuple([int(factor * i) for i in self.site])
         else:
-            tmp = self.site
-        return tuple(tmp)
+            res = tuple(self.site)
+        return res
     # }}}
 
     def getSite(self):# {{{
@@ -291,7 +242,7 @@ class StateID(SiteID):# {{{
 
     def __str__(self):# {{{
         """
-        Return a string that describles the content of the instance.
+        Return a string that describes the content of the instance.
         """
 
         info = "orbit: {0}\nspin: {1}\n".format(self.orbit, self.spin)
@@ -340,8 +291,8 @@ class AoC(StateID):# {{{
         annihilation or creation respectively.
     site: ndarray
         The coordinate of the localized state. The site attribute should be
-        a 1D array, usually it has length 1, 2 or 3 cooresponding 
-        to 1, 2 or 3 space dimension.
+        a 1D array, usually it has length 1, 2 or 3 cooresponding to 1, 2 or 
+        space dimension.
     spin: int, optional
         The spin index of the state.
         default: 0
@@ -354,6 +305,8 @@ class AoC(StateID):# {{{
     Special methods:
         __init__(otype, site, spin=0, orbit=0)
         __str__()
+        __gt__(other)
+        __lt__(other)
     General methods:
         getOtype()
         getStateID()
@@ -361,13 +314,13 @@ class AoC(StateID):# {{{
         dagger()
         sameState(other)
         conjugateOf(other)
-        update(otype=None, site=None, spin=None, orbit=None)
-        matrixRepr(statemap, rbase, lbase=None)
+        update(*, otype=None, site=None, spin=None, orbit=None)
+        matrixRepr(statemap, rbase, lbase=None, *, to_csr=True)
+    Static methods:
+        matrixFunc(operator, rbase, lbase=None, *, to_csr=True)
     Methods Inherit from SiteID:
         __hash__()
         __eq__(other)
-        __gt__(other)
-        __lt__(other)
         __ne__(other)
         __ge__(other)
         __le__(other)
@@ -403,6 +356,57 @@ class AoC(StateID):# {{{
         info = 'otype: {0}\n'.format(self.otype)
         info += StateID.__str__(self)
         return info
+    # }}}
+
+    def __lt__(self, other):# {{{
+        """
+        Define the < operator between instance of this class.
+
+        The comparsion logic is as follow:
+        Creation operator is always less than annihilation operator;
+        The smaller the stateid, the samller the creation operator;
+        The larger the stateid, the smaller the annihilation operator.
+        """
+
+        if isinstance(other, self.__class__):
+            otype0 = self.otype
+            otype1 = other.otype
+            id0 = self.getStateID()
+            id1 = other.getStateID()
+            if otype0 == CREATION and otype1 == CREATION:
+                return id0 < id1
+            elif otype0 == CREATION and otype1 == ANNIHILATION:
+                return True
+            elif otype0 == ANNIHILATION and otype1 == CREATION:
+                return False
+            else:
+                return id0 > id1
+        else:
+            raise TypeError("The right operand is not instance of this class.")
+    # }}}
+
+    def __gt__(self, other):# {{{
+        """
+        Define the > operator between instance of this class.
+
+        See document of __lt__ special method for the comparsion logic.
+        """
+
+        if isinstance(other, self.__class__):
+            otype0 = self.otype
+            otype1 = other.otype
+            id0 = self.getStateID()
+            id1 = other.getStateID()
+            if otype0 == CREATION and otype1 == CREATION:
+                return id0 > id1
+            elif otype0 == CREATION and otype1 == ANNIHILATION:
+                return False
+            elif otype0 == ANNIHILATION and otype1 == CREATION:
+                return True
+            else:
+                return id0 < id1
+        else:
+            raise TypeError("The right operand is not instance of this class.")
     # }}}
 
     def tupleform(self):# {{{
@@ -445,8 +449,10 @@ class AoC(StateID):# {{{
         res: A new instance of this class.
         """
 
-        #1 ^ 1 = 0 and 0 ^ 1 = 1, xor with 1 flip the bit.
-        otype = self.otype ^ CREATION
+        if self.otype == CREATION:
+            otype = ANNIHILATION
+        else:
+            otype = CREATION
         res = AoC(otype=otype, site=self.site, spin=self.spin, orbit=self.orbit)
         return res
     # }}}
@@ -473,10 +479,12 @@ class AoC(StateID):# {{{
         return self.getStateID() == other.getStateID()
     # }}}
 
-    def update(self, otype=None, site=None, spin=None, orbit=None):# {{{
+    def update(self, *, otype=None, site=None, spin=None, orbit=None):# {{{
         """
         Create a new aoc with the same parameter as self except for those 
         given to update method.
+        
+        All the parameters should be specified as keyword argument.
 
         Return:
         -------
@@ -495,10 +503,56 @@ class AoC(StateID):# {{{
         return AoC(otype=otype, site=site, spin=spin, orbit=orbit)
     # }}}
 
-    def matrixRepr(self, statemap, rbase, lbase=None):# {{{
+    @staticmethod
+    def matrixFunc(operator, rbase, lbase=None, *, to_csr=True):# {{{
         """
-        Return the matrix representation of the operator specified by this
-        instance in the Hilbert space of the manybody system.
+        Return the matrix representation of the operator in the Hilbert space
+        specified by the rbase and optional lbase.
+
+        Parameter:
+        ----------
+        operator: tuple or list
+            The parameter should be a tuple or list with two entries. The first
+            entries is the index of the single-particle state and the second is
+            the "CREATION" or "ANNIHILATION" constant.
+        rbase: tuple or list
+            The bases of the Hilbert space before the operation.
+        lbase: tuple or list, optional
+            The bases of the Hilbert space after the operation.
+            If not given or None, lbase is the same as rbase.
+            default: None
+        to_csr: boolean, optional, only keyword argument
+            Whether to construct a csr_matrix as the result.
+            default: True
+
+        Return:
+        -------
+        res: csr_matrix or tuple
+            The matrix representation of the creation or annihilation operator.
+            If to_csr is True, the result is a csr_matrix, if False, the result
+            is a tuple. The first is the non-zero matrix entries, the second and
+            third are the row and col indices.
+        """
+
+        rdim = len(rbase)
+        if lbase is None:
+            shape = (rdim, rdim)
+            data = cextmr.matrixRepr([operator], rbase)
+        else:
+            shape = (len(lbase), rdim)
+            data = cextmr.matrixRepr([operator], rbase, lbase)
+
+        if to_csr:
+            res = csr_matrix(data, shape=shape)
+        else:
+            res = data
+        return res
+    # }}}
+
+    def matrixRepr(self, statemap, rbase, lbase=None, *, to_csr=True):# {{{
+        """
+        Return the matrix representation of the operator specified by self in 
+        the Hilbert space of the manybody system.
         
         Parameter:
         ----------
@@ -506,26 +560,31 @@ class AoC(StateID):# {{{
             A map system that associate instance of StateID with an integer 
             index.
         rbase: tuple or list
-            The base of the Hilbert space before the operation.
+            The bases of the Hilbert space before the operation.
         lbase: tuple or list, optional
-            The base of the Hilbert space after the operation.
+            The bases of the Hilbert space after the operation.
             If not given or None, lbase is the same as rbase.
             default: None
+        to_csr: boolean, optional, only keyword argument
+            Whether to construct a csr_matrix as the result.
+            default: True
 
         Return:
         -------
-        res: csr_matrix
+        res: csr_matrix or tuple
             The matrix representation of the creation or annihilation operator.
+            If to_csr is True, the result is a csr_matrix, if False, the result
+            is a tuple. The first is the non-zero matrix entries, the second and
+            third are the row and col indices.
         """
 
-        index = self.getStateID().getIndex(statemap)
-        res = aocmatrix(index, self.otype, rbase, lbase, statistics='F')
-        return res
+        operator = (self.getStateID().getIndex(statemap), self.otype)
+        return self.matrixFunc(operator, rbase=rbase, lbase=lbase, to_csr=to_csr)
     # }}}
 # }}}
 
 
-class SpinOptor(SiteID):# {{{
+class SpinOperator(SiteID):# {{{
     """
     The class provide a unified description of a spin opeartor.
 
@@ -538,12 +597,12 @@ class SpinOptor(SiteID):# {{{
         The coordinate of the localized spin operator.
     Pauli: boolean, optional
         The attribute determine whether to use Pauli matrix or spin matrix.
-        default: True
+        default: False
 
     Method:
     -------
     Special methods:
-        __init__(otype, site, Pauli=True)
+        __init__(otype, site, Pauli=False)
         __str__()
     General methods:
         tupleform()
@@ -553,8 +612,11 @@ class SpinOptor(SiteID):# {{{
         getOtype()
         sameSite(other)
         conjugateOf(other)
-        update(otype=None, site=None)
+        update(*, otype=None, site=None)
+        Schwinger()
         matrixRepr(sitemap)
+    Static methods:
+        matrixFunc(operator, totspin)
     Methods inherited from SiteID:
         __hash__()
         __lt__()
@@ -567,7 +629,15 @@ class SpinOptor(SiteID):# {{{
         getIndex(objmap)
     """
 
-    def __init__(self, otype, site, Pauli=True):# {{{
+    def __init__(self, otype, site, Pauli=False):# {{{
+        """
+        Initialize instance of this class.
+
+        Parameter:
+        ----------
+        See the documentation of this class.
+        """
+
         SiteID.__init__(self, site=site)
         self.Pauli = Pauli
         if otype in SPIN_OTYPE:
@@ -578,7 +648,7 @@ class SpinOptor(SiteID):# {{{
 
     def __str__(self):# {{{
         """
-        Return a string that describles the content of the instance.
+        Return a string that describes the content of the instance.
         """
 
         info = "otype: {0}\n".format(self.otype)
@@ -655,7 +725,7 @@ class SpinOptor(SiteID):# {{{
 
     def sameSite(self, other):# {{{
         """
-        Determine whether the self SpinOptor and other SpinOptor is on 
+        Determine whether the self SpinOperator and other SpinOperator is on 
         the same site.
         """
 
@@ -665,14 +735,16 @@ class SpinOptor(SiteID):# {{{
         return self.getSiteID() == other.getSiteID()
     # }}}
     
-    def update(self, otype=None, site=None):# {{{
+    def update(self, *, otype=None, site=None):# {{{
         """
-        Create a new SpinOptor with the same parameter as self except for those 
-        given to update method.
+        Create a new SpinOperator with the same parameter as self except 
+        for those given to update method.
+
+        All the parameters should be specified as keyword argument.
 
         Return:
         -------
-        res: A new instance of SpinOptor.
+        res: A new instance of SpinOperator.
         """
 
         if otype is None:
@@ -680,7 +752,58 @@ class SpinOptor(SiteID):# {{{
         if site is None:
             site = self.site
 
-        return SpinOptor(otype=otype, site=site, Pauli=self.Pauli)
+        return SpinOperator(otype=otype, site=site, Pauli=self.Pauli)
+    # }}}
+
+    def Schwinger(self):# {{{
+        """
+        Return the Schwinger Fermion representation of this spin operator.
+        """
+
+        M = self.matrix()
+        spins = [SPIN_UP, SPIN_DOWN]
+        terms = []
+        for spin0, row in zip(spins, range(2)):
+            for spin1, col in zip(spins, range(2)):
+                coeff = M[row, col]
+                if coeff != 0:
+                    C = AoC(otype=CREATION, site=self.site, spin=spin0)
+                    A = AoC(otype=ANNIHILATION, site=self.site, spin=spin1)
+                    term = ParticleTerm((C, A), coeff=coeff)
+                    terms.append(term)
+        return terms
+    # }}}
+
+    @staticmethod
+    def matrixFunc(operator, totspin):# {{{
+        """
+        The static method to calculate the matrix representation of spin
+        operator specified by the operator parameter.
+
+        Parameter:
+        ----------
+        operator: tuple or list
+            The operator should be of length 3. The first entry is the index of
+            the site on which the spin operator is defined, the second is the
+            type of the spin operator which should be only one of ('x', 'y',
+            'z', 'p', m). The third determine whether to use sigma or S matrix
+            and it can only be string "sigma" or 's'.
+        totspin: int
+            The total number of spins.
+
+        Return:
+        -------
+        res: csr_matrix
+            The matrix representation of this spin operator.
+        """
+
+        index, otype, sigma = operator
+        I0 = identity(2 ** index, dtype=np.int64, format="csr")
+        I1 = identity(2 ** (totspin - index - 1), dtype=np.int64, format="csr")
+        S = csr_matrix(SPIN_MATRIX[sigma][otype])
+        res = kron(I1, kron(S, I0, format="csr"), format="csr")
+        res.eliminate_zeros()
+        return res
     # }}}
 
     def matrixRepr(self, sitemap):# {{{
@@ -696,22 +819,23 @@ class SpinOptor(SiteID):# {{{
         Parameter:
         ----------
         sitemap: IndexMap
-            A map system that associate instance of SiteID with an integer 
-            index.
+            A map system that associate instance of SiteID with an integer index.
+
         Return:
         -------
         res: csr_matrix
             The matrix representation of the creation or annihilation operator.
         """
 
-        tot = len(sitemap)
+        totspin = len(sitemap)
         index = self.getSiteID().getIndex(sitemap)
-        I0 = identity(2**index, dtype=np.int64, format="csr")
-        I1 = identity(2**(tot-index-1), dtype=np.int64, format="csr")
-        S = csr_matrix(self.matrix())
-        res = kron(I1, kron(S, I0, format="csr"), format="csr")
-        res.eliminate_zeros()
-        return res
+        if self.Pauli:
+            sigma = "sigma"
+        else:
+            sigma = 's'
+
+        operator = (index, self.otype, sigma)
+        return self.matrixFunc(operator, totspin)
     # }}}
 # }}}
 
@@ -722,7 +846,7 @@ class SpinInteraction:# {{{
 
     Attribute:
     ----------
-    components: tuple of instances of SpinOptor class.
+    operators: A sequence of instances of SpinOperator class.
     coeff: int, float, complex, optional
         The coefficience of this term.
         default: 1.0
@@ -730,42 +854,90 @@ class SpinInteraction:# {{{
     Method:
     -------
     Special methods:
-        __init__(components, coeff=1.0)
+        __init__(operators, coeff=1.0)
         __str__()
+        __mul__(other)
+        __rmul__(other)
     General methods:
         dagger()
         sameAs(other)
         conjugateOf(other)
         updateCoeff(coeff)
-        matrixForm(optors, totspin, coeff=1.0)
         matrixRepr(sitemap, coeff)
+    Static methods:
+        matrixFunc(operators, totspin, coeff=1.0)
     """
 
-    def __init__(self, components, coeff=1.0):# {{{
+    def __init__(self, operators, coeff=1.0):# {{{
         """
         Initialize instance of this class.
+
+        The spin operators is sorted in ascending order according to their 
+        SiteID. The relative position of two operators with the same SiteID 
+        will not change and the exchange of two spin operators on different 
+        site never change the interaction term.
 
         See also the documentation of this class.
         """
         
-        #Sort the spin operators in ascending order according to their SiteID.
-        #The relative position of two operators with the same SiteID will not
-        #change and the exchange of two spin operators on different site never
-        #change the interaction term.
-        tmp = sorted(components, key=lambda item: item.getSiteID())
-        self.components = tuple(tmp)
-        self.coeff = coeff
+        if isinstance(coeff, (int, float, complex)):
+            self.coeff = coeff
+        else:
+            raise TypeError("The input coeff is not a number.")
+        
+        for operator in operators:
+            if not isinstance(operator, SpinOperator):
+                raise TypeError("The input operator is not instance of "
+                                "SpinOperator.")
+
+        self.operators = sorted(operators, key=lambda item: item.getSiteID())
     # }}}
 
     def __str__(self):# {{{
         """
-        Return a string that describles the content of the instance.
+        Return a string that describes the content of the instance.
         """
 
         info = "coeff: {0}\n".format(self.coeff)
-        for item in self.components:
+        for item in self.operators:
             info += str(item)
+            info += '\n'
         return info
+    # }}}
+
+    def __mul__(self, other):# {{{
+        """
+        Implement the binary arithmetic operation *, the other parameter is the
+        right operand. Return a new instance of this class.
+        """
+
+        if isinstance(other, self.__class__):
+            operators = self.operators + other.operators
+            coeff = self.coeff * other.coeff
+        elif isinstance(other, (int, float, complex)):
+            operators = self.operators
+            coeff = other * self.coeff
+        else:
+            raise TypeError("Multiply with the given parameter is not supported.")
+        
+        return SpinInteraction(operators, coeff=coeff)
+    # }}}
+
+    def __rmul__(self, other):# {{{
+        """
+        Implement the binary arithmetic operation *, the other parameter is the
+        left operand.
+
+        This method return a new instance of this class. If you just want to update the coeff, use updateCoeff() method instead.
+        """
+        
+        if isinstance(other, (int, float, complex)):
+            operators = self.operators
+            coeff = other * self.coeff
+        else:
+            raise TypeError("Multiply with the given parameter is not supported.")
+
+        return SpinInteraction(operators, coeff=coeff)
     # }}}
 
     def dagger(self):# {{{
@@ -774,10 +946,10 @@ class SpinInteraction:# {{{
         """
 
         coeff = self.coeff.conjugate()
-        tmp = []
-        for item in self.components[::-1]:
-            tmp.append(item.dagger())
-        return SpinInteraction(components=tmp, coeff=coeff)
+        operators = []
+        for operator in self.operators[::-1]:
+            operators.append(operator.dagger())
+        return SpinInteraction(operators, coeff=coeff)
     # }}}
 
     def sameAs(self, other):# {{{
@@ -788,10 +960,13 @@ class SpinInteraction:# {{{
         the same spin opertors, also these operators are in the same order, 
         then we claim the two instance are equal. We never care about the coeff
         attribute of the two instance.
+
+        Warning:
+        The logic of this method maybe invalid. Use with caution.
         """
 
         if isinstance(other, self.__class__):
-            return self.components == other.components
+            return self.operators == other.operators
         else:
             raise TypeError("The input parameter is not instance of this class!")
     # }}}
@@ -801,6 +976,8 @@ class SpinInteraction:# {{{
         Determine whether the instance is conjugate of the other instance.
 
         Here, we also do not care about the coeff attribute.
+        Warning:
+        The logic of this method maybe invalid. Use with caution.
         """
         
         if isinstance(other, self.__class__):
@@ -819,20 +996,40 @@ class SpinInteraction:# {{{
         else:
             raise TypeError("The wrong type of coeff parameter!")
     # }}}
+
+    def Schwinger(self):# {{{
+        """
+        Return the Schwinger Fermion representation of this spin interaction
+        term.
+        """
+        
+        fermion_reprs = []
+        for operator in self.operators:
+            fermion_reprs.append(operator.Schwinger())
+
+        terms = []
+        for term in product(*fermion_reprs):
+            res_term = 1
+            for sub_term in term:
+                res_term = res_term * sub_term
+            terms.append(res_term)
+        return terms
+    # }}}
     
     @staticmethod
-    def matrixForm(optors, totspin, coeff=1.0):# {{{
+    def matrixFunc(operators, totspin, coeff=1.0):# {{{
         """
         This static method calculate the matrix representation of spin
-        interaction specified by the optors parameter.
+        interaction specified by the operators parameter.
 
         Parameter:
         ----------
-        optors: sequence
-            A sequence a length 3 tuple. The first entry of the tuple is a
-            integer index of the spin operator, the second entry is the type
+        operators: sequence
+            A sequence of length 3 tuple. The first entry of the tuple is an
+            integer index of the spin operator. The second entry is the type
             of the spin operator which should be only one of ('x', 'y', 'z',
-            'p', 'm'), and the third determine whether to use sigma or S matrix.
+            'p', 'm'). The third determine whether to use sigma or S matrix and
+            it can only be "sigma" or "s".
         totspin: int
             The total number of spins concerned.
         coeff: int, float or complex, optional
@@ -845,10 +1042,10 @@ class SpinInteraction:# {{{
             The matrix representation of this term.
         """
 
-        optors = sorted(optors, key=lambda item: item[0])
-        if len(optors) == 2 and optors[0][0] != optors[1][0]:
-            index0, otype0, sigma0 = optors[0]
-            index1, otype1, sigma1 = optors[1]
+        operators = sorted(operators, key=lambda item: item[0])
+        if len(operators) == 2 and operators[0][0] != operators[1][0]:
+            index0, otype0, sigma0 = operators[0]
+            index1, otype1, sigma1 = operators[1]
             S0 = csr_matrix(SPIN_MATRIX[sigma0][otype0])
             S1 = csr_matrix(SPIN_MATRIX[sigma1][otype1])
             dim0 = 2 ** (index0)
@@ -869,7 +1066,7 @@ class SpinInteraction:# {{{
                 res = kron(I, res, format="csr")
         else:
             res = identity(2**totspin, dtype=np.int64, format="csr")
-            for index, otype, sigma in optors:
+            for index, otype, sigma in operators:
                 I0 = identity(2**index, dtype=np.int64, format="csr")
                 I1 = identity(2**(totspin-index-1), dtype=np.int64, format="csr")
                 S = csr_matrix(SPIN_MATRIX[sigma][otype])
@@ -901,16 +1098,16 @@ class SpinInteraction:# {{{
             self.updateCoeff(coeff)
 
         totspin = len(sitemap)
-        optors = []
-        for optor in self.components:
-            index = optor.getSiteID().getIndex(sitemap)
-            otype = optor.getOtype()
-            if optor.Pauli:
+        operators = []
+        for operator in self.operators:
+            index = operator.getSiteID().getIndex(sitemap)
+            otype = operator.getOtype()
+            if operator.Pauli:
                 sigma = "sigma"
             else:
                 sigma = 's'
-            optors.append((index, otype, sigma))
-        res = self.matrixForm(optors, totspin, self.coeff)
+            operators.append((index, otype, sigma))
+        res = self.matrixFunc(operators, totspin, self.coeff)
         return res
     # }}}
 # }}}
@@ -919,7 +1116,7 @@ class SpinInteraction:# {{{
 class ParticleTerm:# {{{
     """
     This class provide unified description of any operator 
-    composed of creation and annihilation operators.
+    composed of creation and/or annihilation operators.
 
     Attribute:
     ----------
@@ -928,13 +1125,17 @@ class ParticleTerm:# {{{
     coeff: float, int or complex, optional
         The coefficient of the operator.
         default: 1.0
-
+    normalized: boolean
+        A flag that indicates whether the instance is normalized. See document
+        of normalize method for the definition of normalized term.
     
     Method:
     -------
     Special methods:
         __init__(aocs, coeff=1.0)
         __str__()
+        __mul__(other)
+        __rmul__(other)
     General methods:
         isPairing(tag=None)
         isHopping(tag=None)
@@ -943,42 +1144,147 @@ class ParticleTerm:# {{{
         dagger()
         conjugateOf(other)
         updateCoeff(coeff)
-        matrixRepr(statemap, base, coeff=None)
+        matrixRepr(statemap, rbase, lbase=None, coeff=None)
+    Static methods:
+        normalize(aoc_seq)
+        matrixFunc(operators, rbase, lbase=None, coeff=1.0)
     """
 
     def __init__(self, aocs, coeff=1.0):# {{{
         """
-        Initilize the instance of this class.
+        Initialize the instance of this class.
 
         Paramter:
         --------
         aocs: tuple or list
             The creation and annihilation operators that consist this operator.
         coeff: float, int or complex, optional
-            The coefficient of the operator.
+            The coefficience of the operator.
             default: 1.0
         """
 
-        normal_aocs, swap_num = normalize(aocs)
+        for aoc in aocs:
+            if not isinstance(aoc, AoC):
+                raise TypeError("The input parameter is not instance of AoC.")
 
-        self.aocs = tuple(normal_aocs)
+        try:
+            normal_aocs, swap_num = self.normalize(aocs)
+            self.normalized = True
+        except SwapFermionError:
+            normal_aocs = list(aocs)
+            swap_num = 0
+            self.normalized = False
+
+        self.aocs = normal_aocs
         self.coeff = (SWAP_FACTOR_F ** swap_num) * coeff
     # }}}
 
     def __str__(self):# {{{
         """
-        Return the printing string of instance of this class!
+        Return a string that describes the content of the instance.
         """
 
-        info = "coeff: {0}".format(self.coeff)
+        info = "coeff: {0}\n".format(self.coeff)
         for aoc in self.aocs:
             info += str(aoc)
+            info += '\n'
         return info
+    # }}}
+
+    def __mul__(self, other):# {{{
+        """
+        Implement the binary arithmetic operation *, the other parameter is the
+        right operand. Return a new instance of this class.
+        """
+
+        if isinstance(other, self.__class__):
+            aocs = self.aocs + other.aocs
+            coeff = self.coeff * other.coeff
+        elif isinstance(other, (int, float, complex)):
+            aocs = self.aocs
+            coeff = other * self.coeff
+        else:
+            raise TypeError("Multiply with the given parameter is not supported.")
+
+        return ParticleTerm(aocs, coeff=coeff)
+    # }}}
+    
+    def __rmul__(self, other):# {{{
+        """
+        Implement the binary arithmetic operation *, the other parameter is the
+        left operand.
+
+        This method return a new instance of this class. If you just want to 
+        update the coeff attribute but not create a new instance, use the 
+        updateCoeff(coeff) method.
+        """
+
+        if isinstance(other, (int, float, complex)):
+            aocs = self.aocs
+            coeff = other * self.coeff
+        else:
+            raise TypeError("Multiply with the given parameter is not supported.")
+
+        return ParticleTerm(aocs, coeff=coeff)
+    # }}}
+
+    @staticmethod
+    def normalize(aoc_seq):# {{{
+        """
+        Reordering a sequence of creation and/or annihilation operators into 
+        norm form.
+
+        For a composite operator consist of creation and annihilation operators,
+        the norm form means that all the creation operators appear to the left
+        of all the annihilation operators. Also, the creation and annihilation
+        operators are sorted in ascending and descending order respectively
+        according to the single particle state associated with the operator.
+
+        See the document of AoC.__lt__(other) method for the comparsion logic.
+
+        Parameter:
+        ----------
+        aoc_seq: list or tuple
+            A collection of creation and/or annihilation operators.
+
+        Return:
+        -------
+        res: list
+            The norm form of the operator.
+        
+        Raise:
+        ------
+        SwapFermionError: Exceptions raised when swap creation and annihilation
+        operator that with the same single particle state.
+        """
+
+        seq = list(aoc_seq[:])
+        seq_len = len(aoc_seq)
+        swap_num = 0
+
+        for length in range(seq_len, 1, -1):
+            for i in range(0, length-1):
+                aoc0 = seq[i]
+                aoc1 = seq[i+1]
+                id0 = aoc0.getStateID()
+                id1 = aoc1.getStateID()
+                if aoc0 > aoc1:
+                    if id0 != id1:
+                        seq[i] = aoc1
+                        seq[i+1] = aoc0
+                        swap_num += 1
+                    else:
+                        raise SwapFermionError(aoc0, aoc1)
+        return seq, swap_num
     # }}}
 
     def isPairing(self, tag=None):# {{{
         """
         Determining whether the operator is a pairing term.
+
+        This method is only valid for these instance that the "normalized"
+        attribute is set to be True. For these instance that normalized
+        attribute is False, this method will raise NotImplementedError.
 
         Parameter:
         ----------
@@ -989,33 +1295,39 @@ class ParticleTerm:# {{{
             default: None
         """
 
-        if len(self.aocs) != 2:
-            return False
-        else:
-            otype0 = self.aocs[0].getOtype()
-            otype1 = self.aocs[1].getOtype()
-            if tag is None:
-                if otype0 == otype1:
-                    return True
-                else:
-                    return False
-            elif tag in ('p', 'P'):
-                if otype0 == CREATION and otype1 == CREATION:
-                    return True
-                else:
-                    return False
-            elif tag in ('h', 'H'):
-                if otype0 == ANNIHILATION and otype1 == ANNIHILATION:
-                    return True
-                else:
-                    return False
+        if self.normalized:
+            if len(self.aocs) != 2:
+                return False
             else:
-                raise ValueError("The invalid tag parameter.")
+                otype0 = self.aocs[0].getOtype()
+                otype1 = self.aocs[1].getOtype()
+                if tag in ('p', 'P'):
+                    if otype0 == CREATION and otype1 == CREATION:
+                        return True
+                    else:
+                        return False
+                elif tag in ('h', 'H'):
+                    if otype0 == ANNIHILATION and otype1 == ANNIHILATION:
+                        return True
+                    else:
+                        return False
+                else:
+                    if otype0 == otype1:
+                        return True
+                    else:
+                        return False
+        else:
+            raise NotImplementedError("The term is not normalied, We can't "
+                "determine it is a pairing term or not using simple logical.")
     # }}}
 
     def isHopping(self, tag=None):# {{{
         """
         Determining whether the operator is a hopping term.
+        
+        This method is only valid for these instance that the "normalized"
+        attribute is set to be True. For these instance that normalized
+        attribute is False, this method will raise NotImplementedError.
 
         Parameter:
         ----------
@@ -1026,44 +1338,55 @@ class ParticleTerm:# {{{
             default: None
         """
 
-        if len(self.aocs) != 2:
-            return False
-        else:
-            c0 = self.aocs[0].getOtype() == CREATION
-            c1 = self.aocs[1].getOtype() == ANNIHILATION
-            if tag is None:
-                if c0 and c1:
-                    return True
-                else:
-                    return False
-            elif tag in ('n', 'N'):
-                c2 = self.aocs[0].sameState(self.aocs[1])
-                if c0 and c1 and c2:
-                    return True
-                else:
-                    return False
+        if self.normalized:
+            if len(self.aocs) != 2:
+                return False
             else:
-                raise ValueError("The invalid tag parameter.")
+                c0 = self.aocs[0].getOtype() == CREATION
+                c1 = self.aocs[1].getOtype() == ANNIHILATION
+                if tag in ('n', 'N'):
+                    c2 = self.aocs[0].sameState(self.aocs[1])
+                    if c0 and c1 and c2:
+                        return True
+                    else:
+                        return False
+                else:
+                    if c0 and c1:
+                        return True
+                    else:
+                        return False
+        else:
+            raise NotImplementedError("The term is not normalied, We can't "
+                "determine it is a hopping term or not using simple logical.")
     # }}}
     
     def isHubbard(self):# {{{
         """
         Determining whether the operator is a hubbard term.
+        
+        This method is only valid for these instance that the "normalized"
+        attribute is set to be True. For these instance that normalized
+        attribute is False, this method will raise NotImplementedError.
+
         """
 
-        if len(self.aocs) == 4:
-            if (self.aocs[0].getOtype() == CREATION and
-                self.aocs[1].getOtype() == CREATION and
-                self.aocs[2].getOtype() == ANNIHILATION and
-                self.aocs[3].getOtype() == ANNIHILATION and
-                self.aocs[0].sameState(self.aocs[3]) and
-                self.aocs[1].sameState(self.aocs[2])
-                ):
-                return True
+        if self.normalized:
+            if len(self.aocs) == 4:
+                if (self.aocs[0].getOtype() == CREATION and
+                    self.aocs[1].getOtype() == CREATION and
+                    self.aocs[2].getOtype() == ANNIHILATION and
+                    self.aocs[3].getOtype() == ANNIHILATION and
+                    self.aocs[0].sameState(self.aocs[3]) and
+                    self.aocs[1].sameState(self.aocs[2])
+                    ):
+                    return True
+                else:
+                    return False
             else:
                 return False
         else:
-            return False
+            raise NotImplementedError("The term is not normalied, We can't "
+                "determine it is a hubbard term or not using simple logical.")
     # }}}
 
     def sameAs(self, other):# {{{
@@ -1074,6 +1397,10 @@ class ParticleTerm:# {{{
         the same creation and/or annihilation opertors, also these operators are
         in the same order, then we claim the two instance are equal. We never
         care about the coeff attribute of the two instance.
+
+        Warnning:
+            The logic of this method maybe incorrect, use this method with
+            caution.
         """
 
         if not isinstance(other, self.__class__):
@@ -1087,16 +1414,19 @@ class ParticleTerm:# {{{
         Return the Hermit conjugate of this operator.
         """
 
-        tmp = []
+        aocs = []
         for aoc in self.aocs[::-1]:
-            tmp.append(aoc.dagger())
-        res = Optor(tmp, self.coeff.conjugate())
-        return res
+            aocs.append(aoc.dagger())
+        return ParticleTerm(aocs, coeff=self.coeff.conjugate())
     # }}}
 
     def conjugateOf(self, other):# {{{
         """
-        Determine whether a operator is the Hermit conjugate of it's self.
+        Determine whether an operator is the Hermit conjugate of it's self.
+
+        Warnning:
+            The logic of this method maybe incorrect, use this method with
+            caution.
         """
         if not isinstance(other, self.__class__):
             raise TypeError("The right operand is not instance of this class!")
@@ -1115,7 +1445,47 @@ class ParticleTerm:# {{{
             raise TypeError("The input coeff parameter is of invalid type!")
     # }}}
 
-    def matrixRepr(self, statemap, base, coeff=None):# {{{
+    @staticmethod
+    def matrixFunc(operators, rbase, lbase=None, coeff=1.0):# {{{
+        """
+        Return the matrix representation of the term in the Hilbert space 
+        specified by the rbase and the optional lbase.
+
+        Parameter:
+        ----------
+        operators: list or tuple
+            It is a sequence of length-2 tuples or lists. The first entry is the
+            index of the state and the second is the operator type(CREATION or
+            ANNIHILATION).
+        rbase: tuple or list
+            The bases of the Hilbert space before the operation.
+        lbase: tuple or list, optional
+            The bases of the Hilbert space after the operation.
+            It not given or None, lbase is the same as rbase.
+            default: None
+        coeff: int, float or complex, optional
+            The coefficience of the term.
+            default: 1.0
+
+        Return:
+        -------
+        res: csr_martrix
+            The matrix representation of the term.
+        """
+
+
+        rdim = len(rbase)
+        if lbase is None:
+            shape = (rdim, rdim)
+            data = cextmr.matrixRepr(operators, rbase)
+        else:
+            shape = (len(lbase), rdim)
+            data = cextmr.matrixRepr(operators, rbase, lbase)
+
+        return coeff * csr_matrix(data, shape=shape)
+    # }}}
+
+    def matrixRepr(self, statemap, rbase, lbase=None, coeff=None):# {{{
         """
         Return the matrix representation of the operator specified by this
         instance in the Hilbert space of the manybody system.
@@ -1125,41 +1495,30 @@ class ParticleTerm:# {{{
         statemap: IndexMap
             A map system that associate instance of StateID with an integer 
             index.
-        base: tuple or list
-            The base of the Hilbert space.
+        rbase: tuple or list
+            The bases of the Hilbert space before the operation.
+        lbase: tuple or list, optional
+            The bases of the Hilbert space after the operation.
+            It not given or None, lbase is the same as rbase.
+            default: None
         coeff: int, float or complex, optional
-            The coefficient of the operator.
+            The coefficience of the term.
             default: None
 
         Return:
         -------
-        res: csr_matrix
-            The matrix representation of the creation or annihilation operator.
+        res: csr_martrix
+            The matrix representation of the term.
         """
 
         if coeff is not None:
             self.updateCoeff(coeff)
 
-        if self.isHopping():
-            termtype = "hopping"
-            cindex = self.aocs[0].getStateID().getIndex(statemap)
-            aindex = self.aocs[1].getStateID().getIndex(statemap)
-            term = ((cindex, aindex), self.coeff)
-        elif self.isPairing():
-            termtype = "pairing"
-            index0 = self.aocs[0].getStateID().getIndex(statemap)
-            index1 = self.aocs[1].getStateID().getIndex(statemap)
-            otype = self.aocs[0].getOtype()
-            term = ((cindex, aindex), self.coeff, otype)
-        elif self.isHubbard():
-            termtype = "hubbard"
-            index0 = self.aocs[0].getStateID().getIndex(statemap)
-            index1 = self.aocs[1].getStateID().getIndex(statemap)
-            term = ((index0, index1), self.coeff)
-        else:
-            raise ValueError("Not supported term.")
-
-        res = termmatrix(term=term, base=base, termtype=termtype, statistics='F')
-        return res
+        aocs = []
+        for aoc in self.aocs:
+            index = aoc.getStateID().getIndex(statemap)
+            otype = aoc.otype
+            aocs.append((index, otype))
+        return self.matrixFunc(aocs, rbase, lbase=lbase, coeff=self.coeff)
     # }}}
 # }}}

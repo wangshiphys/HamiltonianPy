@@ -122,7 +122,7 @@ class Bond:# {{{
                   "for bond which the direction is not concerned.")
     # }}}
 
-    def getAzimuth(self, radian=True, ndigits=None):# {{{
+    def getAzimuth(self, radian=False, ndigits=None):# {{{
         """
         Return the angle between the bond and the coordinate system.
 
@@ -132,7 +132,7 @@ class Bond:# {{{
         ----------
         radian: boolean, optional
             Determine the unit of angle, radian or degree.
-            default: True
+            default: False
         ndigits: None or int, optional
             Number of digits to preserve after the decimal point.
             default: None
@@ -182,20 +182,21 @@ class Bond:# {{{
         The tuple form of this bond.
         """
 
+        factor = 10 ** NDIGITS
         if self.p0.dtype in FLOAT_TYPE:
-            p0 = np.around(self.p0, decimals=NDIGITS)
+            p0 = [int(factor * i) for i in self.p0]
         else:
-            p0 = self.p0
+            p0 = list(self.p0)
         if self.p1.dtype in FLOAT_TYPE:
-            p1 = np.around(self.p1, decimals=NDIGITS)
+            p1 = [int(factor * i) for i in self.p1]
         else:
-            p1 = self.p1
+            p1 = list(self.p1)
 
-        res = (tuple(p0), tuple(p1))
+        res = p0 + p1
         if not self.directional:
-            res = tuple(sorted(res))
-        res += (self.directional, )
-        return res
+            res.sort()
+        res += [self.directional]
+        return tuple(res)
     # }}}
 
     def __hash__(self):# {{{

@@ -29,7 +29,7 @@ class ConvergenceError(SelfDefinedError):# {{{
     pass
 # }}}
 
-class SwapError(Exception):# {{{
+class SwapFermionError(Exception):# {{{
     """
     Exceptions raised when swap creation and annihilation operator that with
     the same single particle state.

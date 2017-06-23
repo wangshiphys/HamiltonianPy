@@ -57,8 +57,9 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
 /*{{{*/
 {
     char *exc_msg;
+    int swap, not_zero_flag;
     long i, j, temp;
-    long state_index, mask, criterion, ket, swap_num, not_zero_flag;
+    long state_index, mask, criterion, ket;
     long aoc_num, rdim, ldim;
     long *aocs = NULL, *rbase_c = NULL, *lbase_c = NULL;
     PyObject *term_py = NULL, *rbase_py = NULL, *lbase_py = NULL;
@@ -110,7 +111,7 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
                 *(rbase_c + i) = PyLong_AsLong(PySequence_Fast_GET_ITEM(rbase_py, i));
             }
         } else {
-            exc_msg = PREFIX"unable to allocate to required memory for rbase_c.\n";
+            exc_msg = PREFIX"unable to allocate the required memory for rbase_c.\n";
             PyErr_SetString(PyExc_MemoryError, exc_msg);
             return NULL;
         }
@@ -121,7 +122,10 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
     }
 
     //Convert the python sequence lbase_py to C array if necessary.
-    if (lbase_py != NULL) {
+    if (lbase_py == NULL || lbase_py == Py_None) {
+        ldim = rdim;
+        lbase_c = rbase_c;
+    } else { 
         if (PyTuple_CheckExact(lbase_py) || PyList_CheckExact(lbase_py)) {
             ldim = PySequence_Fast_GET_SIZE(lbase_py);
             lbase_c = (long *)PyMem_Calloc(ldim, sizeof(long));
@@ -130,7 +134,7 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
                     *(lbase_c + i) = PyLong_AsLong(PySequence_Fast_GET_ITEM(lbase_py, i));
                 }
             } else {
-                exc_msg = PREFIX"unable to allocate to required memory for lbase_c.\n";
+                exc_msg = PREFIX"unable to allocate the required memory for lbase_c.\n";
                 PyErr_SetString(PyExc_MemoryError, exc_msg);
                 return NULL;
             }
@@ -139,9 +143,6 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
             PyErr_SetString(PyExc_TypeError, exc_msg);
             return NULL;
         }
-    } else {
-        ldim = rdim;
-        lbase_c = rbase_c;
     }
 
     //Calculate the matrix representation of this term.
@@ -150,16 +151,16 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
     entries_py = PyList_New(0);
     if (rows_py != NULL && cols_py != NULL && entries_py != NULL) {
         for (i=0; i<rdim; ++i) {
-            swap_num = 0;
+            swap = 0;
             not_zero_flag = TRUE;
             ket = *(rbase_c + i);
             for (j=aoc_num-1; j>=0; --j) {
-                state_index = *(aocs + (3 * j + 0));
-                mask = *(aocs + (3 * j + 1));
-                criterion = *(aocs + (3 * j + 2));
+                state_index = *(aocs + 3*j);
+                mask = *(aocs + (3*j+1));
+                criterion = *(aocs + (3*j+2));
                 if ((ket & mask) == criterion) {
                     for (temp=0; temp<state_index; ++temp) {
-                        if (ket & (1 << temp)) ++swap_num;
+                        if (ket & (1 << temp)) swap ^= 1;
                     }
                     ket ^= mask;
                 } else {
@@ -176,7 +177,7 @@ static PyObject *matrixRepr_API(PyObject *self, PyObject *args)
                 PyList_Append(cols_py, col_obj);
                 Py_DECREF(col_obj);
 
-                entry_obj = PyFloat_FromDouble((swap_num & 1)? -1: 1);
+                entry_obj = PyFloat_FromDouble(swap? -1: 1);
                 PyList_Append(entries_py, entry_obj);
                 Py_DECREF(entry_obj);
             }

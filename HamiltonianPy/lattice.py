@@ -52,12 +52,14 @@ class Lattice:# {{{
         getPoints()
         getTVs()
         getBs()
-        decompose(site, extend=3)
+        getSite(index)
+        getIndex(site, *, fold=False)
+        decompose(site, *, extend=3)
         sitesFactory(site=None, scope=1)
         show(site=None, n=1)
         neighborDist(nth)
         neighbors(site, nth)
-        bonds(neighbor, only=False)
+        bonds(neighbor, *, only=False, periodic=False, remove_duplicate=True)
         incluster(site)
     """
 
@@ -127,6 +129,52 @@ class Lattice:# {{{
         return np.array(self.bs[:, :])
     # }}}
 
+    def getIndex(self, site, *, fold=False):# {{{
+        """
+        Return the index corresponding to the given site.
+        
+        Parameter:
+        ----------
+        fold: boolean, optional, keyword argument only
+            Whether to decompose the given site to the cluster.
+            default: False
+        """
+        
+        if not isinstance(site, np.ndarray):
+            raise TypeError("The input site is not a ndarray!")
+        elif site.shape != (self.spacedim, ):
+            raise ValueError("The dimension of the input site "
+                             "and the lattice does not match!") 
+
+        if fold:
+            site, trash = self.decompose(site)
+
+        dists = norm(self.points - site, axis=1)
+        indices = np.nonzero(dists < ERR)[0]
+        num = len(indices)
+        if num == 1:
+            return indices[0]
+        elif num == 0:
+            raise ValueError("The given site does not belong the cluster.")
+        else:
+            raise ValueError("There are duplicate point in the cluster.")
+    # }}}
+
+    def getSite(self, index):# {{{
+        """
+        Return the site corresponding to the given index.
+        """
+
+        if not isinstance(index, int):
+            raise TypeError("The input index is not an integer.")
+        elif index < 0:
+            raise ValueError("The given index should be none negative.")
+        elif index >= self.sitenum:
+            raise ValueError("The given index is larger than the number of sites.")
+
+        return np.array(self.points[index, :])
+    # }}}
+
     def _scopeGuess(self, site, extend=3):# {{{
         """
         Guess the scope where we can find the given site. The local variable 
@@ -144,7 +192,7 @@ class Lattice:# {{{
         self._dRsTree = KDTree(np.dot(list(product(*scopes)), self.tvs))
     # }}}
 
-    def decompose(self, site, extend=3):# {{{
+    def decompose(self, site, *, extend=3):# {{{
         """
         Decompse the site with respect to the translation vectors and site in
         the cluster.
@@ -166,7 +214,7 @@ class Lattice:# {{{
         ----------
         site: ndarray
             The site to be decompsed.
-        extend: int, optional
+        extend: int, optional, keyword argument only
             Determine the scope of the possible maximum translation.
             default: 3
 
@@ -342,7 +390,7 @@ class Lattice:# {{{
         return result
     # }}}
 
-    def bonds(self, neighbor, only=False):# {{{
+    def bonds(self, neighbor, *, only=False, periodic=False, remove_duplicate=True):# {{{
         """
         Return all bonds specified by the neighbor and only parameter.
 
@@ -352,11 +400,20 @@ class Lattice:# {{{
             Specify the distance order of two points belong the lattice.
             0 means onsite, 1 represents nearest neighbor, 2 represents
             next-nearest neighbor, etc.
-        only: boolean, optional
+        only: boolean, optional, keyword argument only
             If True, only these bonds which length equals to the length
             specified by neighbor parameter is concerned, if False, all the
             bonds which length equal or less than the length specified by
             neighbor parameter is concerned.
+        remove_duplicate: boolean, optional, keyword argument only
+            For every bond that connects the cluster and the environment, there
+            exist another bond that is equivalent to it because of translation
+            symmetry. If this parameter is set to True, then theequivalent bond
+            will be removed from the results.
+            default: True
+        periodic: boolean, optional, keyword argument only
+            Whether to decompose the inter bonds.
+            default: False
 
         Return:
         -------
@@ -381,15 +438,32 @@ class Lattice:# {{{
 
         intra = []
         inter = []
+        judge = set()
         for index0, index1 in pairs:
             p0 = sites[index0, :]
             p1 = sites[index1, :]
             if index0 < self.sitenum and index1 < self.sitenum:
                 intra.append(Bond(p0, p1, directional=True))
-            elif index0 < self.sitenum:
-                inter.append(Bond(p0, p1, directional=True))
-            elif index1 < self.sitenum:
-                inter.append(Bond(p1, p0, directional=True))
+            elif index0 < self.sitenum or index1 < self.sitenum:
+                p0_eqv, trash = self.decompose(p0)
+                p1_eqv, trash = self.decompose(p1)
+                bond = Bond(p0, p1, directional=True)
+                bond_eqv = Bond(p0_eqv, p1_eqv, directional=True)
+                if remove_duplicate:
+                    key = sorted([self.getIndex(p0_eqv), self.getIndex(p1_eqv)])
+                    key = tuple(key)
+                    if key not in judge:
+                        if periodic:
+                            inter.append(bond_eqv)
+                        else:
+                            inter.append(bond)
+                        judge.add(key)
+                else:
+                    if periodic:
+                        inter.append(bond_eqv)
+                    else:
+                        inter.append(bond)
+
         return intra, inter
     # }}}
 
@@ -418,8 +492,7 @@ class Lattice:# {{{
 # }}}
 
 if __name__ == "__main__":
-    points = np.array([[0, 0], [1/4, np.sqrt(3)/4], [1/2, 0]])
-    tvs = np.array([[1/2, np.sqrt(3)/2], [1, 0]])
-    #tvs = np.array([[1, 0]])
-    lattice = Lattice(points, tvs)
-    lattice.show()
+    points = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    tvs = np.array([[2, 0], [0, 2]])
+    cluster = Lattice(points, tvs)
+    print(cluster.getIndex(np.array([80, 65]), fold=False))
