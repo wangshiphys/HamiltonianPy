@@ -2,11 +2,11 @@
 The implemetation of the Lanczos Algorithm.
 """
 
-from collections import OrderedDict
 from numpy.linalg import eigvalsh, norm
 from scipy.sparse import csr_matrix, isspmatrix_csr
 from time import time
 
+import multiprocessing as mp
 import numpy as np
 
 from HamiltonianPy.constant import VIEW_AS_ZERO
@@ -24,7 +24,7 @@ class Lanczos:# {{{
 
     Attributes:
     -----------
-    matrix: csr_matrix
+    HM: csr_matrix
         The large compressed sparse row matrix to be processed. It must be a
         Hermitian matrix.
     dim: int
@@ -37,53 +37,63 @@ class Lanczos:# {{{
         Starting vector for iteration, v0 is assumed of shape (dim,1).
         default: random
 
-    Method:
-    ------
-    __init__(matrix, v0=None, step=200, tol=1e-12, vtype='rd')
-    __call__(vecs)
-
-    gs()
-    krylov_basis()
-    projection(vecs, v_init)
+    Methods:
+    -------
+    Special methods:
+        __init__(HM, *, v0=None, step=200, tol=1e-12, vtype='rd')
+        __call__(vectors)
+    General methods:
+        gs()
+        krylov_basis()
+        projection(vectors, v_init)
     """
 
-    def __init__(self, matrix, v0=None, step=200, tol=1e-12, vtype='rd'):# {{{
+    def __init__(self, HM, *, v0=None, step=200, tol=1e-12, vtype='rd'):# {{{
         """
-        Inits Lanczos class.
+        Initialize the instance of this class.
 
-        See also the docstring of this class!
+        See also the document of this class!
         """
 
-        if not isspmatrix_csr(matrix):
-            raise TypeError("The input matrix is not of csr type!")
-        if (matrix - matrix.conjugate().transpose()).count_nonzero() != 0:
-            raise TypeError("The input matrix is not a Hermitian matrix!")
-
-        if v0 is None:# {{{
-            if vtype.lower() == 'rd':
-                v0 = np.zeros((matrix.shape[0], 1), dtype=np.complex128)
-                v0[:, 0] = np.random.rand(matrix.shape[0])[:]
+        if not isspmatrix_csr(HM):
+            raise TypeError("The input HM matrix is not a csr_matrix!")
+        elif ((HM - HM.getH()) > VIEW_AS_ZERO).count_nonzero() != 0:
+            raise TypeError("The input HM matrix is not an Hermitian matrix!")
+        else:
+            self.HM = HM
+            self.dim = HM.shape[0]
+        
+        v0_shape = (HM.shape[0], 1)
+        if v0 is None:
+            if vtype.lower() in ("rd", "random"):
+                v0 = np.random.random_sample(size=v0_shape)
             else:
-                v0 = np.ones((matrix.shape[0], 1), dtype=np.complex128)
+                v0 = np.ones(shape=v0_shape)
             v0 /= norm(v0)
         else:
-            if v0.shape != (matrix.shape[0], 1):
-                raise ValueError("The dimension of v0 and matrix does not match!")
+            if v0.shape != v0_shape:
+                raise ValueError("The dimension of v0 and HM does not match!")
             v0_norm = norm(v0)
-            if v0_norm < self.error:  #Ensure the input v0 is not a zero vector!
-                raise ValueError("The norm of v0 is to small!")
-            v0 = v0 / v0_norm# }}}
-
+            #Ensure the input v0 is not a zero vector!
+            if v0_norm < VIEW_AS_ZERO:
+                raise ValueError("The given v0 is a zero vector!")
+            v0 = v0 / v0_norm
         self.v0 = v0
-        self.M = matrix
-        self.dim = matrix.shape[0]
-        self.step = step
-        self.tol = tol
+
+        if isinstance(step, int) and step > 0:
+            self.step = step
+        else:
+            raise ValueError("The step parameter should be positive integer.")
+
+        if isinstance(tol, float) and tol > 0:
+            self.tol = tol
+        else:
+            raise ValueError("The tol parameter should be positive float.")
     # }}}
 
     def gs(self):# {{{
         """
-        Find samllest eigenvalue of the input matrix.
+        Find samllest eigenvalue of the HM matrix.
 
         This method calculate the smallest eigenvalue of the input spasre 
         matrix with the given precision specified by the tol parameter.
@@ -100,10 +110,10 @@ class Lanczos:# {{{
             space larger than the orginal space.
         """
 
-        v_old = np.zeros((self.dim, 1), dtype=np.float64)
-        v = self.v0
-        c0 = 0.0
-        v_new = self.M.dot(v)
+        v_old = 0.0
+        v = np.array(self.v0[:])
+        v_new = self.HM.dot(v)
+        
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
@@ -112,17 +122,17 @@ class Lanczos:# {{{
         for i in range(self.dim):
             v_new -= c1 * v
             v_new -= v_old
-            #The v_old is not needed anymore, delete it to save memory!
-            del v_old
+
             c0 = norm(v_new)
             if c0 < VIEW_AS_ZERO:
                 raise ConvergenceError("Got an invariant subspace!")
                 #break
             v_new /= c0
+
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = self.M.dot(v)
+            v_new = self.HM.dot(v)
             c1 = np.vdot(v, v_new)
             c1s.append(c1)
             c0s.append(c0)
@@ -156,14 +166,14 @@ class Lanczos:# {{{
             The basis of the krylov space.
         """
 
-        v_old = np.zeros((self.dim, 1), dtype=np.float64)
-        v = self.v0
-        c0 = 0.0
-        v_new = self.M.dot(v)
+        v_old = 0.0
+        v = np.array(self.v0[:])
+        v_new = self.HM.dot(v)
+
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
-        krylov_basis = v 
+        krylov_basis = v
 
         for i in range(1, self.step):
             v_new -= c1 * v
@@ -177,62 +187,63 @@ class Lanczos:# {{{
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = self.M.dot(v)
+            v_new = self.HM.dot(v)
             c1 = np.vdot(v, v_new)
-            krylov_basis = np.concatenate((krylov_basis, v), axis=1) 
+            krylov_basis = np.concatenate((krylov_basis, v), axis=1)
             c1s.append(c1)
             c0s.append(c0)
         tri = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
         return tri, krylov_basis
     # }}}
 
-    def projection(self, vecs, v_init):# {{{
+    def projection(self, vectors, v_init):# {{{
         """
         Return the representation of vectors and matrix in the Krylov space.
         
-        The projected matrix has the tridiagonal form and is return as the tri.
-        The representaion of the vectors in the Krylov space are stored as a
-        ndarray with dimension(self.step, stats_num). In the calculation, every
-        column store a vector for effience.
+        The representation of self.HM in Krylov space is a tridiagonal matrix
+        and is returned as a np.array. The representaion of the given vectors 
+        in the Krylov space are stored as OrderedDict. The keys of the dict are
+        the identifiers of these vectors and the values should be np.array with
+        shape (self.step, 1).
 
         Parameter:
         ----------
-        vecs: OrderedDict
-            The vectors to be represented in the Krylov space.
-            The keys of the dict are the identifieris of these vectors.
-            The values of this dict should be ndarray and of shape (self.dim,1).
+        vectors: dict
+            The vectors to be projected in the Krylov space. The keys of the 
+            dict are the identifiers of these vectors. The values of this dict 
+            should be np.array and of shape (self.dim, 1).
         v_init: ndarray
             Starting vector for iteration.
 
         Return:
         -------
-        res_tri: ndarray
+        HM_proj: np.array
             The tridiagonal representaion of the matrix.
-        res_vecs: ndarray
-            The representaion of the vectors in the Krylov space.
+        vectors_proj: dict
+            The projection of the vectors in the Krylov space.
         """
 
         v_norm = norm(v_init)
         if v_norm < VIEW_AS_ZERO:
-            raise ValueError("The norm of v_init is to small!")
+            raise ValueError("The given v_init is a zero vector.")
 
-        v_old = np.zeros((self.dim, 1), dtype=np.float64)
+        v_old = 0.0
         v = v_init / v_norm
-        v_new = self.M.dot(v)
+        v_new = self.HM.dot(v)
+
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
         
-        keys = vecs.keys()
-        vecs_repr = OrderedDict()
+        keys = vectors.keys()
+        temp = dict()
         for key in keys:
-            vecs_repr[key] = [np.vdot(v, vecs[key])]
+            temp[key] = [np.vdot(v, vectors[key])]
         
         for i in range(1, self.step):
             v_new -= c1 * v
             v_new -= v_old
-            #The v_old is not needed anymore, delete it to save memory!
-            del v_old
+
             c0 = norm(v_new)
             if c0 < VIEW_AS_ZERO:
                 break
@@ -241,61 +252,121 @@ class Lanczos:# {{{
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = self.M.dot(v)
+            v_new = self.HM.dot(v)
             c1 = np.vdot(v, v_new)
 
             c1s.append(c1)
             c0s.append(c0)
 
             for key in keys:
-                vecs_repr[key].append(np.vdot(v, vecs[key]))
+                temp[key].append(np.vdot(v, vectors[key]))
 
-        res_vecs = OrderedDict()
+        vectors_proj = dict()
         for key in keys:
-            res_vecs[key] = np.array([vecs_repr[key]]).T
-        res_tri = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
-        return res_tri, res_vecs
+            vectors_proj[key] = np.array([temp[key]]).T
+        HM_proj = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
+        return HM_proj, vectors_proj
     # }}}
 
-    def __call__(self, vecs):# {{{
+    def _pprojection(self, key, vectors, HM_proxy, vectors_proxy):# {{{
+        """
+        Used for multi-process parallel.
+        """
+
+        t0 = time()
+        HM_proj, vectors_proj = self.projection(vectors, vectors[key])
+        HM_proxy[key] = HM_proj
+        vectors_proxy[key] = vectors_proj
+        t1 = time()
+        print("The current process: ", mp.current_process())
+        print("The living time of this process: {0:.4f}s".format(t1 - t0))
+        print("=" * 60)
+    # }}}
+
+    def __call__(self, vectors, *, procs_num=1):# {{{
         """
         Return the representation of vectors and matrix in the Krylov space.
         
-        Choosing every vector in vecs as the initial vector, this method
-        generate the krylov space, calculate the representation of matrix and
-        all vectors in this space.
+        Choosing every vector in vectors as the initial vector, this method
+        generate the krylov space, calculate the representation of the matrix 
+        and all vectors in this space.
 
         Parameter:
         ----------
-        vecs: OrderedDict
-            The vectors to be represented in the Krylov space.
-            The keys of the dict are the identifieris of these vectors.
-            The values of this dict should be ndarray and of shape (self.dim,1).
+        vectors: dict
+            The vectors to be projected in the Krylov space.
+            The keys of the dict are the identifiers of these vectors.The 
+            values of this dict should be np.array and of shape (self.dim, 1).
+        procs_num: int, optional
+            The number of process to use.
+            default: 1
 
         Return:
         -------
-        res_tris: ndarray
-            The tridiagonal representaion of the matrix.
-        res_vecs_repr: ndarray
-            The representaion of the vectors in the Krylov space.
+        HM_projs: dict
+            The representations of HM in the Krylov space.
+        vectors_projs: dict
+            The projections of the vectors in the Krylov space.
         """
 
-        keys = vecs.keys()
-        for key in keys:
-            if vecs[key].shape != (self.dim, 1):
-                raise TypeError("The wrong vector dimension!")
+        if not isinstance(vectors, dict):
+            raise TypeError("The input vectors parameter is not OrderedDict.")
+        else:
+            for key in vectors.keys():
+                if vectors[key].shape != (self.dim, 1):
+                    raise ValueError("The wrong vector dimension!")
+        if not isinstance(procs_num, int) or procs_num <= 0:
+            raise ValueError("The procs_num parameter should be positive integer.")
 
-        res_tris = OrderedDict() 
-        res_vecs = OrderedDict()
-        for count, key in enumerate(keys):
-            t0 = time()
-            v_init = vecs[key]
-            res_tris[key], res_vecs[key] = self.projection(vecs, v_init)
-            t1 = time()
-            info = "The time spend on the {0}th ket: {1:.4f}."
-            info = info.format(count, t1-t0)
-            print(info)
-            print("=" * len(info))
-        return res_tris, res_vecs
+        tasks = list(vectors.keys())
+        HM_projs = dict()
+        vectors_projs = dict()
+        if procs_num == 1:
+            for count, task in enumerate(tasks):
+                t0 = time()
+                HM_proj, vectors_proj = self.projection(vectors, vectors[task])
+                HM_projs[task] = HM_proj
+                vectors_projs[task] = vectors_proj
+                t1 = time()
+                info = "The time spend on the {0}th ket: {1:.4f}."
+                info = info.format(count, t1-t0)
+                print(info)
+                print("=" * len(info))
+        else:
+            with mp.Manager() as manager:
+                HM_proxy = manager.dict()
+                vectors_proxy = manager.dict()
+                kwargs = {"vectors": vectors, "HM_proxy": HM_proxy,
+                          "vectors_proxy": vectors_proxy}
+
+                procs_alive = set()
+                procs_dead = set()
+                for i in range(procs_num):
+                    if len(tasks) != 0:
+                        p = mp.Process(target=self._pprojection,
+                                args=(tasks.pop(), ), kwargs=kwargs)
+                        p.start()
+                        procs_alive.add(p)
+
+
+                while len(procs_alive) != 0:
+                    procs_new = set()
+                    for p in procs_alive:
+                        if not p.is_alive():
+                            procs_dead.add(p)
+                            p.join()
+                            if len(tasks) != 0:
+                                q = mp.Process(target=self._pprojection,
+                                        args=(tasks.pop(), ), kwargs=kwargs)
+                                q.start()
+                                procs_new.add(q)
+                    procs_alive.difference_update(procs_dead)
+                    procs_alive.update(procs_new)
+
+                for key in vectors.keys():
+                    HM_projs[key] = HM_proxy[key]
+                    vectors_projs[key] = vectors_proxy[key]
+
+        return HM_projs, vectors_projs
     # }}}
 # }}}

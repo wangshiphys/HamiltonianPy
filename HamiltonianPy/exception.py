@@ -15,13 +15,6 @@ class SelfDefinedError(Exception):# {{{
         self.msg = msg
 # }}}
 
-class TargetError(SelfDefinedError):# {{{
-    """
-    Exceptions raised when the input item does not found in the container.
-    """
-    pass
-# }}}
-
 class ConvergenceError(SelfDefinedError):# {{{
     """
     Exceptions raised when the input item does not satisfied specific requirment.
