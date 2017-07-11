@@ -22,9 +22,9 @@ def basesfactory(*dists):
         and we call basesfactory([(0, 1), 1], [(4, 5), 1]),then the states 
         [2, 3, 6, 7] are thought to be unoccupied.
 
-    Parameter:
+    Parameters
     ----------
-    dist: int or tuple or list
+    dist : int or tuple or list
         Descriptor of the distribution of particles over different sets of
         single-particle states.
         Generally, there are two ways to call this function:
@@ -37,7 +37,7 @@ def basesfactory(*dists):
         of occupied state of this "collection" is unconstrained.
 
         For example:
-        1). N single-particle states and no constrains on the number of
+        1). N single-particle states and no constraints on the number of
         particles: basesfactory(N)
         2). seq is the collection of all states and m is the number of occupied 
         state: basesfactory([seq, m])
@@ -49,9 +49,9 @@ def basesfactory(*dists):
         spin-down) on site i and m_i is the number of particle on site i: 
             basesfactory([seq_0, m_0], [seq_1, m_1], ..., [seq_n, m_n])
 
-    Return:
+    Returns
     -------
-    res: tuple
+    res : tuple
         The collection of base vectors stored in ascending order.
     """
 
@@ -92,7 +92,7 @@ def basesfactory(*dists):
         for cfg in product(*subcfgs_collection):
             ket = 0
             for pos in chain(*cfg):
-                ket += 1 << pos
+                ket += (1 << pos)
             bases.append(ket)
         bases.sort()
         return tuple(bases)

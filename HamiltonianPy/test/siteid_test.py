@@ -12,7 +12,7 @@ for site in sites:
     siteids.append(siteid)
     print(siteid)
     print("The hash value: ", hash(siteid))
-    print("The tupleform: ", siteid.tupleform())
+    print("The tupleform: ", siteid._tupleform())
     print("The corresponding site: ", siteid.getSite())
     print("=" * 30)
 sitemap = IndexMap(siteids)

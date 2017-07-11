@@ -12,24 +12,7 @@ class IndexMap:
     This class construct a map between a collection of hashable objects and
     integer index.
 
-    All the attributes are private to instance of this class and should not be
-    accessed from outside of the class.
-
-    Attribute:
-    ----------
-    _objtype: 
-        The type of the input objects.
-    _obj2index: OrderedDict
-        A dictionary whose keys are the input objects and values are
-        corresponding indices.
-    _index2obj: OrderedDict
-        A dictionary whose keys are the indices and values are corresponding
-        objects.
-    _current: int
-        The integer which will be assigned as the index of the next object added
-        to this map system.
-
-    Method:
+    Methods
     -------
     __init__(objs, start=0)
     __str__()
@@ -42,7 +25,7 @@ class IndexMap:
         """
         Initialize instance of this class!
 
-        Paramter:
+        Paramters
         ---------
         objs: seqence, optional
             The hashable objects which are added to the map system.
@@ -51,6 +34,14 @@ class IndexMap:
             The start of the index.
             default: 0
         """
+
+        #_objtype is the type of the input objects.
+        #_obj2index is an OrderedDict whose keys are the input objects and
+        #values are corresponding indices.
+        #_index2obj is an OrderedDict whose keys are the indices and values are
+        #corresponding objects.
+        #_current is the integer which will be assigned as the index of the
+        #next object added to this map system.
         
         if isinstance(start, int) and start >= 0:
             self._current = start
@@ -91,7 +82,23 @@ class IndexMap:
 
     def __call__(self, key):# {{{
         """
-        Given the key, return the deepcopy of corresponding object or index!
+        Given the key, return the deepcopy of the corresponding object or index!
+
+        Parameters
+        ----------
+        key : hashable object or int
+            The key for which the corresponding object or index is queried.
+
+        Returns
+        -------
+        res : A deepcopy of the corresponding object or index.
+
+        Raises
+        ------
+        KeyError :
+            The queried object or index is not managed by this map system.
+        LookupError :
+            The map system is queried before effectively construct.
         """
 
         if self.__len__() > 0:
@@ -112,10 +119,13 @@ class IndexMap:
         """
         Add the given obj to the map system and associate it with an index.
 
-        The obj parameter must be:
-        1. hashable
-        2. the same type as the existing object
-        3. not exist in the map system
+        Parameters
+        ----------
+        obj : 
+            The obj parameter must be:
+            1. hashable
+            2. the same type as the existing object
+            3. not exist in the map system
         """
 
         num = self.__len__()
@@ -140,7 +150,7 @@ class IndexMap:
 
 #This is a test of the IndexMap class.
 if __name__ == "__main__":
-    objects = [(1, 2), (5, 6), (3, 4), (7, 8)]
+    objects = [(0, 0), (0, 1), (1, 0), (1, 1)]
     testmap0 = IndexMap(objs=objects, start=0)
     print(testmap0)
     print("The length of this map: ", len(testmap0))

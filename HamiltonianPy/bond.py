@@ -4,7 +4,11 @@ This module define Bond class that represents the bond connecting two points.
 
 import numpy as np
 
-from HamiltonianPy.constant import FLOAT_TYPE, NDIGITS
+from HamiltonianPy.constant import VIEW_AS_ZERO
+
+#Useful constant
+_ZOOM = 10000
+################
 
 __all__ = ["Bond"]
 
@@ -12,65 +16,80 @@ class Bond:# {{{
     """
     This class provide a unified description of a bond connecting two points.
 
-    Attributes:
+    Attributes
     -----------
-    p0: np.array
-        One endpoint of the bond.
-    p1: np.array
-        Another endpoint of the bond. p0 and p1 should be the same shape, 
-        and only support shape (1,), (2,), (3,).
-    dim: int
-        The space dimension of the bond.
-    directional: boolean
+    directional : boolean
         Whether the direction of the bond should be considered. If True, the
         order of p0, p1 is concerned and Bond(p0, p1) != Bond(p1, p0) unless 
         p0 = p1, if False, the order of p0, p1 is not concerned and 
         Bond(p0, p1) = Bond(p1, p0).
 
-    Methods:
+    Methods
     --------
-    Special methods:
-        __init__(p0, p1, directional=True)
-        __hash__()
-        __eq__()
-        __ne__()
-        __str__()
-    General methods:
+    Public methods:
         getEndpoints()
         getLength(ndigits=None)
         getDisplace(ndigits=None)
         getAzimuth(radian=True, ndigits=None)
-        tupleform()
         opposite()
         oppositeTo(other)
+    Special methods:
+        __init__(p0, p1, *, directional=True)
+        __hash__()
+        __eq__()
+        __ne__()
+        __str__()
     """
 
-    def __init__(self, p0, p1, directional=True):# {{{
+    def __init__(self, p0, p1, *, directional=True):# {{{
         """
         Initialize instance of this class.
+
+        Parameters
+        ----------
+        p0 : np.array
+            One endpoint of the bond.
+        p1 : np.array
+            Another endpoint of the bond. p0 and p1 should be the same shape, 
+            and only support shape (1,), (2,), (3,).
+        directional: boolean, optional, keyword-only
+            Whether the direction of the bond should be considered. If True, the
+            order of p0, p1 is concerned and Bond(p0, p1) != Bond(p1, p0) unless 
+            p0 = p1, if False, the order of p0, p1 is not concerned and 
+            Bond(p0, p1) = Bond(p1, p0).
         """
 
         if isinstance(p0, np.ndarray) and p0.shape in [(1,), (2,), (3,)]:
             shape = p0.shape
-            self.p0 = np.array(p0[:])
+            self._p0 = np.array(p0, copy=True)
+            self._p0.setflags(write=False)
         else:
             raise TypeError("The invalid p0 parameter.")
         if isinstance(p1, np.ndarray) and p1.shape == shape:
-            self.dim = shape[0]
-            self.p1 = np.array(p1[:])
+            self._dim = shape[0]
+            self._p1 = np.array(p1, copy=True)
+            self._p1.setflags(write=False)
         else:
             raise TypeError("The invalid p1 parameter.")
 
-        self.directional = directional
+        self._directional = directional
+    # }}}
+
+    @property
+    def directional(self):# {{{
+        """
+        The directional attribute of instance of this class.
+        """
+        return self._directional
     # }}}
 
     def getEndpoints(self):# {{{
         """
-        Access the p0 and p1 attribute of instance of this class.
+        Access the p0 and p1 endpoints of the bond.
         """
 
-        p0 = np.array(self.p0[:])
-        p1 = np.array(self.p1[:])
+        p0 = np.array(self._p0, copy=True)
+        p1 = np.array(self._p1, copy=True)
         return p0, p1
     # }}}
 
@@ -78,18 +97,18 @@ class Bond:# {{{
         """
         Return the length of bond.
 
-        Parameter:
+        Parameters
         ----------
-        ndigits: None or int, optional
+        ndigits : None or int, optional
             Number of digits to preserve after the decimal point.
             default: None
         
-        Return:
+        Returns
         -------
-        res: The length of the bond.
+        res : The length of the bond.
         """
         
-        length = np.linalg.norm(self.p0 - self.p1)
+        length = np.linalg.norm(self._p0 - self._p1)
         if isinstance(ndigits, int):
             length = np.around(length, decimals=ndigits)
         return length
@@ -98,74 +117,87 @@ class Bond:# {{{
     def getDisplace(self, ndigits=None):# {{{
         """
         Return the displace from p0 to p1.
-
-        For bond which is not directional, the method is meaningless.
         
-        Parameter:
+        Parameters
         ----------
-        ndigits: None or int, optional
+        ndigits : None or int, optional
             Number of digits to preserve after the decimal point.
             default: None
         
-        Return:
+        Returns
         -------
-        res: The displace from p0 to p1.
+        res : The displace from p0 to p1.
+
+        Raises
+        ------
+        NotImplementedError : 
+            For bond which is not directional, the method is meaningless.
         """
         
-        if self.directional:
-            dr = self.p1 - self.p0
+        if self._directional:
+            dr = self._p1 - self._p0
             if isinstance(ndigits, int):
                 dr = np.around(dr, decimals=ndigits)
             return dr
         else:
-            raise NotImplementedError("This method should not be implemented "
-                  "for bond which the direction is not concerned.")
+            errmsg = "This method is not implemented for bond which the"
+            errmsg += "direction is not concerned."
+            raise NotImplementedError(errmsg)
     # }}}
 
     def getAzimuth(self, radian=False, ndigits=None):# {{{
         """
         Return the angle between the bond and the coordinate system.
-
-        For bond which is not directional, the method is meaningless.
         
-        Parameter:
+        Parameters
         ----------
-        radian: boolean, optional
+        radian : boolean, optional
             Determine the unit of angle, radian or degree.
             default: False
-        ndigits: None or int, optional
+        ndigits : None or int, optional
             Number of digits to preserve after the decimal point.
             default: None
         
-        Return:
+        Returns
         -------
-        res: np.float64 or np.array
+        res : np.float64 or np.array
             For 1D or 2D system, the azimuth is the angle between the
             directional bond and the x axis. For 3D, there are two angles,
             alpha: the angle between the directional bond and the z axis, beta:
             the angle between the projection of bond on the xy plane and the x
             aixs.
+        
+        Raises
+        ------
+        NotImplementedError : 
+            For bond which is not directional, the method is meaningless.
         """
 
-        if self.directional:
+        if self._directional:
             if radian:
                 coeff = 1.0
             else:
                 coeff = 180 / np.pi
 
-            dr = self.p1 - self.p0
-            if self.dim == 1:
+            dr = self._p1 - self._p0
+            if self._dim == 1:
                 if dr[0] >= 0:
                     theta = 0
                 else:
                     theta = np.pi
-            elif self.dim == 2:
+            elif self._dim == 2:
                 x, y = dr
                 theta = np.arctan2(y, x)
+                #If theta is -pi, then it is equivalent to pi.
+                if abs(theta + np.pi) < VIEW_AS_ZERO:
+                    theta = np.pi
             else:
                 x, y, z = dr
                 alpha = np.arctan2(np.sqrt(x**2+y**2), z)
                 beta = np.arctan2(y, x)
+                #If beta is -pi, then it is equivalent to pi.
+                if abs(beta + np.pi) < VIEW_AS_ZERO:
+                    beta = np.pi
                 theta = np.array([alpha, beta])
 
             theta = coeff * theta
@@ -173,29 +205,22 @@ class Bond:# {{{
                 theta = np.around(theta, decimals=ndigits)
             return theta
         else:
-            raise NotImplementedError("This method should not be implemented "
-                  "for bond which the direction is not concerned.")
+            errmsg = "This method is not implemented for bond which the"
+            errmsg += "direction is not concerned."
+            raise NotImplementedError(errmsg)
     # }}}
 
-    def tupleform(self):# {{{
-        """
-        The tuple form of this bond.
-        """
+    def _tupleform(self):# {{{
+        #Combine the original information of this bond into a tuple.
+        #The tuple is then used to calculate the hash code and to define the
+        #comparation logic between different instance.
 
-        factor = 10 ** NDIGITS
-        if self.p0.dtype in FLOAT_TYPE:
-            p0 = [int(factor * i) for i in self.p0]
-        else:
-            p0 = list(self.p0)
-        if self.p1.dtype in FLOAT_TYPE:
-            p1 = [int(factor * i) for i in self.p1]
-        else:
-            p1 = list(self.p1)
-
-        res = p0 + p1
-        if not self.directional:
+        p0 = tuple([int(i) for i in _ZOOM * self._p0])
+        p1 = tuple([int(i) for i in _ZOOM * self._p1])
+        res = [p0, p1]
+        if not self._directional:
             res.sort()
-        res += [self.directional]
+        res += [self._directional]
         return tuple(res)
     # }}}
 
@@ -204,7 +229,7 @@ class Bond:# {{{
         Return the hash value of instance of this class.
         """
 
-        return hash(self.tupleform())
+        return hash(self._tupleform())
     # }}}
 
     def __eq__(self, other):# {{{
@@ -213,7 +238,7 @@ class Bond:# {{{
         """
 
         if isinstance(other, self.__class__):
-            return self.tupleform() == other.tupleform()
+            return self._tupleform() == other._tupleform()
         else:
             raise TypeError("The right operand is not instance of this class.")
     # }}}
@@ -228,15 +253,16 @@ class Bond:# {{{
 
     def __str__(self):# {{{
         """
-        Return a string that descriibles the content of the instance.
+        Return a string that describes the content of the instance.
         """
-
+        
+        NDIGITS = 4
         p0, p1 = self.getEndpoints()
         length = self.getLength(ndigits=NDIGITS)
         info = "p0: " + str(p0) + "\n"
         info += "p1: " + str(p1) + "\n"
         info += "length: " + str(length) + "\n"
-        if self.directional:
+        if self._directional:
             displace = self.getDisplace(ndigits=NDIGITS)
             azimuth = self.getAzimuth(ndigits=NDIGITS)
             info += "displace: " + str(displace) + "\n"
@@ -247,28 +273,40 @@ class Bond:# {{{
     def opposite(self):# {{{
         """
         Return a bond that is opposite to self.
+        
+        Raises
+        ------
+        NotImplementedError : 
+            For bond which is not directional, the method is meaningless.
         """
 
-        if self.directional:
-            return Bond(p0=self.p1, p1=self.p0, directional=True)
+        if self._directional:
+            return Bond(p0=self._p1, p1=self._p0, directional=True)
         else:
-            raise NotImplementedError("This method should not be implemented "
-                  "for bond which the direction is not concerned.")
+            errmsg = "This method is not implemented for bond which the"
+            errmsg += "direction is not concerned."
+            raise NotImplementedError(errmsg)
     # }}}
 
     def oppositeTo(self, other):# {{{
         """
         Return whether the self bond is opposite to the other bond.
+        
+        Raises
+        ------
+        NotImplementedError : 
+            For bond which is not directional, the method is meaningless.
         """
 
-        if self.directional:
+        if self._directional:
             if isinstance(other, self.__class__):
                 return self.opposite().__eq__(other)
             else:
                 raise TypeError("The right operand is not instance of this class.")
         else:
-            raise NotImplementedError("This method should not be implemented "
-                  "for bond which the direction is not concerned.")
+            errmsg = "This method is not implemented for bond which the"
+            errmsg += "direction is not concerned."
+            raise NotImplementedError(errmsg)
     # }}}
 # }}}
 

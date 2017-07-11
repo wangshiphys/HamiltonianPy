@@ -51,7 +51,7 @@ for otype in ('x', 'y', 'z', 'p', 'm'):
 
 for index in range(site_num):
     for otype in ('x', 'y', 'z', 'p', 'm'):
-        operator = (index, otype, "s")
+        operator = (index, otype)
         print("Operator: ", operator)
         print(SpinOperator.matrixFunc(operator, totspin=site_num))
         print("=" * 40)
