@@ -1,8 +1,12 @@
+import sys
+import os.path
+sys.path.append(os.path.abspath("../"))
+
 import numpy as np
 
-from HamiltonianPy.termofH import AoC, StateID
-from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.constant import CREATION, ANNIHILATION, SPIN_UP, SPIN_DOWN
+from termofH import AoC, StateID
+from indextable import IndexTable
+from constant import CREATION, ANNIHILATION, SPIN_UP, SPIN_DOWN
 
 #sites = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 #sites = np.array([[0, 0], [1/4, np.sqrt(3)/4], [1/2, 0]])
@@ -28,30 +32,30 @@ for site in sites:
     As.append(A_up)
     print("C_up:\n", C_up, sep="")
     print("Hash value: ", hash(C_up))
-    print("StateID:\n", C_up.getStateID(), sep="")
+    print("StateID:\n", C_up.state, sep="")
     print("=" * 40)
     print("C_down:\n", C_down, sep="")
     print("Hash value: ", hash(C_down))
-    print("StateID:\n", C_down.getStateID(), sep="")
+    print("StateID:\n", C_down.state, sep="")
     print("=" * 40)
     print("A_up:\n", A_up, sep="")
     print("Hash value: ", hash(A_up))
-    print("StateID:\n", A_up.getStateID(), sep="")
+    print("StateID:\n", A_up.state, sep="")
     print("=" * 40)
     print("A_down:\n", A_down, sep="")
     print("Hash value: ", hash(A_down))
-    print("StateID:\n", A_down.getStateID(), sep="")
+    print("StateID:\n", A_down.state, sep="")
     print("=" * 40)
 
-statemap = IndexMap(stateids)
+statemap = IndexTable(stateids)
 for C in Cs:
     print("Operator:\n", C, sep="")
-    print("Index: ", C.getStateID().getIndex(statemap))
+    print("Index: ", C.getStateIndex(statemap))
     print(C.matrixRepr(statemap, rbase=base))
     print("=" * 60)
 for A in As:
     print("Operator:\n", A, sep="")
-    print("Index: ", A.getStateID().getIndex(statemap))
+    print("Index: ", A.getStateIndex(statemap))
     print(A.matrixRepr(statemap, rbase=base))
     print("=" * 60)
 

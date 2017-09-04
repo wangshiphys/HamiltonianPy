@@ -1,8 +1,12 @@
+import sys
+import os.path
+sys.path.append(os.path.abspath("../"))
+
 import numpy as np
 
-from HamiltonianPy.termofH import SiteID, SpinOperator, SpinInteraction
-from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.constant import SPIN_UP, SPIN_DOWN
+from termofH import SiteID, SpinOperator, SpinInteraction
+from indextable import IndexTable
+from constant import SPIN_UP, SPIN_DOWN
 
 #sites = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 #sites = np.array([[0, 0], [1/4, np.sqrt(3)/4], [1/2, 0]])
@@ -13,7 +17,7 @@ siteids = []
 for site in sites:
     siteid = SiteID(site=site)
     siteids.append(siteid)
-sitemap = IndexMap(siteids)
+sitemap = IndexTable(siteids)
 
 spins = []
 for site in sites:

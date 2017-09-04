@@ -1,8 +1,12 @@
+import sys
+import os.path
+sys.path.append(os.path.abspath("../"))
+
 import numpy as np
 
-from HamiltonianPy.termofH import AoC, StateID, ParticleTerm
-from HamiltonianPy.indexmap import IndexMap
-from HamiltonianPy.constant import CREATION, ANNIHILATION, SPIN_UP, SPIN_DOWN
+from termofH import AoC, StateID, ParticleTerm
+from indextable import IndexTable
+from constant import CREATION, ANNIHILATION, SPIN_UP, SPIN_DOWN
 
 #sites = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 #sites = np.array([[0, 0], [1/4, np.sqrt(3)/4], [1/2, 0]])
@@ -14,7 +18,7 @@ stateids = []
 for site in sites:
     stateids.append(StateID(site=site, spin=SPIN_DOWN))
     stateids.append(StateID(site=site, spin=SPIN_UP))
-statemap = IndexMap(stateids)
+statemap = IndexTable(stateids)
 
 C0_UP = AoC(otype=CREATION, site=sites[0], spin=SPIN_UP)
 C0_DOWN = AoC(otype=CREATION, site=sites[0], spin=SPIN_DOWN)

@@ -4,9 +4,9 @@ HamiltonianPy setup file, used to install HamiltonianPy.
 
 from setuptools import Extension, find_packages, setup
 
-cext_path = "HamiltonianPy/extpkg/cext/"
-src_path = cext_path + "src/"
-include_path = cext_path + "include/"
+ext_path = "HamiltonianPy/extpkg/"
+src_path = ext_path + "src/"
+include_path = ext_path + "include/"
 parent_pkg = "HamiltonianPy.extpkg."
 
 #compile_option = ["-fopenmp"]
@@ -26,7 +26,7 @@ ext = Extension(name=parent_pkg + 'matrixrepr',
 
 setup_params = dict(
     name="HamiltonianPy",
-    version="1.0.dev1",
+    version="1.0.dev2",
     description="Construct and solve a model Hamiltonian numerically!",
     author="wangshiphys",
     author_email="wangshiphys@gmail.com",

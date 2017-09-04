@@ -1,4 +1,0 @@
-#define CREATION 1
-#define ANNIHILATION 0
-#define NUM_TO_PARALLEL 0
-#define NUM_THREADS 3

@@ -2,6 +2,9 @@
 The implemetation of the Lanczos Algorithm.
 """
 
+__all__ = ['Lanczos']
+
+
 from numpy.linalg import eigvalsh, norm
 from scipy.sparse import csr_matrix, isspmatrix_csr
 from time import time
@@ -13,7 +16,6 @@ import numpy as np
 VIEW_AS_ZERO = 1e-8
 ###################
 
-__all__ = ['Lanczos']
 
 class ConvergenceError(Exception):# {{{
     """
@@ -78,7 +80,7 @@ class Lanczos:# {{{
             dim = HM.shape[0]
             self._HM = HM
             self._dim = dim
-        
+
         if v0 is None:
             if uniform:
                 v0 = np.ones(shape=(dim, 1))
@@ -123,18 +125,18 @@ class Lanczos:# {{{
         ConvergenceError
             When the requested convergence is not obtained.
         """
-        
+
         M = self._HM
 
         v_old = 0.0
         v = np.array(self._v0, copy=True)
         v_new = M.dot(v)
-        
+
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
 
-        E = c1 
+        E = c1
         for i in range(self._dim):
             v_new -= c1 * v
             v_new -= v_old
@@ -199,7 +201,7 @@ class Lanczos:# {{{
             c0 = norm(v_new)
             if c0 < VIEW_AS_ZERO:
                 break
-            
+
             v_new /= c0
             v_old = v
             v_old *= c0
@@ -217,7 +219,7 @@ class Lanczos:# {{{
     def projection(self, vectors, v_init):# {{{
         """
         Return the representation of vectors and matrix in the Krylov space.
-        
+
         The representation of self._HM in Krylov space is a tridiagonal matrix
         and is returned as a np.array. The representaion of the given vectors
         in the Krylov space are stored as dict. The keys of the dict are
@@ -254,12 +256,12 @@ class Lanczos:# {{{
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
-        
+
         keys = vectors.keys()
         temp = dict()
         for key in keys:
             temp[key] = [np.vdot(v, vectors[key])]
-        
+
         for i in range(1, self._step):
             v_new -= c1 * v
             v_new -= v_old
@@ -290,7 +292,7 @@ class Lanczos:# {{{
 
     def _pprojection(self, keys, vectors, HM_proxy, vectors_proxy):# {{{
         #Defined for multi-process parallel.
-        
+
         for key in keys:
             t0 = time()
             HM_proj, vectors_proj = self.projection(vectors, vectors[key])
@@ -306,7 +308,7 @@ class Lanczos:# {{{
     def __call__(self, vectors, *, procs_num=1):# {{{
         """
         Return the representation of vectors and matrix in the Krylov space.
-        
+
         Choosing every vector in vectors as the starting vector, this method
         generate the krylov space, calculate the representation of the matrix
         and all vectors in this space.
@@ -362,7 +364,7 @@ class Lanczos:# {{{
                 vectors_proxy = manager.dict()
                 kwargs = {"vectors": vectors, "HM_proxy": HM_proxy,
                           "vectors_proxy": vectors_proxy}
-                
+
                 procs = []
                 for proc_index in range(procs_num):
                     keys = tasks[proc_index::procs_num]

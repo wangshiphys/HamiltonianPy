@@ -1,6 +1,8 @@
+"""Provide description of lattice with translation symmetry
 """
-This module provide description of lattice with translation symmetry.
-"""
+
+__all__ = ["Lattice"]
+
 
 from itertools import product
 from mpl_toolkits.mplot3d import Axes3D
@@ -13,66 +15,52 @@ import numpy as np
 
 from HamiltonianPy.bond import Bond
 
-#Useful constant in module
+# Useful constant in module
 ERR = 1e-6
 ZOOM = 10000
 ##########################
 
-__all__ = ["Lattice"]
 
 class DuplicateError(Exception):# {{{
     def __init__(self, msg):
         self.msg = msg
 # }}}
 
+
 class Lattice:# {{{
-    """
-    This class provide a description of a cluster with translation symmetry!
+    """A unified description of a cluster with translation symmetry!
 
     Attributes
     ----------
     points : ndarray
-        A collection of the coordinates of the sites in the cluster.
+        A collection of the coordinates of the sites in the cluster
         It is a two dimension numpy array and every row represents a site.
     tvs : ndarry
-        A collection of the translation vectors of the lattice.
+        A collection of the translation vectors of the lattice
         It is a two dimension numpy array and every row represents a vector.
     bs : ndarray
-        A collection of the base vectors of the reciprocal space.
+        A collection of the base vectors of the reciprocal space
         It is a two dimension numpy array and every row represents a vector.
     sitenum : int
-        The number of site in the cluster.
+        The number of site in the cluster
     spacedim : int
-        The dimension of the space in which the points are described.
+        The dimension of the space in which the points are described
     transdim : int
         The number of linear independent directions along which the lattice is
-        translational invariant.
-
-    Methods:
-    --------
-    Public methods:
-        getPoints()
-        getTVs()
-        getBs()
-        getSite(index)
-        getIndex(site, *, fold=False)
-        decompose(site, *, extend=2)
-        sitesFactory(*, site=None, scope=1)
-        show(*, site=None, scope=1)
-        neighborDist(nth)
-        neighbors(site, nth, *, only=False, onsite=False)
-        bonds(nth, *, only=False, periodic=False, remove_duplicate=True)
-        incluster(site)
-    Special methods:
-        __init__(points, tvs)
-        __str__()
+        translational invariant
     """
 
     def __init__(self, points, tvs):# {{{
-        """
-        Initialize instance of this class.
+        """Customize the newly created instance
 
-        See also the docstring of this class!
+        Parameters
+        ----------
+        points : ndarray
+            A collection of the coordinates of the sites in the cluster
+            It is a two dimension numpy array and every row represents a site.
+        tvs : ndarry
+            A collection of the translation vectors of the lattice
+            It is a two dimension numpy array and every row represents a vector.
         """
 
         if isinstance(points, np.ndarray) and points.ndim == 2:
@@ -87,17 +75,17 @@ class Lattice:# {{{
         else:
             raise TypeError("The invalid points parameter.")
 
-        if (isinstance(tvs, np.ndarray) and tvs.ndim == 2 and 
+        if (isinstance(tvs, np.ndarray) and tvs.ndim == 2 and
             tvs.shape[0] <= spacedim and tvs.shape[1] == spacedim):
             self._transdim = tvs.shape[0]
             self._tvs = np.array(tvs, copy=True)
             self._tvs.setflags(write=False)
         else:
             raise TypeError("The invalid tvs parameter.")
-        
-        #Check is there duplicate point or vector in the given points or tvs.
-        #If no duplications, all the possible distance between any point in the
-        #cluster are returned and are cached as _dists attribute for later use.
+
+        # Check is there duplicate point or vector in the given points and tvs
+        # If no duplications, all possible distance between any point in the
+        # cluster are returned and cached as _dists attribute for later use.
         self._dists = self._verify()
 
         self._bs = 2 * np.pi * np.dot(inv(np.dot(tvs, tvs.T)), tvs)
@@ -107,14 +95,14 @@ class Lattice:# {{{
     def _verify(self):# {{{
         errmsg = "There are duplicate {0} in the given {1}."
 
-        #Check is there duplicate translation vector in the given tvs.
+        # Check is there duplicate translation vector in the given tvs.
         dists = pdist(self._tvs)
         if np.any(dists < ERR):
             raise DuplicateError(errmsg.format("translation vector", "tvs"))
 
-        #Check is there duplicate point in the given points.
-        #If True raise DuplicateError, if False, return all the possible
-        #distance between ant two point in the cluster.
+        # Check is there duplicate point in the given points
+        # If True raise DuplicateError, if False, return all the possible
+        # distance between any two point in the cluster.
         dists = pdist(self._points)
         if np.any(dists < ERR):
             raise DuplicateError(errmsg.format("point", "points"))
@@ -126,8 +114,7 @@ class Lattice:# {{{
 
     @property
     def points(self):# {{{
-        """
-        The points attribute of instance of this class.
+        """The points attribute of the instance
         """
 
         return np.array(self._points, copy=True)
@@ -135,8 +122,7 @@ class Lattice:# {{{
 
     @property
     def tvs(self):# {{{
-        """
-        The tvs attribute of instance of this class.
+        """The tvs attribute of the instance
         """
 
         return np.array(self._tvs, copy=True)
@@ -144,8 +130,7 @@ class Lattice:# {{{
 
     @property
     def bs(self):# {{{
-        """
-        The bs attribute of instance of this class.
+        """The bs attribute of the instance
         """
 
         return np.array(self._bs, copy=True)
@@ -153,8 +138,7 @@ class Lattice:# {{{
 
     @property
     def sitenum(self):# {{{
-        """
-        The sitenum attribute of instance of this class.
+        """The sitenum attribute of the instance
         """
 
         return self._sitenum
@@ -162,8 +146,7 @@ class Lattice:# {{{
 
     @property
     def spacedim(self):# {{{
-        """
-        The spacedim attribute of instance of this class.
+        """The spacedim attribute of the instance
         """
 
         return self._spacedim
@@ -171,8 +154,7 @@ class Lattice:# {{{
 
     @property
     def transdim(self):# {{{
-        """
-        The transdim attribute of instance of this class.
+        """The transdim attribute of the instance
         """
 
         return self._transdim
@@ -192,53 +174,28 @@ class Lattice:# {{{
         return info
     # }}}
 
-    def getPoints(self):# {{{
-        """
-        Access the points attribute of instance of this class.
-        """
-
-        return np.array(self._points, copy=True)
-    # }}}
-
-    def getTVs(self):# {{{
-        """
-        Access the tvs attribute of instance of this class.
-        """
-
-        return np.array(self._tvs, copy=True)
-    # }}}
-
-    def getBs(self):# {{{
-        """
-        Access the bs attribute of instance of this class.
-        """
-
-        return np.array(self._bs, copy=True)
-    # }}}
-
     def getIndex(self, site, *, fold=False):# {{{
-        """
-        Return the index corresponding to the given site.
-        
+        """Return the index corresponding to the given site
+
         Parameters
         ----------
         site : np.ndarray
-            The site of whose index is queried.
-        fold : boolean, optional, keyword argument only
-            Whether to fold the given site back to the cluster.
+            The site whose index is queried
+        fold : boolean, keyword-only, optional
+            Whether to fold the given site back to the cluster
             default: False
 
         Returns
         -------
         res : int
-            The index of the given site if it belong the cluster.
+            The index of the given site if it belong the lattice
         """
-        
+
         if not isinstance(site, np.ndarray):
             raise TypeError("The input site is not a ndarray!")
         elif site.shape != (self._spacedim, ):
             raise ValueError("The dimension of the input site "
-                             "and the lattice does not match!") 
+                             "and the lattice does not match!")
 
         if fold:
             site, trash = self.decompose(site)
@@ -247,7 +204,7 @@ class Lattice:# {{{
         if dist < ERR:
             return index
         else:
-            raise KeyError("The given site does not belong the cluster.")
+            raise KeyError("The given site does not belong the lattice")
     # }}}
 
     def getSite(self, index):# {{{
@@ -276,10 +233,10 @@ class Lattice:# {{{
     # }}}
 
     def _scopeGuess(self, site, extend=2):# {{{
-        #Guess the scope where we can find the given site. The local variable
-        #max_trans means the possible maximum translation along a given
-        #translation vector.
-        
+        # Guess the scope where we can find the given site. The local variable
+        # max_trans means the possible maximum translation along a given
+        # translation vector.
+
         scopes = []
         distance = max(norm(self._points - site, axis=1))
         for tv in self._tvs:
@@ -292,7 +249,7 @@ class Lattice:# {{{
         """
         Decompse the site with respect to the translation vectors and site in
         the cluster.
-        
+
         This method describe how to reach the given site through translates
         one site of the cluster along the tanslation vectors. Fractional 
         translation along a translation vector is invalid.
@@ -448,7 +405,7 @@ class Lattice:# {{{
         result : float
             The nth neighbor distance.
         """
-        
+
         if not isinstance(nth, int) or nth < 0:
             raise TypeError("The nth parameter must be nonnegative integer.")
 
@@ -608,11 +565,8 @@ if __name__ == "__main__":
     tvs = np.array([[2, 0], [0, 2]])
     cluster = Lattice(points, tvs)
     print("Attribute points:\n", cluster.points)
-    print("Getpoints:\n", cluster.getPoints())
     print("Attribute tvs:\n", cluster.tvs)
-    print("Gettvs:\n", cluster.getTVs())
     print("Attribute bs:\n", cluster.bs)
-    print("Getbs:\n", cluster.getBs())
     print("Attribute sitenum:\n", cluster.sitenum)
     print("Attribute spacedim:\n", cluster.spacedim)
     print("Attribute transdim:\n", cluster.transdim)
@@ -646,7 +600,7 @@ if __name__ == "__main__":
         print("The index of site{0} is: {1}".format(site, cluster.getIndex(site)))
     for index in range(len(points)):
         print("The {0}th point is: {1}".format(index, cluster.getSite(index)))
-    
+
     site = np.random.randint(0, 100, size=2)
     eqv_site, dR = cluster.decompose(site)
     print("The orginal site: ", site)
@@ -673,7 +627,7 @@ if __name__ == "__main__":
     cluster = Lattice(points, tvs)
     t1 = time()
     print("The time spend on construct the cluster: ", t1 - t0)
-    
+
     t0 = time()
     intra, inter = cluster.bonds(nth=1)
     t1 = time()
