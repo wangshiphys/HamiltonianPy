@@ -1,7 +1,12 @@
 """Provide description of lattice with translation symmetry
 """
 
-__all__ = ["Lattice"]
+__all__ = [
+        "Lattice", "square_cell", "square_cluster",
+        "triangle_cell", "triangle_cluster",
+        "honeycomb_cell", "honeycomb_cluster",
+        "kagome_cell", "kagome_cluster"
+    ]
 
 
 from itertools import product
@@ -557,6 +562,89 @@ class Lattice:# {{{
         except KeyError:
             return False
     # }}}
+# }}}
+
+
+_square_cell_info = {
+        "points": np.array([[0, 0]], dtype=np.int64),
+        "tvs": np.array([[1, 0], [0, 1]], dtype=np.int64)
+    }
+
+_triangle_cell_info = {
+        "points": np.array([[0, 0]], dtype=np.float64),
+        "tvs": np.array([[1, 0], [1.0/2, np.sqrt(3)/2]], dtype=np.float64)
+    }
+
+_honeycomb_cell_info = {
+        "points": np.array([[0, 0], [0, 1/np.sqrt(3)]], dtype=np.float64),
+        "tvs": np.array([[1, 0], [1.0/2, np.sqrt(3)/2]], dtype=np.float64)
+    }
+
+_kagome_cell_info = {
+        "points": np.array([[0, 0], [1.0/2, 0], [1.0/4, np.sqrt(3)/4]], dtype=np.float64),
+        "tvs": np.array([[1, 0], [1.0/2, np.sqrt(3)/2]], dtype=np.float64)
+    }
+
+
+def _cluster_factory(numx, numy, lattice_info):# {{{
+    lattice_info = lattice_info.lower()
+    if lattice_info in ("square", 's'):
+        cell_info = _square_cell_info
+    elif lattice_info in ("triangle", 't'):
+        cell_info = _triangle_cell_info
+    elif lattice_info in ("honeycomb", 'h'):
+        cell_info = _honeycomb_cell_info
+    elif lattice_info in ("kagome", 'k'):
+        cell_info = _kagome_cell_info
+    else:
+        raise ValueError("The invalid lattice_info parameter.")
+
+    cell_points = cell_info["points"]
+    cell_tvs = cell_info["tvs"]
+    points = np.concatenate([cell_points + np.dot([x, y], cell_tvs)
+        for x in range(numx) for y in range(numy)], axis=0)
+    tvs = cell_tvs * np.array([[numx, numx], [numy, numy]])
+    return Lattice(points=points, tvs=tvs)
+# }}}
+
+
+def square_cell():# {{{
+    return Lattice(**_square_cell_info)
+# }}}
+
+
+def triangle_cell():# {{{
+    return Lattice(**_triangle_cell_info)
+# }}}
+
+
+def honeycomb_cell():# {{{
+    return Lattice(**_honeycomb_cell_info)
+# }}}
+
+
+def kagome_cell():# {{{
+    return Lattice(**_kagome_cell_info)
+# }}}
+
+
+def square_cluster(numx, numy):# {{{
+    return _cluster_factory(numx, numy, "square")
+# }}}
+
+
+def triangle_cluster(numx, numy):# {{{
+    return _cluster_factory(numx, numy, "triangle")
+# }}}
+
+
+def honeycomb_cluster(numx, numy):# {{{
+    return _cluster_factory(numx, numy, "honeycomb")
+# }}}
+
+
+def kagome_cluster(numx, numy):# {{{
+    return _cluster_factory(numx, numy, "kagome")
 # }}}
 
 
