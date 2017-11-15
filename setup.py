@@ -41,4 +41,3 @@ setup_params = dict(
 
 if __name__ == "__main__":
     setup(**setup_params)
-#This is the last line!
