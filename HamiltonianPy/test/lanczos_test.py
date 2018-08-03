@@ -18,7 +18,7 @@ state_num = 2 * site_num
 spins = (SPIN_DOWN, SPIN_UP)
 points = np.arange(site_num).reshape((site_num, 1))
 tvs = np.array([[site_num]])
-cluster = Lattice(points=points, tvs=tvs)
+cluster = Lattice(points=points, vectors=tvs)
 intra, inter = cluster.bonds(nth=1, periodic=True)
 bonds = intra + inter
 
