@@ -39,8 +39,8 @@ for bond in bonds:
     c0_up = AoC(otype=CREATION, site=p0, spin=SPIN_UP)
     a1_down = AoC(otype=ANNIHILATION, site=p1, spin=SPIN_DOWN)
     a1_up = AoC(otype=ANNIHILATION, site=p1, spin=SPIN_UP)
-    H += ParticleTerm((c0_down, a1_down)).matrixRepr(statemap, rbase=base)
-    H += ParticleTerm((c0_up, a1_up)).matrixRepr(statemap, rbase=base)
+    H += ParticleTerm((c0_down, a1_down)).matrix_repr(statemap, right_bases=base)
+    H += ParticleTerm((c0_up, a1_up)).matrix_repr(statemap, right_bases=base)
     t2 = time()
     print(bond, flush=True)
     print("The time spend on this bond: ", t2 - t1, flush=True)
@@ -70,7 +70,7 @@ vectors = dict()
 for site in points:
     for spin in spins:
         aoc = AoC(otype=ANNIHILATION, site=site, spin=spin)
-        vectors[aoc] = aoc.matrixRepr(statemap, rbase=base).dot(GS)
+        vectors[aoc] = aoc.matrix_repr(statemap, right_bases=base).dot(GS)
 t1 = time()
 print("The time spend on excitation state: ", t1 - t0, flush=True)
 

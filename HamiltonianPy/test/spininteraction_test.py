@@ -54,10 +54,10 @@ otype1 = 'x'
 spin0 = SpinOperator(otype=otype0, site=sites[0])
 spin1 = SpinOperator(otype=otype1, site=sites[1])
 interaction = SpinInteraction((spin0, spin1))
-print(interaction.matrixRepr(sitemap))
+print(interaction.matrix_repr(sitemap))
 print("=" * 20)
 operators = [(0, otype0), (1, otype1)]
-data = SpinInteraction.matrixFunc(operators, totspin=2)
+data = SpinInteraction.matrix_function(operators, total_spin=2)
 print(data)
 print("=" * 20)
 

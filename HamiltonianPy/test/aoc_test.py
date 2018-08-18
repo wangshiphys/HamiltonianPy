@@ -51,20 +51,20 @@ statemap = IndexTable(stateids)
 for C in Cs:
     print("Operator:\n", C, sep="")
     print("Index: ", C.getStateIndex(statemap))
-    print(C.matrixRepr(statemap, rbase=base))
+    print(C.matrix_repr(statemap, right_bases=base))
     print("=" * 60)
 for A in As:
     print("Operator:\n", A, sep="")
     print("Index: ", A.getStateIndex(statemap))
-    print(A.matrixRepr(statemap, rbase=base))
+    print(A.matrix_repr(statemap, right_bases=base))
     print("=" * 60)
 
 for index in range(state_num):
     c = (index, CREATION)
     a = (index, ANNIHILATION)
-    print(AoC.matrixFunc(c, base))
+    print(AoC.matrix_function(c, base))
     print()
-    print(AoC.matrixFunc(a, base))
+    print(AoC.matrix_function(a, base))
     print("=" * 60)
 
 operators = Cs + As

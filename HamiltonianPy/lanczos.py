@@ -1,384 +1,374 @@
 """
-The implemetation of the Lanczos Algorithm.
+Implementation of the Lanczos Algorithm
 """
 
-__all__ = ['Lanczos']
+
+__all__ = [
+    "Lanczos",
+]
 
 
-from numpy.linalg import eigvalsh, norm
-from scipy.sparse import csr_matrix, isspmatrix_csr
+from scipy.sparse import isspmatrix_csr
 from time import time
 
 import multiprocessing as mp
 import numpy as np
 
-#Useful constant
-VIEW_AS_ZERO = 1e-8
-###################
+
+# Useful constant
+_VIEW_AS_ZERO = 1e-8
+################################################################################
 
 
-class ConvergenceError(Exception):# {{{
+class ConvergenceError(Exception):
     """
-    Exception raised when the requested convergence is not obtained.
+    Exception raised when the requested convergence is not obtained
     """
 
     def __init__(self, msg):
         self.msg = msg
-# }}}
 
-class Lanczos:# {{{
+
+class Lanczos:
     """
-    Implementation of the Lanczos Algorithm.
+    Implementation of the Lanczos Algorithm
 
-    This class provide method to build a projection of the large compressed
-    sparse row matrix onto a Krylov subspace. Generate the representation of
-    vectors and matrix in this Krylov subspace.
+    This class provide method to build a projection of a large matrix onto a
+    Krylov subspace. Calculating representation of vectors and matrices in
+    this Krylov subspace.
 
-    Methods:
-    -------
-    Public methods:
-        gs()
-        krylov_basis()
-        projection(vectors, v_init)
-    Special methods:
-        __init__(HM, *, v0=None, step=400, tol=1e-12, uniform=False)
-        __call__(vectors)
+    Attributes
+    HM : csr_matrix
+        The compressed sparse row matrix to be processed
     """
 
-    def __init__(self, HM, *, v0=None, step=400, tol=1e-12, uniform=False):# {{{
+    def __init__(self, HM):
         """
-        Initialize the instance of this class.
+        Customize the newly created instance
 
         Parameters
         ----------
         HM : csr_matrix
-            The compressed sparse row matrix to be processed.
-            It must be a Hermitian matrix.
-        v0 : ndarray, keyword-only, optional
-            Starting vector for iteration, v0 is assumed of shape (dim,1).
-            If not given or None, a random or uniform vector of shape(dim, 1)
-            will be generated according to the uniform parameter.
-            default: None
-        step : int, keyword-only, optional
-            The maximum number of lanczos iteration (stopping critertion).
-            default: 400
-        tol : float, keyword-only, optional
-            Relative accuracy for eigenvalues (stopping criterion).
-            default: 1e-12
-        uniform : boolean, keyword-only, optional
-            If v0 is not given or None, this parameter determines whether to
-            use a uniform starting vector. If False, a random starting vector
-            will be used.
-            default: False
+            The compressed sparse row matrix to be processed
+            It must be an Hermitian matrix
         """
 
         if not isspmatrix_csr(HM):
-            raise TypeError("The input HM matrix is not a csr_matrix!")
-        elif ((HM - HM.getH()) > VIEW_AS_ZERO).count_nonzero() != 0:
-            raise TypeError("The input HM matrix is not an Hermitian matrix!")
-        else:
-            dim = HM.shape[0]
-            self._HM = HM
-            self._dim = dim
+            raise TypeError("The input `HM` is not a csr_matrix!")
 
-        if v0 is None:
-            if uniform:
-                v0 = np.ones(shape=(dim, 1))
-            else:
-                v0 = np.random.random_sample(size=(dim, 1))
-            v0 /= norm(v0)
-        else:
-            if v0.shape != (dim, 1):
-                raise ValueError("The dimension of v0 and HM does not match!")
-            v0_norm = norm(v0)
-            #Ensure the input v0 is not a zero vector!
-            if v0_norm < VIEW_AS_ZERO:
-                raise ValueError("The given v0 is a zero vector!")
-            v0 = v0 / v0_norm
-        self._v0 = v0
+        if np.any(np.absolute((HM - HM.getH()).data) > _VIEW_AS_ZERO):
+            raise ValueError("The input `HM` is not an Hermitian matrix!")
 
-        if isinstance(step, int) and step > 0:
-            self._step = step
-        else:
-            raise ValueError("The step parameter should be positive integer.")
+        self.HM = HM
 
-        if isinstance(tol, float) and tol > 0:
-            self._tol = tol
+    def _starting_vector(self, v0=None):
+        # Prepare starting vector for Lanczos iteration
+        shape = (self.HM.shape[0], 1)
+        if (v0 is None) or (v0 == "random"):
+            v0 = np.random.random_sample(size=shape)
+        elif v0 == "uniform":
+            v0 = np.ones(shape=shape)
         else:
-            raise ValueError("The tol parameter should be positive float.")
-    # }}}
+            if not (isinstance(v0, np.ndarray) and v0.shape == shape):
+                raise ValueError("The shape of v0 and HM does not match!")
 
-    def gs(self):# {{{
+        v0_norm = np.linalg.norm(v0)
+        if v0_norm < _VIEW_AS_ZERO:
+            raise ValueError("The given v0 is a zero vector!")
+        return v0 / v0_norm
+
+    def ground_state(self, v0=None, tol=1e-12):
         """
-        Find samllest eigenvalue of the HM matrix.
+        Find the smallest eigenvalue of `HM` using Lanczos algorithm
 
-        This method calculate the smallest eigenvalue of the input spasre 
-        matrix with the given precision specified by the tol parameter.
+        Parameters
+        ----------
+        v0 : ndarray
+            Starting vector for Lanczos iteration
+            Valid value for v0:
+                None | "random" | "uniform" | ndarray with shape (N, 1)
+            default: None(The same as "random")
+        tol : float
+            Relative accuracy for eigenvalue(stopping criterion)
+            default: 1e-12
 
         Returns
         -------
         val : float
-            The smallest eigenvalue of the matrix.
+            The smallest eigenvalue of the matrix
 
         Raises
         ------
         ConvergenceError
-            When the requested convergence is not obtained.
+            When the requested convergence accuracy is not obtained
         """
 
-        M = self._HM
+        HM = self.HM
 
         v_old = 0.0
-        v = np.array(self._v0, copy=True)
-        v_new = M.dot(v)
+        v = self._starting_vector(v0)
+        v_new = HM.dot(v)
 
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
 
         E = c1
-        for i in range(self._dim):
+        for i in range(HM.shape[0]):
             v_new -= c1 * v
             v_new -= v_old
 
-            c0 = norm(v_new)
-            if c0 < VIEW_AS_ZERO:
+            c0 = np.linalg.norm(v_new)
+            if c0 < _VIEW_AS_ZERO:
                 raise ConvergenceError("Got an invariant subspace!")
-                #break
             v_new /= c0
 
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = M.dot(v)
+            v_new = HM.dot(v)
             c1 = np.vdot(v, v_new)
             c1s.append(c1)
             c0s.append(c0)
 
-            tri = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
-            val = eigvalsh(tri)[0]
-            if abs(val - E) < self._tol:
+            val = np.linalg.eigvalsh(
+                np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
+            )[0]
+            if abs(val - E) < tol:
                 return val
             else:
                 E = val
-        errmsg = "Got Krylov subspace larger than the original space."
-        raise ConvergenceError(errmsg)
-    # }}}
+        raise ConvergenceError(
+            "Got Krylov subspace larger than the original space!"
+        )
 
-    def krylov_basis(self):# {{{
+    def krylov_basis(self, v0=None, step=200):
         """
-        Generate the bases of the Krylov subspace.
+        Generate the bases of the Krylov subspace
 
         This method calculate the bases of the Krylov subspace as well as the
-        representation of the matrix in the base.
-        The projected matrix has the tridiagonal form and is return as the tri.
-        The bases are stored as a ndarray with dimension (self._dim, self._step)
-        Every column of the array represents a base vector.
+        representation of the matrix in the Krylov subspace.
+
+        The bases are stored as a np.ndarray with dimension (N, step) and every
+        column of the array represents a base vector.
+
+        Parameters
+        ----------
+        v0 : ndarray, optional
+            Starting vector for iteration
+            Valid value for v0:
+                None | "random" | "uniform" | ndarray with shape (N, 1)
+            default : None(The same as "random")
+        step : int, optional
+            Number of Lanczos iteration
+            default: 200
 
         Returns
         -------
         tri : ndarray
-            The projection of the input matrix in the Krylov space.
-        krylov_basis : ndarray
-            The bases of the krylov space.
+            The representation of the matrix in the Krylov subspace
+        krylov_bases : ndarray
+            The bases of the Krylov subspace
         """
 
-        M = self._HM
+        HM = self.HM
+        assert isinstance(step, int) and step > 0 and step < HM.shape[0]
 
         v_old = 0.0
-        v = np.array(self._v0, copy=True)
-        v_new = M.dot(v)
+        v = self._starting_vector(v0)
+        v_new = HM.dot(v)
 
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
         bases = [v]
 
-        for i in range(1, self._step):
+        for i in range(1, step):
             v_new -= c1 * v
             v_new -= v_old
 
-            c0 = norm(v_new)
-            if c0 < VIEW_AS_ZERO:
+            c0 = np.linalg.norm(v_new)
+            if c0 < _VIEW_AS_ZERO:
                 break
-
             v_new /= c0
+
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = M.dot(v)
+            v_new = HM.dot(v)
             c1 = np.vdot(v, v_new)
             bases.append(v)
             c1s.append(c1)
             c0s.append(c0)
+
         krylov_bases = np.concatenate(bases, axis=1)
         tri = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
         return tri, krylov_bases
-    # }}}
 
-    def projection(self, vectors, v_init):# {{{
+    def projection(self, vectors, v0=None, step=200):
         """
-        Return the representation of vectors and matrix in the Krylov space.
+        Return the representation of vectors and matrix in the Krylov subspace
 
-        The representation of self._HM in Krylov space is a tridiagonal matrix
-        and is returned as a np.array. The representaion of the given vectors
-        in the Krylov space are stored as dict. The keys of the dict are
-        the identifiers of these vectors and the values should be np.array with
-        shape (self._step, 1).
+        The representation of HM in the Krylov subspace is a tri-diagonal
+        matrix and is returned as a np.ndarray.
+
+        The representation of the given vectors in the Krylov subspace are
+        stored as a dict. The keys of the dict are the identifiers of these
+        vectors and the values should be np.ndarray with shape (step, 1).
 
         Parameters
         ----------
         vectors : dict
-            The vectors to be projected in the Krylov space. The keys of the
-            dict are the identifiers of these vectors. The values of this dict
-            should be np.array and of shape (self.dim, 1).
-        v_init : ndarray
-            Starting vector of the lanczos iteration.
+            The vectors to be projected onto the Krylov subspace
+            The keys of the dict are the identifiers of these vectors and the
+            values of this dict should be np.ndarray with shape (N, 1).
+        v0 : ndarray, optional
+            Starting vector for iteration
+            Valid value for v0:
+                None | "random" | "uniform" | ndarray with shape (N, 1)
+            default : None(The same as "random")
+        step : int, optional
+            Number of Lanczos iteration
+            default: 200
 
         Returns
         -------
-        HM_proj : np.array
-            The tridiagonal representaion of the matrix.
-        vectors_proj : dict
-            The projection of the vectors in the Krylov space.
+        repr_matrix : np.array
+            The representation of the matrix in the Krylov subspace
+        repr_vectors : dict
+            The representation of the vectors in the Krylov subspace
         """
 
-        norm_v = norm(v_init)
-        if norm_v < VIEW_AS_ZERO:
-            raise ValueError("The given v_init is a zero vector.")
-
-        M = self._HM
+        HM = self.HM
+        assert isinstance(step, int) and step > 0 and step < HM.shape[0]
 
         v_old = 0.0
-        v = v_init / norm_v
-        v_new = M.dot(v)
+        v = self._starting_vector(v0)
+        v_new = HM.dot(v)
 
         c1 = np.vdot(v, v_new)
         c1s = [c1]
         c0s = []
 
-        keys = vectors.keys()
-        temp = dict()
-        for key in keys:
-            temp[key] = [np.vdot(v, vectors[key])]
+        repr_vectors = dict()
+        for key in vectors:
+            repr_vectors[key] = [np.vdot(v, vectors[key])]
 
-        for i in range(1, self._step):
+        for i in range(1, step):
             v_new -= c1 * v
             v_new -= v_old
 
-            c0 = norm(v_new)
-            if c0 < VIEW_AS_ZERO:
+            c0 = np.linalg.norm(v_new)
+            if c0 < _VIEW_AS_ZERO:
                 break
             v_new /= c0
 
             v_old = v
             v_old *= c0
             v = v_new
-            v_new = M.dot(v)
+            v_new = HM.dot(v)
             c1 = np.vdot(v, v_new)
-
             c1s.append(c1)
             c0s.append(c0)
 
-            for key in keys:
-                temp[key].append(np.vdot(v, vectors[key]))
+            for key in vectors:
+                repr_vectors[key].append(np.vdot(v, vectors[key]))
+        for key in vectors:
+            repr_vectors[key] = np.reshape(repr_vectors[key], newshape=(-1, 1))
+        repr_matrix = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
+        return repr_matrix, repr_vectors
 
-        vectors_proj = dict()
-        for key in keys:
-            vectors_proj[key] = np.array([temp[key]]).T
-        HM_proj = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
-        return HM_proj, vectors_proj
-    # }}}
-
-    def _pprojection(self, keys, vectors, HM_proxy, vectors_proxy):# {{{
-        #Defined for multi-process parallel.
-
+    def _parallel_projection(self, keys, vectors, step, proxy_matrix,
+                             proxy_vectors):
+        # Defined for multi-process parallel
         for key in keys:
             t0 = time()
-            HM_proj, vectors_proj = self.projection(vectors, vectors[key])
-            HM_proxy[key] = HM_proj
-            vectors_proxy[key] = vectors_proj
+            repr_matrix, repr_vectors = self.projection(
+                vectors, vectors[key], step
+            )
+            proxy_matrix[key] = repr_matrix
+            proxy_vectors[key] = repr_vectors
             t1 = time()
-            info = "The time spend on this key: {0}s".format(t1 - t0)
-            print("The current key:\n", key, flush=True)
-            print(info, flush=True)
-            print("=" * len(info), flush=True)
-    # }}}
+            print("The current key: {}".format(key), flush=True)
+            print("The time spend on this key: {}s".format(t1 - t0), flush=True)
+            print("=" * 80, flush=True)
 
-    def __call__(self, vectors, *, procs_num=1):# {{{
+    def __call__(self, vectors, step=200, process_num=1):
         """
-        Return the representation of vectors and matrix in the Krylov space.
+        Return the representation of vectors and matrix in the Krylov subspace
 
-        Choosing every vector in vectors as the starting vector, this method
-        generate the krylov space, calculate the representation of the matrix
-        and all vectors in this space.
+        Choosing every vector in `vectors` as the starting vector, this method
+        generate the Krylov subspace, calculate the representation of the
+        matrix and all vectors in this space.
 
         Parameters
         ----------
         vectors : dict
-            The vectors to be projected in the Krylov space.
-            The keys of the dict are the identifiers of these vectors.The
-            values of this dict should be np.array and of shape (self._dim, 1).
-        procs_num : int, keyword-only, optional
+            The vectors to be projected onto the Krylov subspace
+            The keys of the dict are the identifiers of these vectors and the
+            values of this dict should be np.ndarray with shape (N, 1).
+        process_num : int, optional
             The number of process to use.
-            It is recommended to set this parameter to be integers which can be
+            It is recommended to set this parameter to be integer which can be
             divided exactly by the number of vectors for load balancing of every
             process, also, this parameter should not be too large because of the
             bandwidth limit of the RAM.
             default: 1
+        step : int, optional
+            Number of Lanczos iteration
+            default: 200
 
         Returns
         -------
-        HM_projs : dict
-            The representations of HM in these Krylov space.
-        vectors_projs : dict
-            The projections of the vectors in these Krylov space.
+        reprs_matrix : dict
+            The representations of HM in these Krylov subspaces.
+        reprs_vectors : dict
+            The representations of the vectors in these Krylov subspaces.
         """
 
-        if not isinstance(vectors, dict):
-            raise TypeError("The input vectors parameter is not dict.")
-        else:
-            for key in vectors.keys():
-                if vectors[key].shape != (self._dim, 1):
-                    raise ValueError("The wrong vector dimension!")
-        if not isinstance(procs_num, int) or procs_num <= 0:
-            raise ValueError("The procs_num parameter should be positive integer.")
+        assert isinstance(process_num, int) and process_num > 0
 
-        tasks = list(vectors.keys())
-        HM_projs = dict()
-        vectors_projs = dict()
-        if procs_num == 1:
-            for count, task in enumerate(tasks):
+        reprs_matrix = dict()
+        reprs_vectors = dict()
+        keys = tuple(vectors.keys())
+
+        if process_num == 1:
+            for index, key in enumerate(keys):
                 t0 = time()
-                HM_proj, vectors_proj = self.projection(vectors, vectors[task])
-                HM_projs[task] = HM_proj
-                vectors_projs[task] = vectors_proj
+                repr_matrix, repr_vectors = self.projection(
+                    vectors, vectors[key], step
+                )
+                reprs_matrix[key] = repr_matrix
+                reprs_vectors[key] = repr_vectors
                 t1 = time()
-                info = "The time spend on the {0}th starting vector: {1:.4f}s"
-                info = info.format(count, t1-t0)
-                print(info, flush=True)
-                print("=" * len(info), flush=True)
+                info = "The time spend on the {0}th starting vector: {1}s"
+                print(info.format(index, t1 - t0), flush=True)
+                print("=" * 80, flush=True)
         else:
             with mp.Manager() as manager:
-                HM_proxy = manager.dict()
-                vectors_proxy = manager.dict()
-                kwargs = {"vectors": vectors, "HM_proxy": HM_proxy,
-                          "vectors_proxy": vectors_proxy}
+                proxy_matrix = manager.dict()
+                proxy_vectors = manager.dict()
+                kwargs = {
+                    "vectors": vectors,
+                    "proxy_matrix": proxy_matrix,
+                    "proxy_vectors": proxy_vectors,
+                    "step": step,
+                }
 
-                procs = []
-                for proc_index in range(procs_num):
-                    keys = tasks[proc_index::procs_num]
-                    proc = mp.Process(target=self._pprojection,
-                                        args=(keys, ), kwargs=kwargs)
-                    proc.start()
-                    procs.append(proc)
+                processes = []
+                for process_index in range(process_num):
+                    process = mp.Process(
+                        target=self._parallel_projection,
+                        args=(keys[process_index::process_num], ),
+                        kwargs=kwargs
+                    )
+                    process.start()
+                    processes.append(process)
 
-                for proc in procs:
-                    proc.join()
+                for process in processes:
+                    process.join()
 
-                for key in tasks:
-                    HM_projs[key] = HM_proxy[key]
-                    vectors_projs[key] = vectors_proxy[key]
-        return HM_projs, vectors_projs
-    # }}}
-# }}}
+                for key in keys:
+                    reprs_matrix[key] = proxy_matrix[key]
+                    reprs_vectors[key] = proxy_vectors[key]
+        return reprs_matrix, reprs_vectors

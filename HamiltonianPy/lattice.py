@@ -350,10 +350,12 @@ class Lattice:
         if self._space_dim == 1:
             ys = np.zeros(shape=self._points.shape)
             for cluster in clusters:
-                ax.plot(cluster, ys, marker="o", ls="", ms=8)
+                ax.plot(cluster, ys, marker="o", ls="None", ms=8)
         else:
             for cluster in clusters:
-                ax.plot(cluster[:, 0], cluster[:, 1], marker="o", ls="", ms=8)
+                ax.plot(
+                    cluster[:, 0], cluster[:, 1], marker="o", ls="None", ms=8
+                )
 
         left, right = ax.get_xlim()
         bottom, top = ax.get_ylim()

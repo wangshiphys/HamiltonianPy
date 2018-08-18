@@ -1,10 +1,17 @@
-"""Components to construct a model Hamiltonian
+"""
+Components for constructing a model Hamiltonian
 """
 
-from __future__ import absolute_import
 
-__all__ = ["SiteID", "StateID", "AoC", "SpinOperator",
-        "SpinInteraction", "ParticleTerm"]
+__all__ = [
+    "SiteID",
+    "StateID",
+    "AoC",
+    "SpinOperator",
+    "SpinInteraction",
+    "ParticleTerm",
+]
+
 
 from itertools import product
 from scipy.sparse import csr_matrix, identity, kron
@@ -12,26 +19,27 @@ from scipy.sparse import csr_matrix, identity, kron
 import numpy as np
 
 from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
-
-import HamiltonianPy.extpkg.matrixrepr as cextmr
+# Matrix representation extension
+import HamiltonianPy.extension as ext
 
 
 # Useful constants
 ZOOM = 10000
-SWAP_FACTOR_F = -1
-SPIN_OTYPES = ('x', 'y', 'z', 'p', 'm')
-SIGMA_X = np.array([[0, 1], [1, 0]], dtype=np.int64)
-SIGMA_Y = np.array([[0, -1], [1, 0]], dtype=np.int64) * 1j
-SIGMA_Z = np.array([[1, 0], [0, -1]], dtype=np.int64)
-SIGMA_P = np.array([[0, 2], [0, 0]], dtype=np.int64)
-SIGMA_M = np.array([[0, 0], [2, 0]], dtype=np.int64)
-SIGMA_MATRIX = {
-        'x': SIGMA_X, 'y': SIGMA_Y, 'z': SIGMA_Z, 'p': SIGMA_P, 'm':SIGMA_M}
+SPIN_OTYPES = ("x", "y", "z", "p", "m")
+NUMERIC_TYPES = (int, float, complex, np.number)
+SPIN_MATRICES = {
+    "x": np.array([[0.0, 0.5], [0.5, 0.0]], dtype=np.float64),
+    "y": np.array([[0.0, -0.5], [0.5, 0.0]], dtype=np.float64) * 1j,
+    "z": np.array([[0.5, 0.0], [0.0, -0.5]], dtype=np.float64),
+    "p": np.array([[0.0, 1.0], [0.0, 0.0]], dtype=np.float64),
+    "m": np.array([[0.0, 0.0], [1.0, 0.0]], dtype=np.float64),
+}
 
 
-class SwapFermionError(Exception):# {{{
+class SwapError(Exception):
     """
-    Raised when swap creation and annihilation operators of the same state
+    Raised when swapping creation and annihilation operators defined on the
+    same single-particle state
     """
 
     def __init__(self, aoc0, aoc1):
@@ -39,147 +47,144 @@ class SwapFermionError(Exception):# {{{
         self.aoc1 = aoc1
 
     def __str__(self):
-        info = str(self.aoc0) + "\n" + str(self.aoc1) + "\n"
-        info += "Swap these two operators would generate extra "
-        info += "identity operator, which can not be processed properly."
-        return info
-# }}}
+        msg = "Swapping the following two operators would generate extra " \
+              "identity operator which can not be processed properly:\n"
+        msg += "    {0!r}\n    {1!r}".format(self.aoc0, self.aoc1)
+        return msg
 
 
-class SiteID:# {{{
+class SiteID:
     """
-    A wrapper of 1D np.ndarray which represents the coordinates of a point
+    A wrapper over 1D np.ndarray which is the coordinate of a lattice site
 
-    The reason to define this wrapper is to make the coordinates hashable as
+    The reason to define this wrapper is to make the coordinate hashable as
     well as comparable as a whole.
 
     Attributes
     ----------
     site : np.ndarray
-        The coordinates of the point
-        The shape of this array should be (1,), (2,) or (3,).
+        The coordinate of the lattice site
 
     Examples
     --------
     >>> import numpy as np
-    >>> siteid0 = SiteID(site=np.array([0, 0]))
-    >>> siteid1 = SiteID(site=np.array([1, 1]))
-    >>> siteid0 < siteid1
+    >>> site0 = SiteID(site=np.array([0, 0]))
+    >>> site1 = SiteID(site=np.array([1, 1]))
+    >>> site0 < site1
     True
-    >>> siteid0
+    >>> site0
     SiteID(site=array([0, 0]))
     """
 
-    def __init__(self, site):# {{{
-        """Customize the newly created instance
+    def __init__(self, site):
+        """
+        Customize the newly created instance
 
         Parameters
         ----------
         site : np.ndarray
-            The coordinates of the point
+            The coordinate of the lattice site
             The shape of this array should be (1,), (2,) or (3,).
         """
 
-        if isinstance(site, np.ndarray) and site.shape in [(1,), (2,), (3,)]:
-            self._site = np.array(site, copy=True)
-            self._site.setflags(write=False)
-        else:
-            raise TypeError("The 'site' parameter should be np.ndarray with"
-                    "shape (1,), (2,) or (3,)")
+        assert isinstance(site, np.ndarray) and site.shape in [(1,), (2,), (3,)]
 
-        # The tuple form of the coordinates.
+        self._site = np.array(site, copy=True)
+        self._site.setflags(write=False)
+
+        # The tuple form of this instance
         # This internal attribute is useful in calculating the hash value of
         # the instance as well as defining compare logic between instances of
         # this class
-        self._tupleform = tuple(int(i) for i in ZOOM * site)
-    # }}}
+        self._tuple_form = tuple(int(i) for i in ZOOM * site)
 
     @property
-    def site(self):# {{{
-        """The site attribute of the instance
+    def site(self):
+        """
+        The `site` attribute
         """
 
         return np.array(self._site, copy=True)
-    # }}}
 
-    def __repr__(self):# {{{
-        """The official string representation of the instance
+    def __repr__(self):
+        """
+        The official string representation of the instance
         """
 
         return "SiteID(site={!r})".format(self._site)
-    # }}}
 
     __str__ = __repr__
 
-    def __hash__(self):# {{{
-        """Return the hash code of the instance
+    def __hash__(self):
+        """
+        Return the hash code of the instance
         """
 
-        return hash(self._tupleform)
-    # }}}
+        return hash(self._tuple_form)
 
-    def __lt__(self, other):# {{{
-        """Define the < operator between self and other
+    def __lt__(self, other):
         """
-
-        if isinstance(other, self.__class__):
-            return self._tupleform < other._tupleform
-        else:
-            return NotImplemented
-    # }}}
-
-    def __eq__(self, other):# {{{
-        """Define the == operator between self and other
+        Define the `<` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform == other._tupleform
+            return self._tuple_form < other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __gt__(self, other):# {{{
-        """Define the > operator between self and other
+    def __eq__(self, other):
+        """
+        Define the `==` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform > other._tupleform
+            return self._tuple_form == other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __le__(self, other):# {{{
-        """Define the <= operator between self and other
+    def __gt__(self, other):
+        """
+        Define the `>` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform <= other._tupleform
+            return self._tuple_form > other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __ne__(self, other):# {{{
-        """Define the != operator between self and other
+    def __le__(self, other):
+        """
+        Define the `<=` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform != other._tupleform
+            return self._tuple_form <= other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __ge__(self, other):# {{{
-        """Define the >= operator between self and other
+    def __ne__(self, other):
+        """
+        Define the `!=` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform >= other._tupleform
+            return self._tuple_form != other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def getIndex(self, indices_table):# {{{
-        """Return the index associated with this SiteID
+    def __ge__(self, other):
+        """
+        Define the `>=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form >= other._tuple_form
+        else:
+            return NotImplemented
+
+    def getIndex(self, indices_table):
+        """
+        Return the index associated with this instance
 
         Parameters
         ----------
@@ -189,26 +194,24 @@ class SiteID:# {{{
         Returns
         -------
         res : int
-            The index of 'self' in the table
+            The index of this instance in the table
         """
 
         return indices_table(self)
-    # }}}
-# }}}
 
 
-class StateID(SiteID):# {{{
-    """A unified description of a single particle state
+class StateID(SiteID):
+    """
+    A unified description of a single-particle state
 
     Attributes
     ----------
     site : ndarray
-        The coordinate of the localized state
-        The site attribute should be 1D array with shape (1,), (2,) or (3,).
+        The coordinate of the localized single-particle state
     spin : int
-        The spin index of the state
+        The spin index of the single-particle state
     orbit : int
-        The orbit index of the state
+        The orbit index of the single-particle state
 
     Examples
     --------
@@ -221,86 +224,79 @@ class StateID(SiteID):# {{{
     True
     """
 
-    def __init__(self, site, spin=0, orbit=0):# {{{
-        """Customize the newly created instance
+    def __init__(self, site, spin=0, orbit=0):
+        """
+        Customize the newly created instance
 
         Parameters
         ----------
         site : ndarray
-            The coordinate of the localized state
-            The 'site' parameter should be 1D array with length 1, 2 or 3.
+            The coordinate of the localized single-particle state
+            The `site` parameter should be 1D array with length 1, 2 or 3.
         spin : int, optional
-            The spin index of the state
+            The spin index of the single-particle state
             default: 0
         orbit : int, optional
-            The orbit index of the state
+            The orbit index of the single-particle state
             default: 0
         """
 
+        assert (spin, int) and spin >= 0
+        assert (orbit, int) and orbit >= 0
+
         super().__init__(site=site)
+        self._spin = spin
+        self._orbit = orbit
 
-        if isinstance(spin, int) and spin >= 0:
-            self._spin = spin
-        else:
-            raise ValueError(
-                    "The 'spin' parameter should be none negative integer")
-
-        if isinstance(orbit, int) and orbit >= 0:
-            self._orbit = orbit
-        else:
-            raise ValueError(
-                    "The 'orbit' parameter should be none negative integer")
-
-        # The self._tupleform on the right hand is already set properly
-        # by calling 'super().__init__(site=site)'
-        self._tupleform = (self._tupleform, spin, orbit)
-    # }}}
+        # The self._tuple_form on the right hand is already set properly
+        # by calling `super().__init__(site=site)`
+        self._tuple_form = (self._tuple_form, spin, orbit)
 
     @property
-    def spin(self):# {{{
-        """The spin attribute of the instance
+    def spin(self):
+        """
+        The `spin` attribute
         """
 
         return self._spin
-    # }}}
 
     @property
-    def orbit(self):# {{{
-        """The orbit attribute of the instance
+    def orbit(self):
+        """
+        The `orbit` attribute
         """
 
         return self._orbit
-    # }}}
 
-    def __repr__(self):# {{{
-        """The offical string representation of the instance
+    def __repr__(self):
+        """
+        The official string representation of the instance
         """
 
         info = "StateID(site={0!r}, spin={1}, orbit={2})"
         return info.format(self._site, self._spin, self._orbit)
-    # }}}
 
     __str__ = __repr__
-# }}}
 
 
-class AoC:# {{{
-    """A unified description of the creation and annihilation operator
+class AoC:
+    """
+    A unified description of the creation and annihilation operator
 
     Attributes
     ----------
     otype : int
         The type of this operator
-        It can be either 0 or 1, corresponding to annihilation or creation.
+        It can be either 0 or 1, corresponding to annihilation and creation
+        respectively.
     state : StateID
-        The state of this operator
+        The single-particle state on which this operator is defined
     site : ndarray
-        The coordinate of the localized state
-        The site attribute should be 1D array with shape (1,), (2,) or (3,).
+        The coordinate of the localized single-particle state
     spin : int
-        The spin index of the state
+        The spin index of the single-particle state
     orbit : int
-        The orbit index of the state
+        The orbit index of the single-particle state
 
     Examples
     --------
@@ -317,103 +313,109 @@ class AoC:# {{{
     True
 
     >>> print(2 * c * a)
-    coeff: 2
-    AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
-    AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+    The coefficient of this term: 2
+    The component operators:
+        AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+
     >>> print(0.5 * c)
-    coeff: 0.5
-    AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
+    The coefficient of this term: 0.5
+    The component operators:
+        AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
+
     >>> print(a * (1+2j))
-    coeff: (1+2j)
-    AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+    The coefficient of this term: (1+2j)
+    The component operators:
+        AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+
     """
 
-    def __init__(self, otype, site, spin=0, orbit=0):# {{{
-        """Customize the newly created instance
+    def __init__(self, otype, site, spin=0, orbit=0):
+        """
+        Customize the newly created instance
 
         Parameters
         ----------
         otype : int
             The type of this operator
-            It can be either 0 or 1, corresponding to annihilation or creation.
+            It can be either 0 or 1, corresponding to annihilation and
+            creation respectively.
         site : ndarray
-            The coordinate of the localized state
-            The site attribute should be 1D array with shape (1,), (2,) or (3,).
+            The coordinate of the localized single-particle state
+            The `site` parameter should be 1D array with length 1,2 or 3.
         spin : int, optional
-            The spin index of the state
+            The spin index of the single-particle state
             default: 0
         orbit : int, optional
-            The orbit index of the state
+            The orbit index of the single-particle state
             default: 0
         """
 
-        if otype in (ANNIHILATION, CREATION):
-            self._otype = otype
-        else:
-            raise ValueError(
-                    "The 'otype' should be either CREATION or ANNIHILATION")
+        assert otype in (ANNIHILATION, CREATION)
+
+        self._otype = otype
 
         state = StateID(site=site, spin=spin, orbit=orbit)
         self._state = state
 
-        # The tuple form of the operator
-        # It is a tuple: (otype, (site, spin,  orbit)) and site itself is a
+        # The tuple form of this instance
+        # It is a tuple: (otype, (site, spin, orbit)) and site itself is a
         # tuple with length 1, 2, or 3.
-        self._tupleform = (otype, state._tupleform)
-    # }}}
+        self._tuple_form = (otype, state._tuple_form)
 
     @property
-    def otype(self):# {{{
-        """The otype attribute of the instance
+    def otype(self):
+        """
+        The `otype` attribute
         """
 
         return self._otype
-    # }}}
 
     @property
-    def state(self):# {{{
-        """The state attribute of the instance
+    def state(self):
+        """
+        The `state` attribute
         """
 
         return self._state
-    # }}}
 
     @property
-    def site(self):# {{{
-        """The site attribute of the instance
+    def site(self):
+        """
+        The `site` attribute
         """
 
         return self._state.site
-    # }}}
 
     @property
-    def spin(self):# {{{
-        """The spin attribute of the instance
+    def spin(self):
+        """
+        The `spin` attribute
         """
 
         return self._state.spin
-    # }}}
 
     @property
-    def orbit(self):# {{{
-        """The orbit attribute of the instance
+    def orbit(self):
+        """
+        The `orbit` attribute
         """
 
         return self._state.orbit
-    # }}}
 
-    def getIndex(self, indices_table):# {{{
-        """Return the index associated with this operator
+    def getIndex(self, indices_table):
+        """
+        Return the index of this operator
 
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate this operator with an integer index
+            A table that associate instance of AoC with an integer index
 
         Returns
         -------
         res : int
-            The index of 'self' in the table
+            The index of this instance in the table
 
         See also
         --------
@@ -421,14 +423,15 @@ class AoC:# {{{
         """
 
         return indices_table(self)
-    # }}}
 
-    def getStateIndex(self, indices_table):# {{{
-        """Return the index of the state associated with this operator
+    def getStateIndex(self, indices_table):
+        """
+        Return the index of the single-particle state on which this operator is
+        defined
 
         Notes:
             This method is different from the getIndex method.
-            This method return the index of the 'state' attribute of the
+            This method return the index of the `state` attribute of the
             operator and the getIndex method return the index of the operator
             itself.
 
@@ -440,37 +443,38 @@ class AoC:# {{{
         Returns
         -------
         res : int
-            The index of the state attribute
+            The index of the `state` attribute
         """
 
         return indices_table(self._state)
-    # }}}
 
-    def __repr__(self):# {{{
-        """The offical string representation of the instance
+    def __repr__(self):
+        """
+        The official string representation of the instance
         """
 
         otype = "CREATION" if self._otype == CREATION else "ANNIHILATION"
         info = "AoC(otype={0}, site={1!r}, spin={2}, orbit={3})"
         return info.format(otype, self.site, self.spin, self.orbit)
-    # }}}
 
     __str__ = __repr__
 
-    def __hash__(self):# {{{
-        """Return the hash code of the instance
+    def __hash__(self):
+        """
+        Return the hash code of the instance
         """
 
-        return hash(self._tupleform)
-    # }}}
+        return hash(self._tuple_form)
 
-    def __lt__(self, other):# {{{
-        """Define the < operator between self and other
+    def __lt__(self, other):
+        """
+        Define the `<` operator between self and other
 
-        The comparsion logic is as follow:
+        The comparison logic is as follow:
         Creation operator is always compare less than annihilation operator;
-        The smaller the stateid, the samller the creation operator;
-        The larger the stateid, the smaller the annihilation operator.
+        The smaller the single-particle state, the smaller the creation
+        operator; The larger the single-particle state, the smaller the
+        annihilation operator.
         """
 
         if isinstance(other, self.__class__):
@@ -488,10 +492,10 @@ class AoC:# {{{
                 return state0 > state1
         else:
             return NotImplemented
-    # }}}
 
-    def __gt__(self, other):# {{{
-        """Define the > operator between self and other
+    def __gt__(self, other):
+        """
+        Define the `>` operator between self and other
 
         See also
         --------
@@ -513,30 +517,30 @@ class AoC:# {{{
                 return state0 < state1
         else:
             return NotImplemented
-    # }}}
 
-    def __eq__(self, other):# {{{
-        """Define the == operator between self and other
+    def __eq__(self, other):
+        """
+        Define the `==` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform == other._tupleform
+            return self._tuple_form == other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __ne__(self, other):# {{{
-        """Define the != operator between self and other
+    def __ne__(self, other):
+        """
+        Define the `!=` operator between self and other
         """
 
         if isinstance(other, self.__class__):
-            return self._tupleform != other._tupleform
+            return self._tuple_form != other._tuple_form
         else:
             return NotImplemented
-    # }}}
 
-    def __le__(self, other):# {{{
-        """Define the <= operator between self and other
+    def __le__(self, other):
+        """
+        Define the `<=` operator between self and other
 
         See also
         --------
@@ -547,10 +551,10 @@ class AoC:# {{{
             return self.__lt__(other) or self.__eq__(other)
         else:
             return NotImplemented
-    # }}}
 
-    def __ge__(self, other):# {{{
-        """Define the >= operator between self and other
+    def __ge__(self, other):
+        """
+        Define the `>=` operator between self and other
 
         See also
         --------
@@ -561,77 +565,78 @@ class AoC:# {{{
             return self.__gt__(other) or self.__eq__(other)
         else:
             return NotImplemented
-    # }}}
 
-    def __mul__(self, other):# {{{
-        """Implement the binary arithmetic operation: '*'
+    def __mul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the left operand and 'other' is the right operand
+        `self` is the left operand and `other` is the right operand
         Return an instance of ParticleTerm
         """
 
         if isinstance(other, self.__class__):
-            term = ParticleTerm((self, other), coeff=1.0)
-        elif isinstance(other, (int, float, complex)):
-            term = ParticleTerm((self,), coeff=other)
+            return ParticleTerm((self, other), coeff=1.0)
+        elif isinstance(other, NUMERIC_TYPES):
+            return ParticleTerm((self,), coeff=other)
         else:
-            term = NotImplemented
-        return term
-    # }}}
+            return NotImplemented
 
-    def __rmul__(self, other):# {{{
-        """Implement the binary arithmetic operation '*'
+    def __rmul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the right operand and 'other' is the left operand
+        `self` is the right operand and `other` is the left operand
         Return an instance of ParticleTerm
         """
 
-        if isinstance(other, (int, float, complex)):
-            term = ParticleTerm((self,), coeff=other)
+        if isinstance(other, NUMERIC_TYPES):
+            return ParticleTerm((self,), coeff=other)
         else:
-            term = NotImplemented
-        return term
-    # }}}
+            return NotImplemented
 
-    def dagger(self):# {{{
-        """Return the Hermitian conjugate of self
+    def dagger(self):
+        """
+        Return the Hermitian conjugate of this operator
 
         Returns
         -------
-        res : A new instance of this class.
+        res : A new instance of this class
         """
 
         otype = ANNIHILATION if self._otype == CREATION else CREATION
         return self.derive(otype=otype)
-    # }}}
 
-    def conjugateOf(self, other):# {{{
-        """Determine whether 'self' is the Hermitian conjugate of 'other'
+    def conjugate_of(self, other):
+        """
+        Determine whether `self` is the Hermitian conjugate of `other`
         """
 
         if isinstance(other, self.__class__):
-            return self.dagger() == other
+            return self._otype != other._otype and self._state == other._state
         else:
             raise TypeError(
-                    "The 'other' parameter is not instance of this class!")
-    # }}}
+                "The `other` parameter is not instance of this class!"
+            )
 
-    def sameState(self, other):# {{{
-        """Determine whether 'self' and 'other' is defined on the same state
+    def same_state(self, other):
+        """
+        Determine whether `self` and `other` is defined on the same
+        single-particle state
         """
 
         if isinstance(other, self.__class__):
             return self._state == other._state
         else:
             raise TypeError(
-                    "The 'other' parameter is not instance of this class!")
-    # }}}
+                "The `other` parameter is not instance of this class!"
+            )
 
-    def derive(self, *, otype=None, site=None, spin=None, orbit=None):# {{{
-        """Derive a new instance from 'self' and the given parameters
+    def derive(self, *, otype=None, site=None, spin=None, orbit=None):
+        """
+        Derive a new instance from `self` and the given parameters
 
-        This method creates a new instance with the same attribute as 'self'
-        except for those given to this method.
+        This method creates a new instance with the same attribute as `self`
+        except for these given to this method.
         All the parameters should be specified as keyword arguments.
 
         Returns
@@ -649,52 +654,9 @@ class AoC:# {{{
             orbit = self.orbit
 
         return AoC(otype=otype, site=site, spin=spin, orbit=orbit)
-    # }}}
 
-    @staticmethod
-    def matrixFunc(operator, rbase, *, lbase=None, to_csr=True):# {{{
-        """
-        Return the matrix representation of the operator in the Hilbert space
-
-        Parameters
-        ----------
-        operator : tuple or list
-            It is a 2-tuple or 2-list: (index, otype) or [index , otype]
-            'index' is the index of the single-particle state
-            'otype' is the "CREATION" or "ANNIHILATION" constant
-        rbase : tuple or list
-            The bases of the Hilbert space before the operation
-        lbase : tuple or list, keyword-only, optional
-            The bases of the Hilbert space after the operation
-            If not given or None, lbase is the same as rbase
-            default: None
-        to_csr : boolean, keyword-only, optional
-            Whether to construct a csr_matrix as the result
-            default: True
-
-        Returns
-        -------
-        res : csr_matrix or tuple
-            The matrix representation of the operator
-            If to_csr is set to True, the result is a csr_matrix.
-            If set to False, the result is a tuple: (entries, rows, cols).
-            'entries' is the non-zero matrix elements, 'rows' and 'cols' are
-            the row and column indices of the none-zero elements.
-        """
-
-        rdim = len(rbase)
-        if lbase is None:
-            shape = (rdim, rdim)
-            data = cextmr.matrixRepr([operator], rbase)
-        else:
-            shape = (len(lbase), rdim)
-            data = cextmr.matrixRepr([operator], rbase, lbase)
-
-        res = csr_matrix(data, shape=shape) if to_csr else data
-        return res
-    # }}}
-
-    def matrixRepr(self, indices_table, rbase, *, lbase=None, to_csr=True):# {{{
+    def matrix_repr(self, indices_table, right_bases, *, left_bases=None,
+                    to_csr=True):
         """
         Return the matrix representation of this operator in the Hilbert space
 
@@ -702,11 +664,11 @@ class AoC:# {{{
         ----------
         indices_table : IndexTable
             A table that associate instance of StateID with an integer index
-        rbase : tuple or list
+        right_bases : tuple
             The bases of the Hilbert space before the operation
-        lbase : tuple or list, keyword-only, optional
+        left_bases : tuple, keyword-only, optional
             The bases of the Hilbert space after the operation
-            If not given or None, lbase is the same as rbase
+            If not given or None, left_bases is the same as right_bases
             default: None
         to_csr : boolean, keyword-only, optional
             Whether to construct a csr_matrix as the result
@@ -715,85 +677,75 @@ class AoC:# {{{
         Returns
         -------
         res : csr_matrix or tuple
-            The matrix representation of this operator
-            If to_csr is set to True, the result is a csr_matrix.
-            If set to False, the result is a tuple: (entries, rows, cols).
-            'entries' is the non-zero matrix elements, 'rows' and 'cols' are
-            the row and column indices of the none-zero elements.
+            The matrix representation of the operator in the Hilbert space
+            If `to_csr` is set to True, the result is a csr_matrix;
+            If set to False, the result is a tuple: (entries, (rows, cols)),
+            where `entries` is the non-zero matrix elements, `rows` and
+            `cols` are the row and column indices of the none-zero elements.
         """
 
         operator = (self.getStateIndex(indices_table), self._otype)
-        return self.matrixFunc(operator, rbase=rbase, lbase=lbase, to_csr=to_csr)
-    # }}}
-# }}}
+        res = ext.matrix_function(
+            [operator], right_bases, left_bases=left_bases, to_csr=to_csr
+        )
+        return res
 
 
-class SpinOperator(SiteID):# {{{
-    """A unified description of a spin opeartor
+class SpinOperator(SiteID):
+    """
+    A unified description of a spin operator
 
     Attributes
     ----------
     site : ndarray
-        The site on which the spin operator is defined
-        The site attribute should be 1D array with shape (1,), (2,) or (3,).
+        The coordinate of the lattice site on which the spin operator is defined
     otype : string
         The type of this spin operator
-        It can be one of "x", "y", "z", "p" or "m", which represents the five
-        type spin operator respectively.
-    pauli : boolean
-        Determine whether to use Pauli matrix or spin matrix
-        default: False
+        Valid value: "x" | "y" | "z" | "p" | "m"
     """
 
-    def __init__(self, otype, site, *, pauli=False):# {{{
-        """Customize the newly created instance
+    def __init__(self, otype, site):
+        """
+        Customize the newly created instance
 
         Parameters
         ----------
-        otype : string
+        otype : str
             The type of this spin operator
-            It can be only one of "x", "y", "z", "p" or "m", which represents
-            the five type spin operator respectively.
+            Valid value: "x" | "y" | "z" | "p" | "m"
         site : ndarray
-            The site on which the spin operator is defined
-            The site attribute should be 1D array with shape (1,), (2,) or (3,).
-        pauli : boolean, keyword-only, optional
-            Determine whether to use Pauli matrix or spin matrix
-            default: False
+            The coordinate of the lattice site on which the spin operator is
+            defined. The `site` parameter should be 1D array with shape (1,),
+            (2,) or (3,).
         """
 
+        assert otype in SPIN_OTYPES
+
         super().__init__(site=site)
+        self._otype = otype
 
-        if otype in SPIN_OTYPES:
-            self._otype = otype
-        else:
-            raise TypeError(
-                    "The 'otype' should be in ('x', 'y', 'z', 'p', 'm')")
-
-        self.pauli = pauli
-
-        # The self._tupleform on the right hand is already set properly
+        # The self._tuple_form on the right hand is already set properly
         # by calling the super().__init__(site=site)
-        self._tupleform = (otype, self._tupleform)
-    # }}}
+        self._tuple_form = (otype, self._tuple_form)
 
     @property
-    def otype(self):# {{{
-        """The otype attribute of instance
+    def otype(self):
+        """
+        The `otype` attribute
         """
 
         return self._otype
-    # }}}
 
-    def getSiteID(self):# {{{
-        """Extract the site information of this operator
+    def getSiteID(self):
+        """
+        Extract the site information of this operator
         """
 
         return SiteID(site=self._site)
-    # }}}
 
-    def getSiteIndex(self, indices_table):# {{{
-        """Return the index of the site on which this operator is defined
+    def getSiteIndex(self, indices_table):
+        """
+        Return the index of the lattice site on which this operator is defined
 
         Parameters
         ----------
@@ -807,98 +759,98 @@ class SpinOperator(SiteID):# {{{
         """
 
         return self.getSiteID().getIndex(indices_table)
-    # }}}
 
-    def __repr__(self):# {{{
-        """The offical string representation of the instance
+    def __repr__(self):
+        """
+        The official string representation of the instance
         """
 
-        info = "SpinOperator(otype={0}, site={1!r}, pauli={2})"
-        return info.format(self._otype, self._site, self.pauli)
-    # }}}
+        info = 'SpinOperator(otype="{0}", site={1!r})'
+        return info.format(self._otype, self._site)
 
     __str__ = __repr__
 
-    def __mul__(self, other):# {{{
-        """Implement the binary arithmetic operation '*'
+    def __mul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the left operand and 'other' is the right operand
+        `self` is the left operand and `other` is the right operand
         Return an instance of SpinInteraction
         """
 
         if isinstance(other, self.__class__):
-            term = SpinInteraction((self, other), coeff=1.0)
-        elif isinstance(other, (int, float, complex)):
-            term = SpinInteraction((self,), coeff=other)
+            return SpinInteraction((self, other), coeff=1.0)
+        elif isinstance(other, NUMERIC_TYPES):
+            return SpinInteraction((self,), coeff=other)
         else:
-            term = NotImplemented
-        return term
-    # }}}
+            return NotImplemented
 
-    def __rmul__(self, other):# {{{
-        """Implement the binary arithmetic operation '*'
+    def __rmul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' parameter is the right operand and 'other' is the left operand
+        `self` parameter is the right operand and `other` is the left operand
         Return an instance of SpinInteraction
         """
 
-        if isinstance(other, (int, float, complex)):
-            term = SpinInteraction((self,), coeff=other)
+        if isinstance(other, NUMERIC_TYPES):
+            return SpinInteraction((self,), coeff=other)
         else:
-            term = NotImplemented
-        return term
-    # }}}
+            return NotImplemented
 
-    def matrix(self):# {{{
-        """Return the matrix representation of the spin operator
+    def matrix(self):
+        """
+        Return the matrix representation of the spin operator
 
         The matrix representation is calculated in the single spin Hilbert
         space, i.e. 2 dimension.
         """
 
-        factor = 1 if self.pauli else 0.5
-        return factor * np.array(SIGMA_MATRIX[self._otype], copy=True)
-    # }}}
+        return np.array(SPIN_MATRICES[self._otype], copy=True)
 
-    def dagger(self):# {{{
-        """Return the Hermit conjuagte of this operator
+    def dagger(self):
+        """
+        Return the Hermitian conjugate of this operator
         """
 
-        if self._otype == 'p':
-            return self.derive(otype='m')
-        elif self._otype == 'm':
-            return self.derive(otype='p')
+        if self._otype == "p":
+            operator = self.derive(otype="m")
+        elif self._otype == "m":
+            operator = self.derive(otype="p")
         else:
-            return self.derive()
-    # }}}
+            operator = self.derive()
+        return operator
 
-    def conjugateOf(self, other):# {{{
-        """Return whether 'self' is Hermit conjugate of 'other'
+    def conjugate_of(self, other):
+        """
+        Return whether `self` is Hermitian conjugate of `other`
         """
 
         if isinstance(other, self.__class__):
             return self.dagger() == other
         else:
             raise TypeError(
-                    "The 'other' parameter is not instance of this class!")
-    # }}}
+                "The `other` parameter is not instance of this class!"
+            )
 
-    def sameSite(self, other):# {{{
-        """Return whether 'self' and 'other' is defined on the same site
+    def same_site(self, other):
+        """
+        Return whether `self` and `other` is defined on the same lattice site
         """
 
         if isinstance(other, self.__class__):
             return self.getSiteID() == other.getSiteID()
         else:
             raise TypeError(
-                    "The 'other' parameter is not instance of this class!")
-    # }}}
+                "The `other` parameter is not instance of this class!"
+            )
 
-    def derive(self, *, otype=None, site=None):# {{{
-        """Derive a new instance from 'self' and the given parameters
+    def derive(self, *, otype=None, site=None):
+        """
+        Derive a new instance from `self` and the given parameters
 
-        This method creates a new instance with the same attribute as 'self'
-        except for those given to this method.
+        This method creates a new instance with the same attribute as `self`
+        except for these given to this method.
         All the parameters should be specified as keyword arguments.
 
         Returns
@@ -910,49 +862,47 @@ class SpinOperator(SiteID):# {{{
             otype = self._otype
         if site is None:
             site = self._site
-        return SpinOperator(otype=otype, site=site, pauli=self.pauli)
-    # }}}
+        return SpinOperator(otype=otype, site=site)
 
-    def Schwinger(self):# {{{
-        """Return the Schwinger Fermion representation of this spin operator
-
-        Notes:
-            The coeff of the generating ParticleTerm is related to the pauli
-            attribute of self.
+    def Schwinger(self):
+        """
+        Return the Schwinger Fermion representation of this spin operator
         """
 
-        M = self.matrix()
-        dim = M.shape[0]
-        spins = [SPIN_UP, SPIN_DOWN]
+        C_UP = AoC(otype=CREATION, site=self._site, spin=SPIN_UP)
+        C_DOWN = AoC(otype=CREATION, site=self._site, spin=SPIN_DOWN)
+        A_UP = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_UP)
+        A_DOWN = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_DOWN)
+        tmp = [(C_UP, A_UP), (C_UP, A_DOWN), (C_DOWN, A_UP), (C_DOWN, A_DOWN)]
+
         terms = []
-        for spin0, row in zip(spins, range(dim)):
-            for spin1, col in zip(spins, range(dim)):
-                coeff = M[row, col]
-                if coeff != 0:
-                    C = AoC(otype=CREATION, site=self._site, spin=spin0)
-                    A = AoC(otype=ANNIHILATION, site=self._site, spin=spin1)
-                    term = ParticleTerm((C, A), coeff=coeff)
-                    terms.append(term)
+        for coeff, term in zip(SPIN_MATRICES[self._otype].flat, tmp):
+            if coeff != 0:
+                terms.append(ParticleTerm(term, coeff=coeff))
         return terms
-    # }}}
 
     @staticmethod
-    def matrixFunc(operator, totspin, *, pauli=False):# {{{
+    def matrix_function(operator, total_spin):
         """
         Calculate the matrix representation of the spin operator
+
+        For a specific spin operator, its matrix representation in the
+        Hilbert space is defined as follow:
+            I_{n-1} * ... * I_{i+1} * S_i * I_{i-1} * ... * I_0
+        where I is 2 * 2 identity matrix, `*` represents tensor product,
+        `n` is the total number of spins and `i` is the index of the lattice
+        site.
 
         Parameters
         ----------
         operator : tuple or list
-            It is a 2-tuple or 2-list: (index, otype) or [index, otype]
-            'index' is the index of the site on which the spin operator is
-            defined; 'otype' is the type of the spin operator which should be
-            only one of ('x', 'y', 'z', 'p', m).
-        totspin : int
+            Length 2 tuple or list: (index, otype) or [index, otype]
+            `index` is the index of the lattice site on which the spin
+            operator is defined;
+            `otype` is the type of the spin operator which should be only one
+            of "x" | "y" | "z" | "p" | "m".
+        total_spin : int
             The total number of spins
-        pauli : boolean, keyword-only, optional
-            Determine whether to use Pauli matrix or spin matrix
-            default: False
 
         Returns
         -------
@@ -960,24 +910,22 @@ class SpinOperator(SiteID):# {{{
             The matrix representation of this spin operator
         """
 
-        factor = 1 if pauli else 0.5
         index, otype = operator
-        I0 = identity(1<<index, dtype=np.int64, format="csr")
-        I1 = identity(1<<(totspin - index - 1), dtype=np.int64, format="csr")
-        S = factor * csr_matrix(SIGMA_MATRIX[otype])
-        return kron(I1, kron(S, I0, format="csr"), format="csr")
-    # }}}
+        I = identity(1 << index, dtype=np.float64, format="csr")
+        res = kron(SPIN_MATRICES[otype], I, format="csr")
+        I = identity(1 << (total_spin-index-1), dtype=np.float64, format="csr")
+        return kron(I, res, format="csr")
 
-    def matrixRepr(self, indices_table):# {{{
+    def matrix_repr(self, indices_table):
         """
         Return the matrix representation of this spin operator
 
-        For every specific spin operator, its matrix representation in the
+        For a specific spin operator, its matrix representation in the
         Hilbert space is defined as follow:
-                E_n * ... * E_(i+1) * S_i * E_(i-1) * .. * E_0
-        where E is 2 dimension identity matrix, * represents tensor product,
-        n is the total number of spins and i is the site index of this
-        operator.
+            I_{n-1} * ... * I_{i+1} * S_i * I_{i-1} * ... * I_0
+        where I is 2 * 2 identity matrix, `*` represents tensor product,
+        `n` is the total number of spins and `i` is the index of the lattice
+        site.
 
         Parameters
         ----------
@@ -990,55 +938,68 @@ class SpinOperator(SiteID):# {{{
             The matrix representation of the spin operator
         """
 
-        totspin = len(indices_table)
+        total_spin = len(indices_table)
         operator = (self.getSiteIndex(indices_table), self._otype)
-        return self.matrixFunc(operator, totspin=totspin, pauli=self.pauli)
-    # }}}
-# }}}
+        return self.matrix_function(operator, total_spin)
 
 
-class SpinInteraction:# {{{
-    """A unified description of spin interaction term
+class SpinInteraction:
+    """
+    A unified description of spin interaction term
     """
 
-    def __init__(self, operators, coeff=1.0):# {{{
-        """Customize the newly created instance
+    def __init__(self, operators, coeff=1.0):
+        """
+        Customize the newly created instance
 
         Parameters
         ----------
         operators : A sequence of SpinOperator objects
         coeff : int, float, complex, optional
-            The coefficience of this term
+            The coefficient of this term
             default: 1.0
         """
 
-        if isinstance(coeff, (int, float, complex)):
-            self._coeff = coeff
-        else:
-            raise TypeError("The input coeff is not a number.")
+        assert isinstance(coeff, NUMERIC_TYPES)
 
         # Sorting the spin operators in ascending order according to their
         # SiteID. The relative position of two operators with the same SiteID
         # will not change and the exchange of two spin operators on different
-        # site never change the interaction term.
-        self._operators = sorted(operators, key=lambda item: item.getSiteID())
-    # }}}
+        # lattice site never change the interaction term.
+        self._operators = tuple(
+            sorted(operators, key=lambda item: item.getSiteID())
+        )
+        self._coeff = coeff
 
-    def __str__(self):# {{{
-        """Return a string that describes the content of the instance
+    @property
+    def coeff(self):
+        """
+        The coefficient of this term
         """
 
-        info = "coeff: {0}\n".format(self._coeff)
+        return self._coeff
+
+    @coeff.setter
+    def coeff(self, value):
+        assert isinstance(value, NUMERIC_TYPES)
+        self._coeff = value
+
+    def __str__(self):
+        """
+        Return a string that describes the content of the instance
+        """
+
+        info = "The coefficient of this term: {0}\n".format(self._coeff)
+        info += "The component spin operators:\n"
         for operator in self._operators:
-            info += str(operator) + '\n'
+            info += "    {0}\n".format(operator)
         return info
-    # }}}
 
-    def __mul__(self, other):# {{{
+    def __mul__(self, other):
         """
-        Implement the binary arithmetic operation '*'
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the left operand and 'other' is the right operand
+        `self` is the left operand and `other'` is the right operand
         Return a new instance of this class.
         """
 
@@ -1046,58 +1007,48 @@ class SpinInteraction:# {{{
             operators = self._operators + other._operators
             coeff = self._coeff * other._coeff
         elif isinstance(other, SpinOperator):
-            operators = self._operators + [other]
+            operators = self._operators + (other, )
             coeff = self._coeff
-        elif isinstance(other, (int, float, complex)):
+        elif isinstance(other, NUMERIC_TYPES):
             operators = self._operators
             coeff = self._coeff * other
         else:
             return NotImplemented
 
         return SpinInteraction(operators, coeff=coeff)
-    # }}}
 
-    def __rmul__(self, other):# {{{
+    def __rmul__(self, other):
         """
-        Implement the binary arithmetic operation '*'
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the right operand and 'other' is the left operand
+        `self` is the right operand and `other` is the left operand
         This method return a new instance of this class.
-        If you just want to update the coeff, use updateCoeff() method instead.
         """
 
         if isinstance(other, SpinOperator):
-            operators = [other] + self._operators
+            operators = (other, ) + self._operators
             coeff = self._coeff
-        elif isinstance(other, (int, float, complex)):
+        elif isinstance(other, NUMERIC_TYPES):
             operators = self._operators
             coeff = other * self._coeff
         else:
             return NotImplemented
 
         return SpinInteraction(operators, coeff=coeff)
-    # }}}
 
-    def dagger(self):# {{{
-        """Return the Hermit conjugate of this term
+    def dagger(self):
+        """
+        Return the Hermitian conjugate of this term
         """
 
-        operators = [operator.dagger() for operator in self._operators[::-1]]
+        operators = tuple(
+            operator.dagger() for operator in self._operators[::-1]
+        )
         return SpinInteraction(operators, coeff=self._coeff.conjugate())
-    # }}}
 
-    def setCoeff(self, coeff):# {{{
-        """Set the 'coeff' attribute of the instance
+    def Schwinger(self):
         """
-
-        if isinstance(coeff, (int, float, complex)):
-            self._coeff = coeff
-        else:
-            raise TypeError("The 'coeff' parameter should be a number.")
-    # }}}
-
-    def Schwinger(self):# {{{
-        """Return the Schwinger Fermion representation of this term
+        Return the Schwinger Fermion representation of this term
         """
 
         fermion_reprs = [operator.Schwinger() for operator in self._operators]
@@ -1108,27 +1059,25 @@ class SpinInteraction:# {{{
                 res_term = res_term * sub_term
             terms.append(res_term)
         return terms
-    # }}}
 
     @staticmethod
-    def matrixFunc(operators, totspin, coeff=1.0, *, pauli=False):# {{{
-        """Return the matrix representation of the spin interaction term
+    def matrix_function(operators, total_spin, coeff=1.0):
+        """
+        Return the matrix representation of the spin interaction term
 
         Parameters
         ----------
         operators : sequence
             A sequence of 2-tuple: [(index_0, otype_0), ..., (index_n, otype_n)]
-            'index_n' is the index of the site on which the spin operator is
-            defined; and 'otype_n' is the type of the spin operator which
-            should be only one of 'x', 'y', 'z', 'p' or 'm'.
-        totspin: int
+            `index_i` is the index of the lattice site on which the spin
+            operator is defined;
+            `otype_i` is the type of the spin operator which should be only
+            one of "x" | "y" | "z" | "p" | "m".
+        total_spin: int
             The total number of spins
         coeff : int, float or complex, optional
-            The coefficience of the term
+            The coefficient of the term
             default: 1.0
-        pauli: boolean, keyword-only, optional
-            Determine whether to use sigma matrix or spin matrix
-            default: False
 
         Returns
         -------
@@ -1136,116 +1085,125 @@ class SpinInteraction:# {{{
             The matrix representation of this term
         """
 
-        factor = 1 if pauli else 0.5
+        assert isinstance(total_spin, int) and total_spin > 0
+        assert isinstance(coeff, NUMERIC_TYPES)
+
         operators = sorted(operators, key=lambda item: item[0])
         if len(operators) == 2 and operators[0][0] != operators[1][0]:
             (index0, otype0), (index1, otype1) = operators
-            # The coeff of this term is multiplied to S0 operator
-            S0 = (coeff * factor) * csr_matrix(SIGMA_MATRIX[otype0])
-            S1 = factor * csr_matrix(SIGMA_MATRIX[otype1])
-            dim0 = 1<<index0
-            dim1 = 1<<(index1 - index0 - 1)
-            dim2 = 1<<(totspin - index1 - 1)
-            if dim0 == 1:
-                res = S0
-            else:
-                I = identity(dim0, dtype=np.int64, format="csr")
-                res = kron(S0, I, format="csr")
-            if dim1 == 1:
-                res = kron(S1, res, format="csr")
-            else:
-                I = identity(dim1, dtype=np.int64, format="csr")
-                res = kron(S1, kron(I, res, format="csr"), format="csr")
-            if dim2 != 1:
-                I = identity(dim2, dtype=np.int64, format="csr")
-                res = kron(I, res, format="csr")
-        else:
-            res = coeff * identity(1<<totspin, dtype=np.int64, format="csr")
-            for index, otype in operators:
-                I0 = identity(1<<index, dtype=np.int64, format="csr")
-                I1 = identity(1<<(totspin-index-1), dtype=np.int64, format="csr")
-                S = factor * csr_matrix(SIGMA_MATRIX[otype])
-                res = res.dot(kron(I1, kron(S, I0, format="csr"), format="csr"))
-        return res
-    # }}}
+            S0 = coeff * SPIN_MATRICES[otype0]
+            S1 = SPIN_MATRICES[otype1]
+            dim0 = 1 << index0
+            dim1 = 1 << (index1 - index0 - 1)
+            dim2 = 1 << (total_spin - index1 - 1)
 
-    def matrixRepr(self, indices_table, coeff=None, *, pauli=False):# {{{
-        """Return the matrix representation of this spin interaction term
+            if dim1 == 1:
+                res = kron(S1, S0, format="csr")
+            else:
+                I = identity(dim1, dtype=np.float64, format="csr")
+                res = kron(S1, kron(I, S0, format="csr"), format="csr")
+            if dim0 != 1:
+                res = kron(res, identity(dim0, np.float64, "csr"), format="csr")
+            if dim2 != 1:
+                res = kron(identity(dim2, np.float64, "csr"), res, format="csr")
+        else:
+            res = coeff * identity(
+                1 << total_spin, dtype=np.float64, format="csr"
+            )
+            for index, otype in operators:
+                I = identity(1 << index, dtype=np.float64, format="csr")
+                tmp = kron(SPIN_MATRICES[otype], I, format="csr")
+                I = identity(
+                    1 << (total_spin-index-1), dtype=np.float64, format="csr"
+                )
+                tmp = kron(I, tmp, format="csr")
+                res = res.dot(tmp)
+        return res
+
+    def matrix_repr(self, indices_table, coeff=None):
+        """
+        Return the matrix representation of this spin interaction term
 
         Parameters
         ----------
         indices_table : IndexTable
-            The table that associate integer index with SiteID
+            A table that associate instance of SiteID with an integer index
         coeff : int, float or complex, optional
-            The given coefficience of this term.
+            A new coefficient for this spin interaction term
+            If not given or None, use the original coefficient.
             default: None
-        pauli: boolean, keyword-only, optional
-            Determine whether to use sigma matrix or spin matrix
-            default: False
 
         Returns
         -------
         res : csr_matrix
-            The matrix representation of this term
+            The matrix representation of this spin interaction term
         """
 
         if coeff is not None:
-            self.setCoeff(coeff)
+            self.coeff = coeff
 
-        operators = [(operator.getSiteIndex(indices_table), operator.otype)
-                for operator in self._operators]
-        res = self.matrixFunc(operators=operators, totspin=len(indices_table),
-                coeff=self._coeff, pauli=pauli)
-        return res
-    # }}}
-# }}}
+        total_spin = len(indices_table)
+        operators = [
+            (operator.getSiteIndex(indices_table), operator.otype)
+            for operator in self._operators
+        ]
+        return self.matrix_function(operators, total_spin, self._coeff)
 
 
-class ParticleTerm:# {{{
-    """A unified description of any operator composed of fermion operators
+class ParticleTerm:
+    """
+    A unified description of any term composed of creation and/or
+    annihilation operators
     """
 
-    def __init__(self, aocs, coeff=1.0):# {{{
-        """Customize the newly created instance
+    def __init__(self, aocs, coeff=1.0):
+        """
+        Customize the newly created instance
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         aocs : tuple or list
-            The creation and/or annihilation operators that compose this term
+            A collection of creation and/or annihilation operators that
+            composing this term
         coeff : float, int or complex, optional
-            The coefficience of this term
+            The coefficient of this term
             default: 1.0
         """
 
-        # The "normalized" attribute indicates whether this term is normalized
-        # See docstring of the normalize method for the definition of
-        # a normalized term
-        try:
-            normal_aocs, swap_num = self.normalize(aocs)
-            self.normalized = True
-        except SwapFermionError:
-            normal_aocs = list(aocs)
-            swap_num = 0
-            self.normalized = False
+        assert isinstance(coeff, NUMERIC_TYPES)
 
-        self._aocs = normal_aocs
-        self._coeff = (SWAP_FACTOR_F ** swap_num) * coeff
-    # }}}
+        self._aocs = tuple(aocs)
+        self._coeff = coeff
 
-    def __str__(self):# {{{
-        """Return a string that describes the content of this instance
+    @property
+    def coeff(self):
+        """
+        The coefficient of this term
         """
 
-        info = "coeff: {0}\n".format(self._coeff)
+        return self._coeff
+
+    @coeff.setter
+    def coeff(self, coeff):
+        assert isinstance(coeff, NUMERIC_TYPES)
+        self._coeff = coeff
+
+    def __str__(self):
+        """
+        Return a string that describes the content of this instance
+        """
+
+        info = "The coefficient of this term: {0}\n".format(self._coeff)
+        info += "The component operators:\n"
         for aoc in self._aocs:
-            info += str(aoc) + '\n'
+            info += "    {0}\n".format(aoc)
         return info
-    # }}}
 
-    def __mul__(self, other):# {{{
-        """Implement the binary arithmetic operation '*'
+    def __mul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the left operand and 'other' is the right operand
+        `self` is the left operand and `other` is the right operand
         Return a new instance of this class.
         """
 
@@ -1253,261 +1211,127 @@ class ParticleTerm:# {{{
             aocs = self._aocs + other._aocs
             coeff = self._coeff * other._coeff
         elif isinstance(other, AoC):
-            aocs = self._aocs + [other]
+            aocs = self._aocs + (other, )
             coeff = self._coeff
-        elif isinstance(other, (int, float, complex)):
+        elif isinstance(other, NUMERIC_TYPES):
             aocs = self._aocs
             coeff = self._coeff * other
         else:
             return NotImplemented
 
         return ParticleTerm(aocs=aocs, coeff=coeff)
-    # }}}
 
-    def __rmul__(self, other):# {{{
-        """Implement the binary arithmetic operation '*'
+    def __rmul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
 
-        'self' is the right operand and 'other' is the left operand
+        `self` is the right operand and `other` is the left operand
         This method return a new instance of this class
         """
 
         if isinstance(other, AoC):
-            aocs = [other] + self._aocs
+            aocs = (other, ) + self._aocs
             coeff = self._coeff
-        if isinstance(other, (int, float, complex)):
+        elif isinstance(other, NUMERIC_TYPES):
             aocs = self._aocs
             coeff = other * self._coeff
         else:
             return NotImplemented
 
         return ParticleTerm(aocs=aocs, coeff=coeff)
-    # }}}
 
     @staticmethod
-    def normalize(aoc_seq):# {{{
-        """Reordering the given 'aco_seq' into norm form
+    def normalize(aocs):
+        """
+        Reordering the given `aocs` into norm form
 
-        For a composite operator consist of creation and annihilation operators,
-        the norm form means that all the creation operators appear to the left
-        of all the annihilation operators. Also, the creation and annihilation
-        operators are sorted in ascending and descending order respectively
-        according to the single particle state associated with the operator.
+        For a composite operator consisting of creation and/or annihilation
+        operators, the norm form means that all the creation operators appear
+        to the left of all the annihilation operators. Also, the creation and
+        annihilation operators are sorted in ascending and descending order
+        respectively according to the single-particle state associated with
+        the operator.
 
-        See the document of __lt__ method of AoC for the comparsion logic.
+        See the document of __lt__ method of AoC for the comparison logic.
 
         Parameters
         ----------
-        aoc_seq : list or tuple
+        aocs : list or tuple
             A collection of creation and/or annihilation operators
 
         Returns
         -------
-        seq : list
+        aocs : list
             The norm form of the operator
-        swap_num : int
-            The number swap to get the normal form
+        swap_count : int
+            The number of swap to obtain the normal form
 
         Raises
         ------
-        SwapFermionError :
+        SwapError :
             Exceptions raised when swap creation and annihilation operator
-            that defined on the same single particle state.
+            that was defined on the same single-particle state.
         """
 
-        seq = list(aoc_seq[:])
-        seq_len = len(aoc_seq)
-        swap_num = 0
+        aocs = list(aocs)
+        length = len(aocs)
+        swap_count = 0
 
-        for length in range(seq_len, 1, -1):
-            for i in range(0, length-1):
-                aoc0, aoc1 = seq[i:i+2]
+        for remaining_length in range(length, 1, -1):
+            for i in range(0, remaining_length - 1):
+                aoc0, aoc1 = aocs[i:i+2]
                 id0 = aoc0.state
                 id1 = aoc1.state
                 if aoc0 > aoc1:
                     if id0 != id1:
-                        seq[i] = aoc1
-                        seq[i+1] = aoc0
-                        swap_num += 1
+                        aocs[i] = aoc1
+                        aocs[i + 1] = aoc0
+                        swap_count += 1
                     else:
-                        raise SwapFermionError(aoc0, aoc1)
-        return seq, swap_num
-    # }}}
+                        raise SwapError(aoc0, aoc1)
+        return aocs, swap_count
 
-    def isPairing(self, tag=None):# {{{
-        """Return whether this term is a pairing term
-
-        This method is only implemented for the instance which the 'normailzed'
-        attribute set to True. For these instances that the 'normalized'
-        attribute is False, this method will raise NotImplementedError.
-
-        Parameters
-        ----------
-        tag : string, optional
-            Determine the judgment criterion.
-            If 'tag' is none, both particle and hole pairing is ok.
-            If 'tag' is 'p' then only particle is ok and if 'tag' is 'h'
-            only hole pairing is ok.
-            default: None
+    def dagger(self):
         """
-
-        if self.normalized:
-            if len(self._aocs) == 2:
-                otype0 = self._aocs[0].otype
-                otype1 = self._aocs[1].otype
-                if tag in ('p', 'P'):
-                    judge = (otype0==CREATION and otypes==CREATION)
-                elif tag in ('h', 'H'):
-                    judge = (otype0==ANNIHILATION and otypes==ANNIHILATION)
-                else:
-                    judge = otype0 == otype1
-                return True if judge else False
-            else:
-                return False
-        else:
-            raise NotImplementedError(
-                    "This method is not implemented for unnormailzed term.")
-    # }}}
-
-    def isHopping(self, tag=None):# {{{
-        """Return whether this term is a hopping term
-
-        This method is only implemented for the instance which the 'normailzed'
-        attribute is set to True. For these instances that the 'normalized'
-        attribute is False, this method will raise NotImplementedError.
-
-        Parameters
-        ----------
-        tag : string, optional
-            Determine the judgment criterion.
-            If 'tag' is none, arbitrary hopping term is ok
-            If tag is 'n' only the number operator is ok
-            default: None
-        """
-
-        if self.normalized:
-            if len(self._aocs) == 2:
-                c0 = self._aocs[0].otype == CREATION
-                c1 = self._aocs[1].otype == ANNIHILATION
-                if tag in ('n', 'N'):
-                    c2 = self._aocs[0].sameState(self._aocs[1])
-                    judge = c0 and c1 and c2
-                else:
-                    judge = c0 and c1
-                return True if judge else False
-            else:
-                return False
-        else:
-            raise NotImplementedError(
-                    "This method is not implemented for unnormailzed term.")
-    # }}}
-
-    def isHubbard(self):# {{{
-        """Return whether this term is a hopping term
-
-        This method is only implemented for the instance which the 'normailzed'
-        attribute is set to True. For these instances that the 'normalized'
-        attribute is False, this method will raise NotImplementedError.
-        """
-
-        if self.normalized:
-            if len(self._aocs) == 4:
-                judge = (self._aocs[0].otype == CREATION
-                        and self._aocs[1].otype == CREATION
-                        and self._aocs[2].otype == ANNIHILATION
-                        and self._aocs[3].otype == ANNIHILATION
-                        and self._aocs[0].sameState(self._aocs[3])
-                        and self._aocs[1].sameState(self._aocs[2]))
-                return True if judge else False
-            else:
-                return False
-        else:
-            raise NotImplementedError(
-                    "This method is not implemented for unnormailzed term.")
-    # }}}
-
-    def dagger(self):# {{{
-        """Return the Hermit conjugate of this term
+        Return the Hermitian conjugate of this term
         """
 
         aocs = [aoc.dagger() for aoc in self._aocs[::-1]]
         return ParticleTerm(aocs=aocs, coeff=self._coeff.conjugate())
-    # }}}
 
-    def setCoeff(self, coeff):# {{{
-        """Set the coefficience of this term
+    def matrix_repr(self, indices_table, right_bases, *, left_bases=None,
+                    coeff=None):
         """
-
-        if isinstance(coeff, (int, float, complex)):
-            self._coeff = coeff
-        else:
-            raise TypeError("The input 'coeff' should be a number!")
-    # }}}
-
-    @staticmethod
-    def matrixFunc(operators, rbase, *, lbase=None, coeff=1.0):# {{{
-        """Return the matrix representation of the term
-
-        Parameters
-        ----------
-        operators : list or tuple
-            A sequence of 2-tuple: [(index_0, otype_0), ..., (index_n, otype_n)]
-            'index_n' is the index of the state and 'otype_n' is the type of
-            the operator which can be either CREATION(1) or ANNIHILATION(0).
-        rbase : tuple or list
-            The bases of the Hilbert space before the operation
-        lbase : tuple or list, keyword-only, optional
-            The bases of the Hilbert space after the operation
-            It not given or None, lbase is the same as rbase.
-            default: None
-        coeff : int, float or complex, keyword-only, optional
-            The coefficience of the term
-            default: 1.0
-
-        Returns
-        -------
-        res : csr_martrix
-            The matrix representation of the term
-        """
-
-        rdim = len(rbase)
-        if lbase is None:
-            shape = (rdim, rdim)
-            data = cextmr.matrixRepr(operators, rbase)
-        else:
-            shape = (len(lbase), rdim)
-            data = cextmr.matrixRepr(operators, rbase, lbase)
-
-        return coeff * csr_matrix(data, shape=shape)
-    # }}}
-
-    def matrixRepr(self, indices_table, rbase, *, lbase=None, coeff=None):# {{{
-        """Return the matrix representation of this term
+        Return the matrix representation of this term
 
         Parameters
         ----------
         indices_table : IndexTable
             A table that associate instance of StateID with an integer index
-        rbase : tuple or list
+        right_bases : tuple
             The bases of the Hilbert space before the operation
-        lbase : tuple or list, keyword-only, optional
+        left_bases : tuple, keyword-only, optional
             The bases of the Hilbert space after the operation
-            It not given or None, lbase is the same as rbase.
+            It not given or None, left_bases is the same as right_bases.
             default: None
         coeff : int, float or complex, keyword-only, optional
-            The coefficience of the term
+            A new coefficient for this term
+            If not given or None, use the original coefficient.
             default: None
 
         Returns
         -------
-        res : csr_martrix
-            The matrix representation of the term
+        res : csr_matrix
+            The matrix representation of the operator in the Hilbert space
         """
 
         if coeff is not None:
-            self.setCoeff(coeff)
+            self.coeff = coeff
 
-        operators = [(aoc.getStateIndex(indices_table), aoc.otype)
-                for aoc in self._aocs]
-        return self.matrixFunc(operators, rbase, lbase=lbase, coeff=self._coeff)
-    # }}}
-# }}}
+        operators = [
+            (aoc.getStateIndex(indices_table), aoc.otype) for aoc in self._aocs
+        ]
+        res = self._coeff * ext.matrix_function(
+            operators, right_bases, lbase=left_bases, to_csr=True
+        )
+        return res

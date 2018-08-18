@@ -57,7 +57,7 @@ for index in range(site_num):
     for otype in ('x', 'y', 'z', 'p', 'm'):
         operator = (index, otype)
         print("Operator: ", operator)
-        print(SpinOperator.matrixFunc(operator, totspin=site_num))
+        print(SpinOperator.matrix_function(operator, total_spin=site_num))
         print("=" * 40)
 
 
@@ -65,5 +65,5 @@ for site in sites:
     for otype in ('x', 'y', 'z', 'p', 'm'):
         operator = SpinOperator(otype=otype, site=site)
         print("Operator:\n", operator, sep="")
-        print(operator.matrixRepr(sitemap))
+        print(operator.matrix_repr(sitemap))
         print("=" * 40)

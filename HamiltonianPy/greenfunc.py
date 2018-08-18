@@ -130,7 +130,7 @@ class GFEDABC_P:# {{{
         statemap = self.objMaps["statemap"]
         ket = self.GS
         for aoc in aocs:
-            M = aoc.matrixRepr(statemap=statemap, rbase=rbase, lbase=lbase)
+            M = aoc.matrix_repr(statemap=statemap, right_bases=rbase, left_bases=lbase)
             res[aoc] = M.dot(ket)
         t1 = time()
         info = "The time spend of excitation {0:.2f}.".format(t1 - t0)
@@ -245,7 +245,7 @@ class GFEDNumbu(GFEDABC_P):# {{{
         base = base_table(self.dof)
         statemap = self.objMaps["statemap"]
         for term in self.HTerms:
-            H += term.matrixRepr(statemap=statemap, base=base)
+            H += term.matrix_repr(statemap=statemap, base=base)
         H += H.conjugate().transpose()
         self.H = H
         t1 = time()
@@ -307,14 +307,14 @@ class GFEDNotNumbu(GFEDABC_P):# {{{
         
         if self.occupy is None:
             for term in self.HTerms:
-                H += term.matrixRepr(statemap=statemap, base=base)
+                H += term.matrix_repr(statemap=statemap, base=base)
             H += H.conjugate().transpose()
             Hp = Hh = H
         else:
             for term in self.HTerms:
-                H += term.matrixRepr(statemap=statemap, base=base)
-                Hp += term.matrixRepr(statemap=statemap, base=basep)
-                Hh += term.matrixRepr(statemap=statemap, base=baseh)
+                H += term.matrix_repr(statemap=statemap, base=base)
+                Hp += term.matrix_repr(statemap=statemap, base=basep)
+                Hh += term.matrix_repr(statemap=statemap, base=baseh)
             H += H.conjugate().transpose()
             Hp += Hp.conjugate().transpose()
             Hh += Hh.conjugate().transpose()
