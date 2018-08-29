@@ -16,6 +16,7 @@ __all__ = [
 from itertools import product
 from scipy.sparse import csr_matrix, identity, kron
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
@@ -459,6 +460,49 @@ class AoC:
 
     __str__ = __repr__
 
+    def _tex(self, indices_table=None):
+        # Convert the instance to TeX string
+        # `indices_table` is a table that associate instance of SiteID with an
+        # integer index
+
+        if indices_table is None:
+            site = "(" + ", ".join("{:.4f}".format(i) for i in self.site) + ")"
+        else:
+            site = SiteID(site=self.site).getIndex(indices_table)
+        subscript = "{0},{1},{2}".format(site, self.spin, self.orbit)
+
+        # Format strings contain "replacement fields" surrounded by curly
+        # braces `{}`. Anything that is not contained in braces is considered
+        # literal text, which is copied unchanged to the output. If you need
+        # to include a brace character in the literal text, it can be
+        # escaped by doubling: `{{` and `}}`
+        if self._otype == CREATION:
+            tex = r"$c_{{{0}}}^{{\dag}}$".format(subscript)
+        else:
+            tex = r"$c_{{{0}}}$".format(subscript)
+        return tex
+
+    def show(self, indices_table=None):
+        """
+        Show the instance in handwriting form
+
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instance of SiteID with an integer index
+            If not given or None, the `site` is show as it is
+            default : None
+        """
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        tex = self._tex(indices_table)
+        ax.text(
+            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            ha="center", va="center", transform=ax.transAxes
+        )
+        plt.show()
+
     def __hash__(self):
         """
         Return the hash code of the instance
@@ -770,6 +814,39 @@ class SpinOperator(SiteID):
 
     __str__ = __repr__
 
+    def _tex(self, indices_table=None):
+        # Convert the instance to TeX string
+        # `indices_table` is a table that associate instance of SiteID with an
+        # integer index
+
+        if indices_table is None:
+            site = "(" + ", ".join("{:.4f}".format(i) for i in self._site) + ")"
+        else:
+            site = self.getSiteIndex(indices_table)
+        tex = r"$\mathrm{{S}}_{{{0}}}^{{{1}}}$".format(site, self._otype)
+        return tex
+
+    def show(self, indices_table=None):
+        """
+        Show the instance in handwriting form
+
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instance of SiteID with an integer index
+            If not given or None, the `site` is show as it is
+            default : None
+        """
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        tex = self._tex(indices_table)
+        ax.text(
+            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            ha="center", va="center", transform=ax.transAxes
+        )
+        plt.show()
+
     def __mul__(self, other):
         """
         Implement the binary arithmetic operation: `*`
@@ -995,6 +1072,42 @@ class SpinInteraction:
             info += "    {0}\n".format(operator)
         return info
 
+    def _tex(self, indices_table=None):
+        # Convert the instance to TeX string
+        # `indices_table` is a table that associate instance of SiteID with an
+        # integer index
+
+        if indices_table is None:
+            tex = "coeff = {0:.4f}\n".format(self._coeff)
+            tex += "\n".join(operator._tex() for operator in self._operators)
+        else:
+            tex = "{0:.4f} ".format(self._coeff)
+            tex += "".join(
+                operator._tex(indices_table) for operator in self._operators
+            )
+        return tex
+
+    def show(self, indices_table=None):
+        """
+        Show the instance in handwriting form
+
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instance of SiteID with an integer index
+            If not given or None, the `site` is show as it is
+            default : None
+        """
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        tex = self._tex(indices_table)
+        ax.text(
+            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            ha="center", va="center", transform=ax.transAxes
+        )
+        plt.show()
+
     def __mul__(self, other):
         """
         Implement the binary arithmetic operation: `*`
@@ -1198,6 +1311,40 @@ class ParticleTerm:
         for aoc in self._aocs:
             info += "    {0}\n".format(aoc)
         return info
+
+    def _tex(self, indices_table=None):
+        # Convert the instance to TeX string
+        # `indices_table` is a table that associate instance of SiteID with an
+        # integer index
+
+        if indices_table is None:
+            tex = "coeff = {0:.4f}\n".format(self._coeff)
+            tex += "\n".join(aoc._tex() for aoc in self._aocs)
+        else:
+            tex = "{0:.4f} ".format(self._coeff)
+            tex += "".join(aoc._tex(indices_table) for aoc in self._aocs)
+        return tex
+
+    def show(self, indices_table=None):
+        """
+        Show the instance in handwriting form
+
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instance of SiteID with an integer index
+            If not given or None, the `site` is show as it is
+            default : None
+        """
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        tex = self._tex(indices_table)
+        ax.text(
+            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            ha="center", va="center", transform=ax.transAxes
+        )
+        plt.show()
 
     def __mul__(self, other):
         """
