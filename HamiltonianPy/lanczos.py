@@ -64,12 +64,17 @@ class Lanczos:
     def _starting_vector(self, v0=None):
         # Prepare starting vector for Lanczos iteration
         shape = (self.HM.shape[0], 1)
-        if (v0 is None) or (v0 == "random"):
+        if v0 is None:
             v0 = np.random.random_sample(size=shape)
-        elif v0 == "uniform":
-            v0 = np.ones(shape=shape)
+        elif isinstance(v0, str):
+            if v0 == "random":
+                v0 = np.random.random_sample(size=shape)
+            elif v0 == "uniform":
+                v0 = np.ones(shape=shape)
+            else:
+                raise ValueError("The given v0 string is not supported!")
         else:
-            if not (isinstance(v0, np.ndarray) and v0.shape == shape):
+            if not (isinstance(v0, np.ndarray) and v0.shape ==shape):
                 raise ValueError("The shape of v0 and HM does not match!")
 
         v0_norm = np.linalg.norm(v0)

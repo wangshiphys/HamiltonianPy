@@ -1479,6 +1479,6 @@ class ParticleTerm:
             (aoc.getStateIndex(indices_table), aoc.otype) for aoc in self._aocs
         ]
         res = self._coeff * ext.matrix_function(
-            operators, right_bases, lbase=left_bases, to_csr=True
+            operators, right_bases, left_bases=left_bases, to_csr=True
         )
         return res

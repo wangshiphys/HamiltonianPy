@@ -1,34 +1,36 @@
-from scipy.sparse import csr_matrix
+"""
+A test script for the Lanczos class
+"""
+
+
 from scipy.sparse.linalg import eigsh
 from time import time
 
 from HamiltonianPy.constant import CREATION, ANNIHILATION, SPIN_UP, SPIN_DOWN
-from HamiltonianPy.indexmap import IndexMap
+from HamiltonianPy.indextable import IndexTable
 from HamiltonianPy.lattice import Lattice
 from HamiltonianPy.lanczos import Lanczos
 from HamiltonianPy.termofH import StateID, AoC, ParticleTerm
 
 import numpy as np
-import sys
 
-LIMIT = (1<<31) - 1
 
-site_num = int(sys.argv[1])
+site_num = 6
 state_num = 2 * site_num
 spins = (SPIN_DOWN, SPIN_UP)
 points = np.arange(site_num).reshape((site_num, 1))
 tvs = np.array([[site_num]])
 cluster = Lattice(points=points, vectors=tvs)
-intra, inter = cluster.bonds(nth=1, periodic=True)
+intra, inter = cluster.bonds(nth=1, fold=True)
 bonds = intra + inter
 
-stateids = []
+state_ids = []
 for site in points:
-    stateids.append(StateID(site=site, spin=SPIN_DOWN))
-    stateids.append(StateID(site=site, spin=SPIN_UP))
-statemap = IndexMap(stateids)
+    state_ids.append(StateID(site=site, spin=SPIN_DOWN))
+    state_ids.append(StateID(site=site, spin=SPIN_UP))
+state_index_table = IndexTable(state_ids)
 
-base = tuple(range(1<<state_num))
+bases = tuple(range(1<<state_num))
 
 H = 0.0
 t0 = time()
@@ -39,44 +41,45 @@ for bond in bonds:
     c0_up = AoC(otype=CREATION, site=p0, spin=SPIN_UP)
     a1_down = AoC(otype=ANNIHILATION, site=p1, spin=SPIN_DOWN)
     a1_up = AoC(otype=ANNIHILATION, site=p1, spin=SPIN_UP)
-    H += ParticleTerm((c0_down, a1_down)).matrix_repr(statemap, right_bases=base)
-    H += ParticleTerm((c0_up, a1_up)).matrix_repr(statemap, right_bases=base)
+    H += ParticleTerm([c0_down, a1_down]).matrix_repr(
+        state_index_table, right_bases=bases
+    )
+    H += ParticleTerm([c0_up, a1_up]).matrix_repr(
+        state_index_table, right_bases=bases
+    )
     t2 = time()
-    print(bond, flush=True)
+    print(repr(bond), flush=True)
     print("The time spend on this bond: ", t2 - t1, flush=True)
-    print("=" * 60)
+    print("=" * 80)
 H += H.getH()
 t3 = time()
 print("The time spend on H matrix: ", t3 - t0, flush=True)
 
 t0 = time()
-maxiter = 10 * H.shape[0]
-if maxiter > LIMIT:
-    maxiter = LIMIT
-(GE, ), GS = eigsh(H, k=1, which="SA", maxiter=maxiter)
+(GE, ), GS = eigsh(H, k=1, which="SA")
 t1 = time()
 print("The time spend on GS: ", t1 - t0, flush=True)
 print("The lanczos ground state energy: ", GE)
 
-GE_exact = 0
-for i in range(site_num):
-    E = 4 * np.cos(2 * np.pi * i / site_num)
-    if E < 0:
-        GE_exact += E
+tmp = 4 * np.cos(2 * np.pi * np.arange(site_num) / site_num)
+GE_exact = np.sum(tmp[tmp<0])
 print("The exact ground state energy: ", GE_exact)
+
+assert abs(GE - GE_exact) < (1e-8)
+
 
 t0 = time()
 vectors = dict()
 for site in points:
     for spin in spins:
         aoc = AoC(otype=ANNIHILATION, site=site, spin=spin)
-        vectors[aoc] = aoc.matrix_repr(statemap, right_bases=base).dot(GS)
+        vectors[aoc] = aoc.matrix_repr(state_index_table, bases).dot(GS)
 t1 = time()
 print("The time spend on excitation state: ", t1 - t0, flush=True)
 
 t0 = time()
-lanczos = Lanczos(HM=H, step=400)
-HM_projs, vectors_projs = lanczos(vectors, procs_num=int(sys.argv[2]))
+lanczos = Lanczos(HM=H)
+HM_projs, vectors_projs = lanczos(vectors)
 t1 = time()
 print("The time spend on projection: ", t1 - t0, flush=True)
 
@@ -84,7 +87,7 @@ omega = 0.1 + 0.05j
 site0 = points[1]
 site1 = points[2]
 spin0 = 1
-spin1 = 0
+spin1 = 1
 key0 = AoC(otype=ANNIHILATION, site=site0, spin=spin0)
 key1 = AoC(otype=ANNIHILATION, site=site1, spin=spin1)
 
