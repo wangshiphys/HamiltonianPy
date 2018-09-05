@@ -33,7 +33,7 @@ extension = Extension(
 
 setup_params = dict(
     name="HamiltonianPy",
-    version="1.0.dev3",
+    version="1.0",
     description="Construct and solve a model Hamiltonian numerically!",
     author="wangshiphys",
     author_email="wangshiphys@gmail.com",
