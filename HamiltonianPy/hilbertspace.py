@@ -48,6 +48,8 @@ __all__ = [
 
 from itertools import chain, combinations, product
 
+import numpy as np
+
 
 class SimpleHilbertSpace:
     """
@@ -163,16 +165,17 @@ class SimpleHilbertSpace:
                "The number of particle: {1}"
         return info.format(self._states, self._particle_number)
 
-    def base_vectors(self, *, to_tuple=True, sort=True):
+    def base_vectors(self, *, dstructure="tuple", sort=True):
         """
         Return integers that represent the base vectors of the Hilbert space
 
         Parameters
         ----------
-        to_tuple : boolean, optional, keyword-only
-            Convert the result to a tuple or not
-            If set to False, the returned result is a list
-            default: True
+        dstructure : str, optional, keyword-only
+            The data structure of the returned base vectors
+            Accepted values are "list", "tuple" and "array", corresponding to
+            list, tuple and 1D np.ndarray respectively.
+            default: "tuple"
         sort : boolean, optional, keyword-only
             Sort the result in ascending order
             default: True
@@ -182,6 +185,8 @@ class SimpleHilbertSpace:
          res : tuple or list
             A collection of base vectors
         """
+
+        assert dstructure in ("list", "tuple", "array")
 
         if self._particle_number < 0:
             basis_iterator = chain(*[
@@ -194,8 +199,10 @@ class SimpleHilbertSpace:
         kets = [sum(1<<pos for pos in basis) for basis in basis_iterator]
         if sort:
             kets.sort()
-        if to_tuple:
+        if dstructure == "tuple":
             kets = tuple(kets)
+        elif dstructure == "array":
+            kets = np.array(kets, dtype=np.uint64)
         return kets
 
     __call__ = base_vectors
@@ -318,16 +325,17 @@ class HilbertSpace:
             info += "    {0}\n".format(specifier)
         return info
 
-    def base_vectors(self, to_tuple=True, sort=True):
+    def base_vectors(self, dstructure="tuple", sort=True):
         """
         Return integers that represent the base vectors of the Hilbert space
 
         Parameters
         ----------
-        to_tuple : boolean, keyword-only, optional
-            Convert the result to a tuple or not
-            If set to False, the returned result is a list
-            default: True
+        dstructure : str, optional, keyword-only
+            The data structure of the returned base vectors
+            Accepted values are "list", "tuple" and "array", corresponding to
+            list, tuple and 1D np.ndarray respectively.
+            default: "tuple"
         sort : boolean, keyword-only, optional
             Sort the result or not
             default: True
@@ -337,6 +345,8 @@ class HilbertSpace:
          res : tuple or list
             A collection of base vectors
         """
+
+        assert dstructure in ("list", "tuple", "array")
 
         subspace_basis_iterators = []
         for states, particle_number in self._subspace_specifiers:
@@ -355,14 +365,16 @@ class HilbertSpace:
 
         if sort:
             kets.sort()
-        if to_tuple:
+        if dstructure == "tuple":
             kets = tuple(kets)
+        elif dstructure == "array":
+            kets = np.array(kets, dtype=np.uint64)
         return kets
 
     __call__ = base_vectors
 
 
-def base_vectors(*subspaces, to_tuple=True, sort=True):
+def base_vectors(*subspaces, dstructure="tuple", sort=True):
     """
     Return integers that represent the base vectors of the Hilbert space
 
@@ -370,10 +382,11 @@ def base_vectors(*subspaces, to_tuple=True, sort=True):
     ----------
     subspaces : Specifiers for different subspaces.
         See also the document for this module
-    to_tuple : boolean, keyword-only, optional
-        Convert the result to a tuple or not
-        If set to False, the returned result is a list
-        default: True
+    dstructure : str, optional, keyword-only
+        The data structure of the returned base vectors
+        Accepted values are "list", "tuple" and "array", corresponding to
+        list, tuple and 1D np.ndarray respectively.
+        default: "tuple"
     sort : boolean, keyword-only, optional
         Sort the result or not
         default: True
@@ -405,6 +418,8 @@ def base_vectors(*subspaces, to_tuple=True, sort=True):
     >>> base_vectors([(0, 1), 1], [(2, 3), 1])
     (5, 6, 9, 10)
     """
+
+    assert dstructure in ("list", "tuple", "array")
 
     subspace_specifiers = []
     for subspace in subspaces:
@@ -451,6 +466,8 @@ def base_vectors(*subspaces, to_tuple=True, sort=True):
 
     if sort:
         kets.sort()
-    if to_tuple:
+    if dstructure == "tuple":
         kets = tuple(kets)
+    elif dstructure == "array":
+        kets = np.array(kets, dtype=np.uint64)
     return kets
