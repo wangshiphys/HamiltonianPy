@@ -5,17 +5,19 @@ Hamiltonian term
 
 
 __all__ = [
-    "matrix_function",
+    "matrix_function_c",
+    "matrix_function_py",
 ]
 
 
 from .matrix_repr_c_mod import matrix_repr_c_api
+from .matrix_repr_py_mod import matrix_function_py
 from scipy.sparse import csr_matrix
 
 from ..constant import CREATION
 
 
-def matrix_function(term, right_bases, *, left_bases=None, to_csr=True):
+def matrix_function_c(term, right_bases, *, left_bases=None, to_csr=True):
     """
     Return the matrix representation of the given term
 
