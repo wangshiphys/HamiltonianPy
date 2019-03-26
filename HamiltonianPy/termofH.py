@@ -302,7 +302,7 @@ class AoC:
     Examples
     --------
     >>> import numpy as np
-    >>> from termofH import AoC
+    >>> from HamiltonianPy.termofH import AoC
     >>> c = AoC(otype=1, site=np.array([0, 0]), spin=0)
     >>> a = AoC(otype=0, site=np.array([0, 0]), spin=1)
     >>> c
@@ -699,8 +699,10 @@ class AoC:
 
         return AoC(otype=otype, site=site, spin=spin, orbit=orbit)
 
-    def matrix_repr(self, indices_table, right_bases, *, left_bases=None,
-                    to_csr=True):
+    def matrix_repr(
+            self, indices_table, right_bases, *, left_bases=None,
+            which_core="c", to_csr=True
+    ):
         """
         Return the matrix representation of this operator in the Hilbert space
 
@@ -714,6 +716,12 @@ class AoC:
             The bases of the Hilbert space after the operation
             If not given or None, left_bases is the same as right_bases
             default: None
+        which_core : str, keyword-only, optional
+            There are two implementations for calculating the matrix
+            representation, one in C programming language and one in Python
+            programming language. "c" and "py" corresponding to the C and
+            Python implementation respectively.
+            default: "c"
         to_csr : boolean, keyword-only, optional
             Whether to construct a csr_matrix as the result
             default: True
@@ -729,10 +737,14 @@ class AoC:
         """
 
         operator = (self.getStateIndex(indices_table), self._otype)
-        res = ext.matrix_function(
+        if which_core == "c":
+            matrix_function = ext.matrix_function_c
+        else:
+            matrix_function = ext.matrix_function_py
+
+        return matrix_function(
             [operator], right_bases, left_bases=left_bases, to_csr=to_csr
         )
-        return res
 
 
 class SpinOperator(SiteID):
@@ -1446,8 +1458,10 @@ class ParticleTerm:
         aocs = [aoc.dagger() for aoc in self._aocs[::-1]]
         return ParticleTerm(aocs=aocs, coeff=self._coeff.conjugate())
 
-    def matrix_repr(self, indices_table, right_bases, *, left_bases=None,
-                    coeff=None):
+    def matrix_repr(
+            self, indices_table, right_bases, *, left_bases=None,
+            which_core="c", coeff=None
+    ):
         """
         Return the matrix representation of this term
 
@@ -1461,6 +1475,12 @@ class ParticleTerm:
             The bases of the Hilbert space after the operation
             It not given or None, left_bases is the same as right_bases.
             default: None
+        which_core : str, keyword-only, optional
+            There are two implementations for calculating the matrix
+            representation, one in C programming language and one in Python
+            programming language. "c" and "py" corresponding to the C and
+            Python implementation respectively.
+            default: "c"
         coeff : int, float or complex, keyword-only, optional
             A new coefficient for this term
             If not given or None, use the original coefficient.
@@ -1478,7 +1498,13 @@ class ParticleTerm:
         operators = [
             (aoc.getStateIndex(indices_table), aoc.otype) for aoc in self._aocs
         ]
-        res = self._coeff * ext.matrix_function(
-            operators, right_bases, left_bases=left_bases, to_csr=True
-        )
+        if which_core == "c":
+            res = self._coeff * ext.matrix_function_c(
+                operators, right_bases, left_bases=left_bases, to_csr=True
+            )
+        else:
+            res = ext.matrix_function_py(
+                operators, right_bases,
+                left_bases=left_bases, coeff=self._coeff, to_csr=True
+            )
         return res

@@ -10,14 +10,17 @@
 
 #define PREFIX "In function matrix_repr_c_api, "
 
+typedef unsigned long long uint64;
 
-static long binary_search(const long aim, const long *list, const long n)
+
+static Py_ssize_t binary_search(const uint64 aim, const uint64 *list, const Py_ssize_t n)
 {
-    long low, high, mid, buff;
+    uint64 buff;
+    Py_ssize_t low, mid, high;
     low = 0;
     high = n - 1;
     while (low <= high) {
-        mid = (low + high) / 2;
+        mid = (high - low) / 2 + low;
         buff = *(list + mid);
         if (aim == buff) {
             return mid;
@@ -32,16 +35,31 @@ static long binary_search(const long aim, const long *list, const long n)
 }
 
 
+//The contents contained in the `tuple` object are non-negative PyLongObject
+static uint64 *PyTuple_to_CArray(PyObject *tuple, const Py_ssize_t length)
+{
+    uint64 *array;
+    Py_ssize_t pos;
+
+    array = (uint64 *)PyMem_Calloc(length, sizeof(uint64));
+    if (array != NULL) {
+        for (pos=0; pos<length; pos++) {
+            *(array + pos) = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(tuple, pos));
+        }
+    }
+    return array;
+}
+
+
 static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
 {
     char *exc_msg;
     int swap, not_zero_flag;
-    long state_index, mask, criterion, ket;
-    Py_ssize_t i, j, pos;
+    uint64 one, pos, state_index, mask, criterion, ket;
 
     PyObject *Py_term = NULL, *Py_right_bases = NULL, *Py_left_bases = NULL;
-    long *C_term = NULL, *C_right_bases = NULL, *C_left_bases = NULL;
-    Py_ssize_t term_length, right_dim, left_dim;
+    uint64 *C_term = NULL, *C_right_bases = NULL, *C_left_bases = NULL;
+    Py_ssize_t i, j, term_length, right_dim, left_dim;
 
     PyObject *Py_row_index = NULL, *Py_column_index = NULL, *Py_entry = NULL;
     PyObject *Py_row_indices = NULL, *Py_column_indices = NULL, *Py_entries = NULL, *res = NULL;
@@ -50,28 +68,13 @@ static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
         return NULL;
     }
 
-//    Convert the python tuple Py_term to C array
+//    Convert the python tuple Py_term and Py_right_bases to C array
     term_length = PyTuple_GET_SIZE(Py_term);
-    C_term = (long *)PyMem_Calloc(term_length, sizeof(long));
-    if (C_term != NULL) {
-        for (i=0; i<term_length; i++) {
-            *(C_term + i) = PyLong_AsLong(PyTuple_GET_ITEM(Py_term, i));
-        }
-    } else {
-        exc_msg = PREFIX"unable to allocate the required memory for C_term.\n";
-        PyErr_SetString(PyExc_MemoryError, exc_msg);
-        return NULL;
-    }
-
-//    Convert the python tuple Py_right_bases to C array
     right_dim = PyTuple_GET_SIZE(Py_right_bases);
-    C_right_bases = (long *)PyMem_Calloc(right_dim, sizeof(long));
-    if (C_right_bases!= NULL) {
-        for(i=0; i<right_dim; ++i) {
-            *(C_right_bases + i) = PyLong_AsLong(PyTuple_GET_ITEM(Py_right_bases, i));
-        }
-    } else {
-        exc_msg = PREFIX"unable to allocate the required memory for C_right_bases.\n";
+    C_term = PyTuple_to_CArray(Py_term, term_length);
+    C_right_bases = PyTuple_to_CArray(Py_right_bases, right_dim);
+    if (C_term == NULL || C_right_bases == NULL) {
+        exc_msg = PREFIX"unable to allocate the required memory.\n";
         PyErr_SetString(PyExc_MemoryError, exc_msg);
         return NULL;
     }
@@ -82,12 +85,8 @@ static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
         C_left_bases = C_right_bases;
     } else {
         left_dim = PyTuple_GET_SIZE(Py_left_bases);
-        C_left_bases = (long *)PyMem_Calloc(left_dim, sizeof(long));
-        if (C_left_bases != NULL) {
-            for(i=0; i<left_dim; ++i) {
-                *(C_left_bases + i) = PyLong_AsLong(PyTuple_GET_ITEM(Py_left_bases, i));
-            }
-        } else {
+        C_left_bases = PyTuple_to_CArray(Py_left_bases, left_dim);
+        if (C_left_bases == NULL) {
             exc_msg = PREFIX"unable to allocate the required memory for C_left_bases.\n";
             PyErr_SetString(PyExc_MemoryError, exc_msg);
             return NULL;
@@ -95,11 +94,12 @@ static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
     }
 
 //    Calculate the matrix representation of this term
+    one = 1;
     Py_row_indices = PyList_New(0);
     Py_column_indices = PyList_New(0);
     Py_entries = PyList_New(0);
     if (Py_row_indices != NULL && Py_column_indices != NULL && Py_entries != NULL) {
-        for (i=0; i<right_dim; ++i) {
+        for (i=0; i<right_dim; i++) {
             swap = 0;
             not_zero_flag = TRUE;
             ket = *(C_right_bases + i);
@@ -109,7 +109,7 @@ static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
                 state_index = C_term[j--];
                 if ((ket & mask) == criterion) {
                     for (pos=0; pos<state_index; pos++) {
-                        if (ket & (1 << pos)) swap ^= 1;
+                        if (ket & (one << pos)) swap ^= 1;
                     }
                     ket ^= mask;
                 } else {
@@ -118,11 +118,11 @@ static PyObject *matrix_repr_c_api(PyObject *self, PyObject *args)
                 }
             }
             if (not_zero_flag) {
-                Py_row_index = PyLong_FromLong(binary_search(ket, C_left_bases, (long)left_dim));
+                Py_row_index = PyLong_FromSsize_t(binary_search(ket, C_left_bases, left_dim));
                 PyList_Append(Py_row_indices, Py_row_index);
                 Py_DECREF(Py_row_index);
 
-                Py_column_index = PyLong_FromLong((long)i);
+                Py_column_index = PyLong_FromSsize_t(i);
                 PyList_Append(Py_column_indices, Py_column_index);
                 Py_DECREF(Py_column_index);
 
