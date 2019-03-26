@@ -1,10 +1,12 @@
 """
 Python implementation of the algorithm for calculating the matrix
-representation of a Ferimonic operator/term in occupation number representation
+representation of a Fermionic operator/term in occupation number representation
 """
 
 
-from numba import jit, int64, uint64
+from threading import Thread
+
+from numba import jit, int64, uint64, void
 from scipy.sparse import csr_matrix
 
 import numpy as np
@@ -18,22 +20,25 @@ __all__ = [
 
 
 # The core function for calculating the matrix representation
-# For the case that the right- and left-bases are not the same
-@jit(int64[:, :](uint64[:, :], uint64[:], uint64[:]), nopython=True, cache=True)
-def matrix_repr_py_api_nonsymmetric(term, right_bases, left_bases):
+# For the case that the right- and left-bases are different
+@jit(
+    void(int64, int64, int64[:, :], uint64[:, :], uint64[:], uint64[:]),
+    nopython=True, cache=True, nogil=True,
+)
+def _matrix_repr_core_nonsymmetric(
+        low, high, result, term, right_bases, left_bases
+):
     term_length = term.shape[0]
-    right_dim = right_bases.shape[0]
     left_dim = left_bases.shape[0]
 
-    res = np.zeros((3, right_dim), dtype=np.int64)
-    for i in range(right_dim):
+    for i in range(low, high):
         swap = 0
         ket = right_bases[i]
         for j in range(term_length - 1, -1, -1):
             state_index = term[j, 0]
             mask = term[j, 1]
             criterion = term[j, 2]
-            # Whether the jth Ferionmic operator acts on the `ket` results zero
+            # Whether the jth Fermionic operator acts on the `ket` results zero
             # If not zero, count the number of swap (odd or even) for
             # performing this action; After this action, a new ket is produced
             if (ket & mask) == criterion:
@@ -43,7 +48,7 @@ def matrix_repr_py_api_nonsymmetric(term, right_bases, left_bases):
                 ket ^= mask
             else:
                 break
-        # The following  `else` clause belongs to the `for` loop, not the `if`
+        # The following `else` clause belongs to the `for` loop, not the `if`
         # statement, It is executed when the loop terminates through
         # exhaustion of the list (with `for`) or when the condition becomes
         # false (when `while`), but not when the loop is terminated by a
@@ -51,25 +56,26 @@ def matrix_repr_py_api_nonsymmetric(term, right_bases, left_bases):
         else:
             index = np.searchsorted(left_bases, ket)
             if index != left_dim and left_bases[index] == ket:
-                res[0, i] = index
-                res[1, i] = i
-                res[2, i] = -1 if swap else 1
+                result[0, i] = index
+                result[1, i] = i
+                result[2, i] = -1 if swap else 1
             else:
                 raise KeyError(
                     "The generated ket does not belong the left_bases"
                 )
-    return res
 
 
 # The core function for calculating the matrix representation
 # For the case that the right- and left-bases are the same
-@jit(int64[:, :](uint64[:, :], uint64[:]), nopython=True, cache=True)
-def matrix_repr_py_api_symmetric(term, right_bases):
+@jit(
+    void(int64, int64, int64[:, :], uint64[:, :], uint64[:]),
+    nopython=True, cache=True, nogil=True,
+)
+def _matrix_repr_core_symmetric(low, high, result, term, right_bases):
     term_length = term.shape[0]
     right_dim = right_bases.shape[0]
 
-    res = np.zeros((3, right_dim), dtype=np.int64)
-    for i in range(right_dim):
+    for i in range(low, high):
         swap = 0
         ket = right_bases[i]
         for j in range(term_length - 1, -1, -1):
@@ -83,26 +89,21 @@ def matrix_repr_py_api_symmetric(term, right_bases):
                 ket ^= mask
             else:
                 break
-        # The following  `else` clause belongs to the `for` loop, not the `if`
-        # statement, It is executed when the loop terminates through
-        # exhaustion of the list (with `for`) or when the condition becomes
-        # false (when `while`), but not when the loop is terminated by a
-        # `break` statement
         else:
             index = np.searchsorted(right_bases, ket)
             if index != right_dim and right_bases[index] == ket:
-                res[0, i] = index
-                res[1, i] = i
-                res[2, i] = -1 if swap else 1
+                result[0, i] = index
+                result[1, i] = i
+                result[2, i] = -1 if swap else 1
             else:
                 raise KeyError(
                     "The generated ket does not belong the left_bases"
                 )
-    return res
 
 
 def matrix_function_py(
-        term, right_bases, *, left_bases=None, coeff=1.0, to_csr=True
+        term, right_bases, *,
+        left_bases=None, coeff=1.0, to_csr=True, threads_num=1
 ):
     """
     Return the matrix representation of the given term
@@ -127,6 +128,9 @@ def matrix_function_py(
     to_csr : boolean, keyword-only, optional
         Whether to construct a csr_matrix as the result
         default: True
+    threads_num : int, keyword-only, optional
+        The number of threads to use
+        default: 1
 
     Returns
     -------
@@ -144,15 +148,67 @@ def matrix_function_py(
             for index, otype in term
         ], dtype=np.uint64
     )
-    if left_bases is None:
-        shape = (right_bases.shape[0], right_bases.shape[0])
-        res = matrix_repr_py_api_symmetric(term, right_bases)
-    else:
-        shape = (left_bases.shape[0], right_bases.shape[0])
-        res = matrix_repr_py_api_nonsymmetric(term, right_bases, left_bases)
 
-    res = (coeff * res[2], (res[0], res[1]))
+    right_dim = right_bases.shape[0]
+    result = np.zeros((3, right_dim), dtype=np.int64)
+
+    if left_bases is None:
+        core_function = _matrix_repr_core_symmetric
+        extra_args = (result, term, right_bases)
+        shape = (right_dim, right_dim)
+    else:
+        core_function = _matrix_repr_core_nonsymmetric
+        extra_args = (result, term, right_bases, left_bases)
+        shape = (left_bases.shape[0], right_dim)
+
+    if threads_num == 1:
+        core_function(0, right_dim, *extra_args)
+    else:
+        endpoints = np.linspace(
+            0, right_dim, num=threads_num+1, endpoint=True, dtype=np.int64
+        )
+        chunks = [
+            (endpoints[i], endpoints[i+1]) + extra_args
+            for i in range(len(endpoints) - 1)
+        ]
+        threads = [
+            Thread(target=core_function, args=chunk) for chunk in chunks
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    result = (coeff * result[2], (result[0], result[1]))
     if to_csr:
-        res = csr_matrix(res, shape=shape)
-        res.eliminate_zeros()
-    return res
+        result = csr_matrix(result, shape=shape)
+        result.eliminate_zeros()
+    return result
+
+
+if __name__ == "__main__":
+    from time import time
+
+    num = 24
+    tmp = list(range(1<<num))
+    right_bases = np.array(tmp, dtype=np.uint64)
+    left_bases = np.array(tmp, dtype=np.uint64)
+
+    msg = "The time spend on the {0}th operator when using {1}-threads: {2}s"
+    for ith in range(num):
+        Ms = []
+        term = [(ith, 1), (ith, 0)]
+        for threads_num in range(1, 9):
+            t0 = time()
+            M = matrix_function_py(
+                term, right_bases,
+                left_bases=left_bases,
+                threads_num=threads_num
+            )
+            t1 = time()
+            Ms.append(M)
+            print(msg.format(ith, threads_num, t1 - t0))
+        print("=" * 80)
+
+        for i in range(1, len(Ms)):
+            assert (Ms[0] - Ms[i]).count_nonzero() == 0
