@@ -3,6 +3,9 @@ Mapping hashable objects to integers in a continuous range
 """
 
 
+from collections import OrderedDict
+
+
 __all__ = [
     "IndexTable",
 ]
@@ -43,13 +46,13 @@ class IndexTable:
         """
 
         # object_type is the type of the input objects
-        # object2index is a dict
+        # object2index is an OrderedDict
         # The keys are the input objects and values are the indices
-        # index2object is a dict
+        # index2object is an OrderedDict
         # The keys are the indices and values are the objects
 
-        object2index = dict()
-        index2object = dict()
+        object2index = OrderedDict()
+        index2object = OrderedDict()
         for index, item in enumerate(objects, start):
             if index == start:
                 object_type = type(item)
@@ -90,6 +93,15 @@ class IndexTable:
             fmt.format(i, k) for i, k in self._index2object.items()
         )
         return info
+
+    def __iter__(self):
+        """
+        Make instance of this class iterable
+
+        Iterate over the indices and the corresponding objects: (index, obj)
+        """
+
+        return iter(self._index2object.items())
 
     def __len__(self):
         """
@@ -136,16 +148,20 @@ class IndexTable:
 if __name__ == "__main__":
     from random import randrange
 
-    num0 = 11
+    num0 = 7
     num1 = 3
     objects = ((x, y) for x in range(num0) for y in range(num1))
     table = IndexTable(objects)
+    assert len(table) == num0 * num1
+
     for i in range(10):
         key0 = (randrange(num0), randrange(num1))
         key1 = randrange(num0 * num1)
-        assert len(table) == num0 * num1
         assert table(key0) == key0[0] * num1 + key0[1]
         assert table(key1) == divmod(key1, num1)
         print("key = {0}\t value = {1}".format(key0, table(key0)))
         print("key = {0}\t value = {1}".format(key1, table(key1)))
         print("=" * 80)
+
+    for index, obj in table:
+        print(index, obj)
