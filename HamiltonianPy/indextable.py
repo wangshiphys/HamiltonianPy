@@ -94,6 +94,20 @@ class IndexTable:
         )
         return info
 
+    def indices(self):
+        """
+        Return a new view of the objects' indices
+        """
+
+        return self._index2object.keys()
+
+    def objects(self):
+        """
+        Return a new view of the managed objects
+        """
+
+        return self._object2index.keys()
+
     def __iter__(self):
         """
         Make instance of this class iterable
@@ -163,5 +177,11 @@ if __name__ == "__main__":
         print("key = {0}\t value = {1}".format(key1, table(key1)))
         print("=" * 80)
 
+    for index in table.indices():
+        print(index)
+    print("=" * 80)
+    for obj in table.objects():
+        print(obj)
+    print("=" * 80)
     for index, obj in table:
         print(index, obj)
