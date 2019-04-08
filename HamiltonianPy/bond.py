@@ -5,16 +5,41 @@ Bond class that describes the bond connecting two points
 
 __all__ = [
     "Bond",
+    "set_float_point_precision",
 ]
 
 
 import numpy as np
 
 
-# Useful constant
+# Useful global constant
 _ZOOM = 10000
 _VIEW_AS_ZERO = 1E-4
 ################################################################################
+
+
+def set_float_point_precision(precision):
+    """
+    Set the precision for processing float point number
+
+    The coordinates of a point are treated as float point numbers no matter
+    they are given as float-point numbers or integers. The float-point
+    precision affects the internal implementation of the Bond class,
+    especially the hash value of instances of Bond class. If you want to
+    change the default value, you must call this function before creating
+    any Bond instance.
+
+    Parameters
+    ----------
+    precision : int
+        The number of digits precision after the decimal point
+    """
+
+    assert isinstance(precision, int) and precision >= 0
+
+    global  _ZOOM, _VIEW_AS_ZERO
+    _ZOOM = 10 ** precision
+    _VIEW_AS_ZERO = 10 ** (-precision)
 
 
 class Bond:
@@ -26,7 +51,7 @@ class Bond:
     directional : boolean
         Whether the direction of the bond should be considered.
         If set to True, then the order of p0, p1 is concerned and
-        Bond(p0, p1) != Bond(p1, p0) unless p0 = p1.
+        Bond(p0, p1) != Bond(p1, p0) unless p0 == p1.
         If set to False, then the order of p0, p1 is not concerned and
         Bond(p0, p1), Bond(p1, p0) is equivalent.
 
@@ -69,13 +94,13 @@ class Bond:
         directional : boolean, optional, keyword-only
             Whether the direction of the bond should be considered
             If set to True, then the order of p0, p1 is concerned
-            and Bond(p0, p1) != Bond(p1, p0) unless p0 = p1.
+            and Bond(p0, p1) != Bond(p1, p0) unless p0 == p1.
             If set to False, then the order of p0, p1 is not concerned
             and Bond(p0, p1), Bond(p1, p0) is equivalent.
         """
 
-        assert (p0, np.ndarray) and p0.shape in ((1, ), (2, ), (3, ))
-        assert (p1, np.ndarray) and p1.shape == p0.shape
+        assert isinstance(p0, np.ndarray) and p0.shape in ((1, ), (2, ), (3, ))
+        assert isinstance(p1, np.ndarray) and p1.shape == p0.shape
         assert directional in (True, False)
 
         p0 = np.array(p0, copy=True)
@@ -90,11 +115,11 @@ class Bond:
         # Combine the original information of this bond into a tuple.
         # The tuple is then used to calculate the hash code and define the
         # comparison logic between different instances.
-        tmp = [tuple(int(i) for i in _ZOOM * p) for p in [p0, p1]]
+        identity = [tuple(int(i) for i in _ZOOM * p) for p in [p0, p1]]
         if not directional:
-            tmp.sort()
-        tmp.append(directional)
-        self._tuple_form = tuple(tmp)
+            identity.sort()
+        identity.append(directional)
+        self._tuple_form = tuple(identity)
 
     @property
     def directional(self):
@@ -124,6 +149,7 @@ class Bond:
         ----------
         ndigits : None or int, optional
             Number of digits to preserve after the decimal point
+            The default value `None` implies not round the result
             default: None
 
         Returns
@@ -144,6 +170,7 @@ class Bond:
         ----------
         ndigits : None or int, optional
             Number of digits to preserve after the decimal point
+            The default value `None` implies not round the result
             default: None
 
         Returns
@@ -177,18 +204,19 @@ class Bond:
             default: False
         ndigits : None or int, optional
             Number of digits to preserve after the decimal point
+            The default value `None` implies not round the result
             default: None
 
         Returns
         -------
-        res : np.float64 or np.array
+        res : float or array of floats
             For 1D or 2D system, the azimuth is the angle between the
             directional bond and the x-axis. The range of azimuth is [-pi, pi).
             For 3D, there are two angles,
             alpha: the angle between the directional bond and the z-axis. The
-            range of alpha is [0, pi]
+            range of alpha is [0, pi].
             beta: the angle between the projection of the bond on the xy plane
-            and the x-axis. The range of beta is [-pi, pi)
+            and the x-axis. The range of beta is [-pi, pi).
 
         Raises
         ------
@@ -204,13 +232,9 @@ class Bond:
 
             dr = self._p1 - self._p0
             if self._dim == 1:
-                if dr[0] >= 0:
-                    theta = 0.0
-                else:
-                    theta = -np.pi
+                theta = 0.0 if dr[0] >= 0.0 else -np.pi
             elif self._dim == 2:
-                x, y = dr
-                theta = np.arctan2(y, x)
+                theta = np.arctan2(dr[1], dr[0])
                 # If theta is pi, then it is equivalent to -pi.
                 if abs(theta - np.pi) < _VIEW_AS_ZERO:
                     theta = -np.pi
@@ -323,26 +347,3 @@ class Bond:
             raise NotImplementedError(
                 "This method is not implemented for non-directional bond."
             )
-
-
-if __name__ == "__main__":
-    p0 = np.array([0, 0, 0])
-    p1 = np.array([1, 1, 1])
-    b0 = Bond(p0=p0, p1=p1, directional=True)
-    b1 = Bond(p0=p0, p1=p1, directional=False)
-    b2 = Bond(p0=p1, p1=p0, directional=True)
-    b3 = Bond(p0=p1, p1=p0, directional=False)
-    bs = [b0, b1, b2, b3]
-    for b in bs:
-        print(b)
-        print("hash code: ", hash(b))
-        print(repr(b))
-        print("=" * 80)
-    assert b0 != b1
-    assert b0 != b2
-    assert b0 != b3
-    assert b1 != b2
-    assert b1 == b3
-    assert b2 != b3
-    assert b0.oppositeTo(b2)
-    assert b2.oppositeTo(b0)
