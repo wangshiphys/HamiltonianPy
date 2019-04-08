@@ -91,4 +91,3 @@ SPIN_MATRICES = {
     "p": S_P,
     "m": S_M,
 }
-
