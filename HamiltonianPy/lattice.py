@@ -7,6 +7,7 @@ __all__ = [
     "Lattice",
     "lattice_generator",
     "special_cluster",
+    "set_float_point_precision",
 ]
 
 
@@ -21,10 +22,31 @@ import numpy as np
 from HamiltonianPy.bond import Bond
 
 
-# Useful constant
-_TOL = 1e-4
+# Useful global constant
 _ZOOM = 10000
+_VIEW_AS_ZERO = 1e-4
 ################################################################################
+
+
+def set_float_point_precision(precision):
+    """
+    Set the precision for processing float point number
+
+    The float-point precision affects the internal implementation of the
+    Lattice class. If you want to change the default value, you must call
+    this function before creating any Lattice instance.
+
+    Parameters
+    ----------
+    precision : int
+        The number of digits precision after the decimal point
+    """
+
+    assert isinstance(precision, int) and precision >= 0
+
+    global  _ZOOM, _VIEW_AS_ZERO
+    _ZOOM = 10 ** precision
+    _VIEW_AS_ZERO = 10 ** (-precision)
 
 
 class Lattice:
@@ -92,14 +114,14 @@ class Lattice:
             )
 
         # Check is there duplicate translation vectors in the given `vectors`
-        if np.any(pdist(vectors) < _TOL):
+        if np.any(pdist(vectors) < _VIEW_AS_ZERO):
             raise ValueError(
                 "There are duplicate translation vectors in the given `vectors`"
             )
 
         # Check is there duplicate points in the given `points`
         tmp = pdist(points)
-        if np.any(tmp < _TOL):
+        if np.any(tmp < _VIEW_AS_ZERO):
             raise ValueError("There are duplicate points in the given `points`")
         else:
             dists = np.insert(np.unique(np.ceil(tmp * _ZOOM)) / _ZOOM, 0, 0.0)
@@ -209,7 +231,7 @@ class Lattice:
             site, trash = self.decompose(site)
 
         dist, index = cKDTree(self._points).query(site)
-        if dist < _TOL:
+        if dist < _VIEW_AS_ZERO:
             return index
         else:
             raise KeyError("The given site does not belong the lattice")
@@ -258,7 +280,7 @@ class Lattice:
         return scope
 
     def _searching(self, database, displaces):
-        matches = np.nonzero(database.query(displaces)[0] < _TOL)[0]
+        matches = np.nonzero(database.query(displaces)[0] < _VIEW_AS_ZERO)[0]
         if len(matches) == 1:
             index = matches[0]
             return np.array(self._points[index], copy=True), displaces[index]
@@ -457,10 +479,10 @@ class Lattice:
         sites = self._sites_factory(scope=scope, no_inversion=True)
 
         tree = cKDTree(sites)
-        pairs_outer = tree.query_pairs(r=judge + _TOL)
+        pairs_outer = tree.query_pairs(r=judge + _VIEW_AS_ZERO)
         if only and nth > 1:
             judge = self.neighbor_distance(nth=nth - 1)
-            pairs_inner = tree.query_pairs(r=judge + _TOL)
+            pairs_inner = tree.query_pairs(r=judge + _VIEW_AS_ZERO)
         else:
             pairs_inner = set()
 
@@ -754,6 +776,7 @@ if __name__ == "__main__":
         lattice = lattice_generator(cell)
         lattice.show()
         lattice.show(scope=1)
+
     for cluster in ["cross", "z", "star", "benzene", "diphenyl", "gear"]:
         lattice = special_cluster(cluster)
         lattice.show()
@@ -764,20 +787,3 @@ if __name__ == "__main__":
     lattice_generator("honeycomb", num0=6, num1=6).show()
     lattice_generator("triangle", num0=6, num1=6).show()
     lattice_generator("kagome", num0=6, num1=6).show()
-
-    for cluster in ["cross", "z", "star", "benzene", "diphenyl", "gear"]:
-        lattice = special_cluster(cluster)
-        intra, inter = lattice.bonds(nth=1)
-        print("Intra cluster bonds:")
-        for bond in intra:
-            p0, p1 = bond.getEndpoints()
-            index0 = lattice.getIndex(p0)
-            index1 = lattice.getIndex(p1)
-            print(index0, index1)
-        print("Inter cluster bonds:")
-        for bond in inter:
-            p0, p1 = bond.getEndpoints()
-            index0 = lattice.getIndex(p0)
-            index1 = lattice.getIndex(p1, fold=True)
-            print(index0, index1)
-        print("=" * 80)
