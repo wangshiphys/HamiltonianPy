@@ -22,8 +22,9 @@ class IndexTable:
 
     Examples
     --------
+    >>> from HamiltonianPy.indextable import IndexTable
     >>> objects = [(x, y) for x in range(10) for y in range(10)]
-    >>> table = IndexMap(objects)
+    >>> table = IndexTable(objects)
     >>> len(table)
     100
     >>> table((3, 5))
