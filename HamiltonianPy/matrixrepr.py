@@ -1,6 +1,6 @@
 """
-Python implementation of the algorithm for calculating the matrix
-representation of a Fermionic operator/term in occupation number representation
+Implementation of the algorithm for calculating the matrix representation of
+a Fermionic operator/term in occupation number representation
 """
 
 
@@ -11,11 +11,11 @@ from scipy.sparse import csr_matrix
 
 import numpy as np
 
-from ..constant import CREATION
+from HamiltonianPy.constant import CREATION
 
 
 __all__ = [
-    "matrix_function_py",
+    "matrix_function",
 ]
 
 
@@ -48,11 +48,11 @@ def _matrix_repr_core_nonsymmetric(
                 ket ^= mask
             else:
                 break
-        # The following `else` clause belongs to the `for` loop, not the `if`
-        # statement, It is executed when the loop terminates through
-        # exhaustion of the list (with `for`) or when the condition becomes
-        # false (when `while`), but not when the loop is terminated by a
-        # `break` statement
+        # The following `else` clause belongs to the
+        # `for j in range(term_length - 1, -1, -1)` loop, not the
+        # `if (ket & mask) == criterion` statement. It is executed when the
+        # loop terminates through exhaustion of the iterator, but not when
+        # the loop is terminated by the `break` statement.
         else:
             index = np.searchsorted(left_bases, ket)
             if index != left_dim and left_bases[index] == ket:
@@ -101,7 +101,7 @@ def _matrix_repr_core_symmetric(low, high, result, term, right_bases):
                 )
 
 
-def matrix_function_py(
+def matrix_function(
         term, right_bases, *,
         left_bases=None, coeff=1.0, to_csr=True, threads_num=1
 ):
@@ -142,8 +142,15 @@ def matrix_function_py(
         `cols` are the row and column indices of the none-zero elements.
     """
 
+    # `Bitwise and` between ket and (1<<ith) to judge whether the ith bit is 0
+    # or 1, (1<<ith) is called `mask`;
+    # If the operator is a creation operator, then the ith bit must be 0 to
+    # generate nonzero result. The criterion is (ket & mask) == 0;
+    # If the operator is an annihilation operator, then the ith bit must be 1
+    # to generate nonzero result. The criterion is (ket & mask) == mask.
     term = np.array(
         [
+            # [index, mask, criterion]
             [index, 1 << index, 0 if otype == CREATION else (1 << index)]
             for index, otype in term
         ], dtype=np.uint64
@@ -169,7 +176,7 @@ def matrix_function_py(
         )
         chunks = [
             (endpoints[i], endpoints[i+1]) + extra_args
-            for i in range(len(endpoints) - 1)
+            for i in range(threads_num)
         ]
         threads = [
             Thread(target=core_function, args=chunk) for chunk in chunks
@@ -188,19 +195,21 @@ def matrix_function_py(
 
 if __name__ == "__main__":
     from time import time
+    import os
 
     num = 24
-    tmp = list(range(1<<num))
-    right_bases = np.array(tmp, dtype=np.uint64)
-    left_bases = np.array(tmp, dtype=np.uint64)
+    bases_list = list(range(1 << num))
+    right_bases = np.array(bases_list, dtype=np.uint64)
+    left_bases = np.array(bases_list, dtype=np.uint64)
+    core_num = int(os.environ["NUMBER_OF_PROCESSORS"])
 
     msg = "The time spend on the {0}th operator when using {1}-threads: {2}s"
     for ith in range(num):
         Ms = []
         term = [(ith, 1), (ith, 0)]
-        for threads_num in range(1, 9):
+        for threads_num in range(1, core_num + 1):
             t0 = time()
-            M = matrix_function_py(
+            M = matrix_function(
                 term, right_bases,
                 left_bases=left_bases,
                 threads_num=threads_num
