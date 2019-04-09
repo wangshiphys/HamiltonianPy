@@ -142,6 +142,8 @@ def matrix_function(
         `cols` are the row and column indices of the none-zero elements.
     """
 
+    assert isinstance(threads_num, int) and threads_num > 0
+
     # `Bitwise and` between ket and (1<<ith) to judge whether the ith bit is 0
     # or 1, (1<<ith) is called `mask`;
     # If the operator is a creation operator, then the ith bit must be 0 to
