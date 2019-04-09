@@ -1,5 +1,5 @@
 """
-Description of Hilbert space in the occupation-number representation
+Bases of Hilbert space in the occupation-number representation
 
 The design concept behind this module is that the concerned Hilbert space
 is consisted of one or more disjoint subspaces and every subspace can be
@@ -69,17 +69,17 @@ class SimpleHilbertSpace:
 
     Examples
     --------
-    >>> # 4 single-particle states and no constraint on the number of particle
-    >>> SimpleHilbertSpace(states=4).base_vectors()
-    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
-    >>> SimpleHilbertSpace(states=[0, 1, 2, 3]).base_vectors()
-    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+    >>> # 2 single-particle states and no constraint on the number of particle
+    >>> SimpleHilbertSpace(states=2).base_vectors()
+    array([0, 1, 2, 3], dtype=uint64)
+    >>> SimpleHilbertSpace(states=[0, 1]).base_vectors()
+    array([0, 1, 2, 3], dtype=uint64)
 
     >>> # 4 single-particle states and 2 particles
     >>> SimpleHilbertSpace(4, 2).base_vectors()
-    (3, 5, 6, 9, 10, 12)
+    array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
     >>> SimpleHilbertSpace([0, 1, 2, 3], 2).base_vectors()
-    (3, 5, 6, 9, 10, 12)
+    array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
     """
 
     def __init__(self, states, number=-1):
@@ -165,44 +165,47 @@ class SimpleHilbertSpace:
                "The number of particle: {1}"
         return info.format(self._states, self._particle_number)
 
-    def base_vectors(self, *, dstructure="tuple", sort=True):
+    def base_vectors(self, *, container="array", sort=True):
         """
         Return integers that represent the base vectors of the Hilbert space
 
         Parameters
         ----------
-        dstructure : str, optional, keyword-only
-            The data structure of the returned base vectors
+        container : str, optional, keyword-only
+            The container of the returned base vectors
             Accepted values are "list", "tuple" and "array", corresponding to
             list, tuple and 1D np.ndarray respectively.
-            default: "tuple"
+            default: "array"
         sort : boolean, optional, keyword-only
             Sort the result in ascending order
             default: True
 
         Returns
          -------
-         res : tuple or list
+         res : tuple, list or 1D np.ndarray
             A collection of base vectors
         """
 
-        assert dstructure in ("list", "tuple", "array")
+        assert container in ("list", "tuple", "array")
 
         if self._particle_number < 0:
-            basis_iterator = chain(*[
-                combinations(self._states, i)
-                for i in range(self._state_number + 1)
-            ])
+            basis_iterator = chain(
+                *[
+                    combinations(self._states, i)
+                    for i in range(self._state_number + 1)
+                ]
+            )
         else:
             basis_iterator = combinations(self._states, self._particle_number)
 
         kets = [sum(1<<pos for pos in basis) for basis in basis_iterator]
         if sort:
             kets.sort()
-        if dstructure == "tuple":
-            kets = tuple(kets)
-        elif dstructure == "array":
+
+        if container == "array":
             kets = np.array(kets, dtype=np.uint64)
+        elif container == "tuple":
+            kets = tuple(kets)
         return kets
 
     __call__ = base_vectors
@@ -225,23 +228,23 @@ class HilbertSpace:
 
     Examples
     --------
-    >>> # 4 single-particle states and no constraint on the number of particle
-    >>> HilbertSpace(4).base_vectors()
-    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+    >>> # 2 single-particle states and no constraint on the number of particle
+    >>> HilbertSpace(2).base_vectors()
+    array([0, 1, 2, 3], dtype=uint64)
 
     >>> # 4 single-particle states and 2 particles
     >>> HilbertSpace([(0, 1, 2, 3), 2]).base_vectors()
-    (3, 5, 6, 9, 10, 12)
+    array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
 
     >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle in spin-down state and one particle in spin-up state
     >>> HilbertSpace([(0, 2), 1], [(1, 3), 1]).base_vectors()
-    (3, 6, 9, 12)
+    array([ 3,  6,  9, 12], dtype=uint64)
 
     >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle on site0 and one particle on site1
     >>> HilbertSpace([(0, 1), 1], [(2, 3), 1]).base_vectors()
-    (5, 6, 9, 10)
+    array([ 5,  6,  9, 10], dtype=uint64)
     """
 
     def __init__(self, *subspaces):
@@ -325,28 +328,28 @@ class HilbertSpace:
             info += "    {0}\n".format(specifier)
         return info
 
-    def base_vectors(self, dstructure="tuple", sort=True):
+    def base_vectors(self, container="array", sort=True):
         """
         Return integers that represent the base vectors of the Hilbert space
 
         Parameters
         ----------
-        dstructure : str, optional, keyword-only
-            The data structure of the returned base vectors
+        container : str, optional, keyword-only
+            The container of the returned base vectors
             Accepted values are "list", "tuple" and "array", corresponding to
             list, tuple and 1D np.ndarray respectively.
-            default: "tuple"
+            default: "array"
         sort : boolean, keyword-only, optional
             Sort the result or not
             default: True
 
         Returns
          -------
-         res : tuple or list
+         res : tuple, list or 1D np.ndarray
             A collection of base vectors
         """
 
-        assert dstructure in ("list", "tuple", "array")
+        assert container in ("list", "tuple", "array")
 
         subspace_basis_iterators = []
         for states, particle_number in self._subspace_specifiers:
@@ -365,16 +368,17 @@ class HilbertSpace:
 
         if sort:
             kets.sort()
-        if dstructure == "tuple":
-            kets = tuple(kets)
-        elif dstructure == "array":
+
+        if container == "array":
             kets = np.array(kets, dtype=np.uint64)
+        elif container == "tuple":
+            kets = tuple(kets)
         return kets
 
     __call__ = base_vectors
 
 
-def base_vectors(*subspaces, dstructure="tuple", sort=True):
+def base_vectors(*subspaces, container="array", sort=True):
     """
     Return integers that represent the base vectors of the Hilbert space
 
@@ -382,44 +386,42 @@ def base_vectors(*subspaces, dstructure="tuple", sort=True):
     ----------
     subspaces : Specifiers for different subspaces.
         See also the document for this module
-    dstructure : str, optional, keyword-only
-        The data structure of the returned base vectors
+    container : str, optional, keyword-only
+        The container of the returned base vectors
         Accepted values are "list", "tuple" and "array", corresponding to
         list, tuple and 1D np.ndarray respectively.
-        default: "tuple"
+        default: "array"
     sort : boolean, keyword-only, optional
         Sort the result or not
         default: True
 
     Returns
     -------
-    res : tuple or list
+    res : tuple, list or 1D np.ndarray
         A collection of base vectors
 
     Examples
     --------
-    >>> # 4 single-particle states and no constraint on the number of particle
-    >>> base_vectors(4)
-    (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+    >>> # 2 single-particle states and no constraint on the number of particle
+    >>> base_vectors(2)
+    array([0, 1, 2, 3], dtype=uint64)
 
     >>> # 4 single-particle states and 2 particles
     >>> base_vectors([(0, 1, 2, 3), 2])
-    (3, 5, 6, 9, 10, 12)
+    array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
 
     >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle in spin-down state and one particle in spin-up state
     >>> base_vectors([(0, 2), 1], [(1, 3), 1])
-    (3, 6, 9, 12)
+    array([ 3,  6,  9, 12], dtype=uint64)
 
     >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle on site0 and one particle on site1
-    >>> site0_states = (0, 1)
-    >>> site1_states = (2, 3)
     >>> base_vectors([(0, 1), 1], [(2, 3), 1])
-    (5, 6, 9, 10)
+    array([ 5,  6,  9, 10], dtype=uint64)
     """
 
-    assert dstructure in ("list", "tuple", "array")
+    assert container in ("list", "tuple", "array")
 
     subspace_specifiers = []
     for subspace in subspaces:
@@ -466,8 +468,9 @@ def base_vectors(*subspaces, dstructure="tuple", sort=True):
 
     if sort:
         kets.sort()
-    if dstructure == "tuple":
-        kets = tuple(kets)
-    elif dstructure == "array":
+
+    if container == "array":
         kets = np.array(kets, dtype=np.uint64)
+    elif container == "tuple":
+        kets = tuple(kets)
     return kets
