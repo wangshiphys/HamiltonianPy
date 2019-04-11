@@ -10,6 +10,7 @@ __all__ = [
     "SpinOperator",
     "SpinInteraction",
     "ParticleTerm",
+    "set_float_point_precision",
 ]
 
 
@@ -20,11 +21,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
-# Matrix representation extension
-import HamiltonianPy.extension as ext
+from HamiltonianPy.matrixrepr import matrix_function
 
 
-# Useful constants
+# Useful global constants
 ZOOM = 10000
 SPIN_OTYPES = ("x", "y", "z", "p", "m")
 NUMERIC_TYPES = (int, float, complex, np.number)
@@ -35,6 +35,31 @@ SPIN_MATRICES = {
     "p": np.array([[0.0, 1.0], [0.0, 0.0]], dtype=np.float64),
     "m": np.array([[0.0, 0.0], [1.0, 0.0]], dtype=np.float64),
 }
+################################################################################
+
+
+def set_float_point_precision(precision):
+    """
+    Set the precision for processing float point number
+
+    The coordinates of a point are treated as float point numbers no matter
+    they are given as float-point numbers or integers. The float-point
+    precision affects the internal implementation of the SiteID class,
+    as well as classes inherited from it, especially the hash values of
+    instances of these classes. If you want to change the default value,
+    you must call this function before creating any instances of these
+    classes. The default value is: `precision = 4`.
+
+    Parameters
+    ----------
+    precision : int
+        The number of digits precision after the decimal point
+    """
+
+    assert isinstance(precision, int) and precision >= 0
+
+    global  ZOOM
+    ZOOM = 10 ** precision
 
 
 class SwapError(Exception):
@@ -69,6 +94,7 @@ class SiteID:
     Examples
     --------
     >>> import numpy as np
+    >>> from HamiltonianPy.termofH import SiteID
     >>> site0 = SiteID(site=np.array([0, 0]))
     >>> site1 = SiteID(site=np.array([1, 1]))
     >>> site0 < site1
@@ -83,12 +109,12 @@ class SiteID:
 
         Parameters
         ----------
-        site : np.ndarray
+        site : 1D np.ndarray
             The coordinate of the lattice site
             The shape of this array should be (1,), (2,) or (3,).
         """
 
-        assert isinstance(site, np.ndarray) and site.shape in [(1,), (2,), (3,)]
+        assert isinstance(site, np.ndarray) and site.shape in ((1,), (2,), (3,))
 
         self._site = np.array(site, copy=True)
         self._site.setflags(write=False)
@@ -190,7 +216,7 @@ class SiteID:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
 
         Returns
         -------
@@ -217,6 +243,7 @@ class StateID(SiteID):
     Examples
     --------
     >>> import numpy as np
+    >>> from HamiltonianPy.termofH import StateID
     >>> id0 = StateID(site=np.array([0, 0]), spin=1)
     >>> id1 = StateID(site=np.array([1, 1]), spin=1)
     >>> id0
@@ -231,7 +258,7 @@ class StateID(SiteID):
 
         Parameters
         ----------
-        site : ndarray
+        site : 1D np.ndarray
             The coordinate of the localized single-particle state
             The `site` parameter should be 1D array with length 1, 2 or 3.
         spin : int, optional
@@ -242,14 +269,14 @@ class StateID(SiteID):
             default: 0
         """
 
-        assert (spin, int) and spin >= 0
-        assert (orbit, int) and orbit >= 0
+        assert isinstance(spin, int) and spin >= 0
+        assert isinstance(orbit, int) and orbit >= 0
 
         super().__init__(site=site)
         self._spin = spin
         self._orbit = orbit
 
-        # The self._tuple_form on the right hand is already set properly
+        # The self._tuple_form on the right hand has already been set properly
         # by calling `super().__init__(site=site)`
         self._tuple_form = (self._tuple_form, spin, orbit)
 
@@ -309,26 +336,21 @@ class AoC:
     AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
     >>> a
     AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
-
     >>> c < a
     True
-
     >>> print(2 * c * a)
     The coefficient of this term: 2
     The component operators:
         AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
         AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
-
     >>> print(0.5 * c)
     The coefficient of this term: 0.5
     The component operators:
         AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
-
     >>> print(a * (1+2j))
     The coefficient of this term: (1+2j)
     The component operators:
         AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
-
     """
 
     def __init__(self, otype, site, spin=0, orbit=0):
@@ -341,7 +363,7 @@ class AoC:
             The type of this operator
             It can be either 0 or 1, corresponding to annihilation and
             creation respectively.
-        site : ndarray
+        site : 1D np.ndarray
             The coordinate of the localized single-particle state
             The `site` parameter should be 1D array with length 1,2 or 3.
         spin : int, optional
@@ -411,7 +433,7 @@ class AoC:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of AoC with an integer index
+            A table that associate instances of AoC with integer indices
 
         Returns
         -------
@@ -439,7 +461,7 @@ class AoC:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of StateID with an integer index
+            A table that associate instances of StateID with integer indices
 
         Returns
         -------
@@ -462,8 +484,8 @@ class AoC:
 
     def _tex(self, indices_table=None):
         # Convert the instance to TeX string
-        # `indices_table` is a table that associate instance of SiteID with an
-        # integer index
+        # `indices_table` is a table that associate instances of SiteID with
+        # integer indices
 
         if indices_table is None:
             site = "(" + ", ".join("{:.4f}".format(i) for i in self.site) + ")"
@@ -489,7 +511,7 @@ class AoC:
         Parameters
         ----------
         indices_table : IndexTable, optional
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
             If not given or None, the `site` is show as it is
             default : None
         """
@@ -700,31 +722,29 @@ class AoC:
         return AoC(otype=otype, site=site, spin=spin, orbit=orbit)
 
     def matrix_repr(
-            self, indices_table, right_bases, *, left_bases=None,
-            which_core="c", to_csr=True
+            self, state_indices_table, right_bases, *,
+            left_bases=None, to_csr=True, threads_num=1
     ):
         """
         Return the matrix representation of this operator in the Hilbert space
 
         Parameters
         ----------
-        indices_table : IndexTable
-            A table that associate instance of StateID with an integer index
-        right_bases : tuple
+        state_indices_table : IndexTable
+            A table that associate instances of StateID with integer indices
+        right_bases : 1D np.ndarray
             The bases of the Hilbert space before the operation
-        left_bases : tuple, keyword-only, optional
+        left_bases : 1D np.ndarray, keyword-only, optional
             The bases of the Hilbert space after the operation
             If not given or None, left_bases is the same as right_bases
             default: None
-        which_core : str, keyword-only, optional
-            There are two implementations for calculating the matrix
-            representation, one in C programming language and one in Python
-            programming language. "c" and "py" corresponding to the C and
-            Python implementation respectively.
-            default: "c"
         to_csr : boolean, keyword-only, optional
             Whether to construct a csr_matrix as the result
             default: True
+        threads_num : int, keyword-only, optional
+            The number of threads to use for calculating the matrix
+            representation
+            default: 1
 
         Returns
         -------
@@ -736,14 +756,10 @@ class AoC:
             `cols` are the row and column indices of the none-zero elements.
         """
 
-        operator = (self.getStateIndex(indices_table), self._otype)
-        if which_core == "c":
-            matrix_function = ext.matrix_function_c
-        else:
-            matrix_function = ext.matrix_function_py
-
+        term = [(self.getStateIndex(state_indices_table), self._otype)],
         return matrix_function(
-            [operator], right_bases, left_bases=left_bases, to_csr=to_csr
+            term, right_bases, left_bases=left_bases,
+            to_csr=to_csr, threads_num=threads_num
         )
 
 
@@ -758,6 +774,25 @@ class SpinOperator(SiteID):
     otype : string
         The type of this spin operator
         Valid value: "x" | "y" | "z" | "p" | "m"
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from HamiltonianPy.termofH import SpinOperator
+    >>> SX = SpinOperator("x", site=np.array([0, 0]))
+    >>> SY = SpinOperator("y", site=np.array([1, 1]))
+    >>> SX
+    SpinOperator(otype="x", site=array([0, 0]))
+    >>> SY.matrix()
+    array([[ 0.+0.j , -0.-0.5j],
+           [ 0.+0.5j,  0.+0.j ]])
+    >>> SY < SX
+    False
+    >>> print(2 * SX * SY)
+    The coefficient of this term: 2
+    The component spin operators:
+        SpinOperator(otype="x", site=array([0, 0]))
+        SpinOperator(otype="y", site=array([1, 1]))
     """
 
     def __init__(self, otype, site):
@@ -769,7 +804,7 @@ class SpinOperator(SiteID):
         otype : str
             The type of this spin operator
             Valid value: "x" | "y" | "z" | "p" | "m"
-        site : ndarray
+        site : 1D np.ndarray
             The coordinate of the lattice site on which the spin operator is
             defined. The `site` parameter should be 1D array with shape (1,),
             (2,) or (3,).
@@ -780,7 +815,7 @@ class SpinOperator(SiteID):
         super().__init__(site=site)
         self._otype = otype
 
-        # The self._tuple_form on the right hand is already set properly
+        # The self._tuple_form on the right hand has already been set properly
         # by calling the super().__init__(site=site)
         self._tuple_form = (otype, self._tuple_form)
 
@@ -806,7 +841,7 @@ class SpinOperator(SiteID):
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
 
         Returns
         -------
@@ -845,7 +880,7 @@ class SpinOperator(SiteID):
         Parameters
         ----------
         indices_table : IndexTable, optional
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
             If not given or None, the `site` is show as it is
             default : None
         """
@@ -962,12 +997,14 @@ class SpinOperator(SiteID):
         C_DOWN = AoC(otype=CREATION, site=self._site, spin=SPIN_DOWN)
         A_UP = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_UP)
         A_DOWN = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_DOWN)
-        tmp = [(C_UP, A_UP), (C_UP, A_DOWN), (C_DOWN, A_UP), (C_DOWN, A_DOWN)]
 
         terms = []
-        for coeff, term in zip(SPIN_MATRICES[self._otype].flat, tmp):
-            if coeff != 0:
-                terms.append(ParticleTerm(term, coeff=coeff))
+        SMatrix = self.matrix()
+        for row_index, row_aoc in enumerate((C_UP, C_DOWN)):
+            for col_index, col_aoc in enumerate((A_UP, A_DOWN)):
+                coeff = SMatrix[row_index, col_index]
+                if coeff != 0.0:
+                    terms.append(ParticleTerm([row_aoc, col_aoc], coeff=coeff))
         return terms
 
     @staticmethod
@@ -1019,7 +1056,7 @@ class SpinOperator(SiteID):
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
 
         Returns
         -------
@@ -1049,7 +1086,7 @@ class SpinInteraction:
             default: 1.0
         """
 
-        assert isinstance(coeff, NUMERIC_TYPES)
+        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
 
         # Sorting the spin operators in ascending order according to their
         # SiteID. The relative position of two operators with the same SiteID
@@ -1070,7 +1107,7 @@ class SpinInteraction:
 
     @coeff.setter
     def coeff(self, value):
-        assert isinstance(value, NUMERIC_TYPES)
+        assert isinstance(value, NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = value
 
     def __str__(self):
@@ -1078,16 +1115,18 @@ class SpinInteraction:
         Return a string that describes the content of the instance
         """
 
-        info = "The coefficient of this term: {0}\n".format(self._coeff)
-        info += "The component spin operators:\n"
+        info = [
+            "The coefficient of this term: {0}".format(self._coeff),
+            "The component spin operators:",
+        ]
         for operator in self._operators:
-            info += "    {0}\n".format(operator)
-        return info
+            info.append("    {0}".format(operator))
+        return "\n".join(info)
 
     def _tex(self, indices_table=None):
         # Convert the instance to TeX string
-        # `indices_table` is a table that associate instance of SiteID with an
-        # integer index
+        # `indices_table` is a table that associate instances of SiteID with
+        # integer indices
 
         if indices_table is None:
             tex = "coeff = {0:.4f}\n".format(self._coeff)
@@ -1106,7 +1145,7 @@ class SpinInteraction:
         Parameters
         ----------
         indices_table : IndexTable, optional
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
             If not given or None, the `site` is show as it is
             default : None
         """
@@ -1211,7 +1250,7 @@ class SpinInteraction:
         """
 
         assert isinstance(total_spin, int) and total_spin > 0
-        assert isinstance(coeff, NUMERIC_TYPES)
+        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
 
         operators = sorted(operators, key=lambda item: item[0])
         if len(operators) == 2 and operators[0][0] != operators[1][0]:
@@ -1252,7 +1291,7 @@ class SpinInteraction:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
         coeff : int, float or complex, optional
             A new coefficient for this spin interaction term
             If not given or None, use the original coefficient.
@@ -1295,7 +1334,7 @@ class ParticleTerm:
             default: 1.0
         """
 
-        assert isinstance(coeff, NUMERIC_TYPES)
+        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
 
         self._aocs = tuple(aocs)
         self._coeff = coeff
@@ -1310,7 +1349,7 @@ class ParticleTerm:
 
     @coeff.setter
     def coeff(self, coeff):
-        assert isinstance(coeff, NUMERIC_TYPES)
+        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = coeff
 
     def __str__(self):
@@ -1318,16 +1357,18 @@ class ParticleTerm:
         Return a string that describes the content of this instance
         """
 
-        info = "The coefficient of this term: {0}\n".format(self._coeff)
-        info += "The component operators:\n"
+        info = [
+            "The coefficient of this term: {0}".format(self._coeff),
+            "The component operators:",
+        ]
         for aoc in self._aocs:
-            info += "    {0}\n".format(aoc)
-        return info
+            info.append("    {0}".format(aoc))
+        return "\n".join(info)
 
     def _tex(self, indices_table=None):
         # Convert the instance to TeX string
-        # `indices_table` is a table that associate instance of SiteID with an
-        # integer index
+        # `indices_table` is a table that associate instances of SiteID with
+        # integer indices
 
         if indices_table is None:
             tex = "coeff = {0:.4f}\n".format(self._coeff)
@@ -1344,7 +1385,7 @@ class ParticleTerm:
         Parameters
         ----------
         indices_table : IndexTable, optional
-            A table that associate instance of SiteID with an integer index
+            A table that associate instances of SiteID with integer indices
             If not given or None, the `site` is show as it is
             default : None
         """
@@ -1459,52 +1500,52 @@ class ParticleTerm:
         return ParticleTerm(aocs=aocs, coeff=self._coeff.conjugate())
 
     def matrix_repr(
-            self, indices_table, right_bases, *, left_bases=None,
-            which_core="c", coeff=None
+            self, state_indices_table, right_bases, *,
+            left_bases=None, coeff=None, to_csr=True, threads_num=1
     ):
         """
         Return the matrix representation of this term
 
         Parameters
         ----------
-        indices_table : IndexTable
-            A table that associate instance of StateID with an integer index
-        right_bases : tuple
+        state_indices_table : IndexTable
+            A table that associate instances of StateID with integer indices
+        right_bases : 1D np.ndarray
             The bases of the Hilbert space before the operation
-        left_bases : tuple, keyword-only, optional
+        left_bases : 1D np.ndarray, keyword-only, optional
             The bases of the Hilbert space after the operation
             It not given or None, left_bases is the same as right_bases.
             default: None
-        which_core : str, keyword-only, optional
-            There are two implementations for calculating the matrix
-            representation, one in C programming language and one in Python
-            programming language. "c" and "py" corresponding to the C and
-            Python implementation respectively.
-            default: "c"
         coeff : int, float or complex, keyword-only, optional
             A new coefficient for this term
             If not given or None, use the original coefficient.
             default: None
+        to_csr : boolean, keyword-only, optional
+            Whether to construct a csr_matrix as the result
+            default: True
+        threads_num : int, keyword-only, optional
+            The number of threads to use for calculating the matrix
+            representation
+            default: 1
 
         Returns
         -------
-        res : csr_matrix
+        res : csr_matrix or tuple
             The matrix representation of the operator in the Hilbert space
+            If `to_csr` is set to True, the result is a csr_matrix;
+            If set to False, the result is a tuple: (entries, (rows, cols)),
+            where `entries` is the non-zero matrix elements, `rows` and
+            `cols` are the row and column indices of the none-zero elements.
         """
 
         if coeff is not None:
             self.coeff = coeff
 
         operators = [
-            (aoc.getStateIndex(indices_table), aoc.otype) for aoc in self._aocs
+            (aoc.getStateIndex(state_indices_table), aoc.otype)
+            for aoc in self._aocs
         ]
-        if which_core == "c":
-            res = self._coeff * ext.matrix_function_c(
-                operators, right_bases, left_bases=left_bases, to_csr=True
-            )
-        else:
-            res = ext.matrix_function_py(
-                operators, right_bases,
-                left_bases=left_bases, coeff=self._coeff, to_csr=True
-            )
-        return res
+        return matrix_function(
+            operators, right_bases, left_bases=left_bases,
+            coeff=self._coeff, to_csr=to_csr, threads_num=threads_num
+        )
