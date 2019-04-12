@@ -756,7 +756,7 @@ class AoC:
             `cols` are the row and column indices of the none-zero elements.
         """
 
-        term = [(self.getStateIndex(state_indices_table), self._otype)],
+        term = [(self.getStateIndex(state_indices_table), self._otype)]
         return matrix_function(
             term, right_bases, left_bases=left_bases,
             to_csr=to_csr, threads_num=threads_num
