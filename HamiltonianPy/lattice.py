@@ -771,6 +771,68 @@ def lattice_generator(which, num0=1, num1=1, num2=1):
     return Lattice(points=points, vectors=vectors, name=name)
 
 
+def KPath(points, min_num=100, loop=True):
+    """
+    Generate k-points on the path specified by the given `points`
+
+    If `loop` is set to `False`, the k-path is generated as follow:
+        points[0] ->  ... -> points[i] -> ... -> points[N-1]
+    If `loop` is set to `True`, the k-path is generated as follow:
+        points[0] -> ... -> points[i] -> ... -> points[N-1] -> points[0]
+    The k-points between the given `points` are generated linearly
+
+    Parameters
+    ----------
+    points : sequence of 1D arrays
+        Special points on the k-path
+        It is assumed that the adjacent points should be different
+    min_num : int, optional
+        The number of k-point on the shortest k-path segment
+        The number of k-point on other k-path segments are scaled according
+        to their length
+        default: 100
+    loop : boolean, optional
+        Whether to generate a k-loop or not
+        default: True
+
+    Returns
+    -------
+    kpoints : 2D array with shape (N, 2) or (N, 3)
+        A collection of k-points on the path specified by the given `points`
+    indices : list
+        The indices of the given `points` in the returned `kpoints` array
+    """
+
+    assert isinstance(min_num, int) and min_num >= 1
+    assert len(points) > 1, "At least two points are required"
+    assert all(point.shape in [(2,), (3,)] for point in points)
+
+    point_num = len(points)
+    points = np.concatenate((points, points), axis=0)
+    end = (point_num + 1) if loop else point_num
+    dRs = points[1:end] - points[0:end-1]
+    lengths = np.linalg.norm(dRs, axis=-1)
+
+    min_length = np.min(lengths)
+    if min_length < 1e-4:
+        raise ValueError("Identical adjacent points")
+
+    sampling_nums = [
+        int(min_num * length / min_length) for length in lengths
+    ]
+    kpoints = [
+        np.linspace(0, 1, num=num, endpoint=False)[:, np.newaxis] * dR + start
+        for num, dR, start in zip(sampling_nums, dRs, points)
+    ]
+    kpoints.append(points[[end - 1]])
+    kpoints = np.concatenate(kpoints, axis=0)
+    indices = [0, *np.cumsum(sampling_nums)]
+    return kpoints, indices
+
+
+# TODO: Add high symmetry points information for common lattice
+
+
 if __name__ == "__main__":
     for cell in ["chain", "square", "triangle", "honeycomb", "kagome"]:
         lattice = lattice_generator(cell)
@@ -787,3 +849,23 @@ if __name__ == "__main__":
     lattice_generator("honeycomb", num0=6, num1=6).show()
     lattice_generator("triangle", num0=6, num1=6).show()
     lattice_generator("kagome", num0=6, num1=6).show()
+
+    As = np.array([[1.0, 0.0], [0.0, 1.0]])
+    Gamma = np.array([0.0, 0.0])
+    X = np.array([np.pi, 0.0])
+    M = np.array([np.pi, np.pi])
+    kpoints, indices = KPath([Gamma, X, M], loop=True)
+    labels = [r"$\Gamma$", r"$X$", r"$M$", r"$\Gamma$"]
+
+    Es = -2 * np.sum(np.cos(np.dot(kpoints, As.T)), axis=-1)
+    fig, (ax0, ax1) = plt.subplots(1, 2)
+    ax0.plot(kpoints[:, 0], kpoints[:, 1])
+    ax0.set_axis_off()
+    ax0.set_aspect("equal")
+
+    ax1.plot(Es)
+    ax1.set_xlim(0, len(Es)-1)
+    ax1.set_xticks(indices)
+    ax1.set_xticklabels(labels)
+    ax1.grid(axis="x", ls="dashed")
+    plt.show()
