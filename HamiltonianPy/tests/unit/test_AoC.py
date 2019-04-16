@@ -72,19 +72,19 @@ def test_multiply():
 
     res = creator * annihilator
     assert res.coeff == 1.0
-    assert res._aocs == (creator, annihilator)
+    assert res.components == (creator, annihilator)
 
     res = creator * 0.5
     assert res.coeff == 0.5
-    assert res._aocs == (creator, )
+    assert res.components == (creator, )
 
     res = annihilator * creator
     assert res.coeff == 1.0
-    assert res._aocs == (annihilator, creator)
+    assert res.components == (annihilator, creator)
 
     res = 0.5 * creator
     assert res.coeff == 0.5
-    assert res._aocs == (creator, )
+    assert res.components == (creator, )
 
 
 def test_dagger():

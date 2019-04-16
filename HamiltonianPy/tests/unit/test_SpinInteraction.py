@@ -37,27 +37,27 @@ def test_multiply():
 
     res = term0 * term1
     assert res.coeff == -2
-    assert res._operators == (sx, sy, sy, sz)
+    assert res.components == (sx, sy, sy, sz)
 
     res = term1 * term0
     assert res.coeff == -2
-    assert res._operators == (sx, sy, sy, sz)
+    assert res.components == (sx, sy, sy, sz)
 
     res = term0 * sz
     assert res.coeff == 2
-    assert res._operators == (sx, sy, sz)
+    assert res.components == (sx, sy, sz)
 
     res = term0 * 0.5
     assert res.coeff == 1
-    assert res._operators == (sx, sy)
+    assert res.components == (sx, sy)
 
     res = sz * term0
     assert res.coeff == 2
-    assert res._operators == (sx, sy, sz)
+    assert res.components == (sx, sy, sz)
 
     res = 0.5 * term0
     assert res.coeff == 1
-    assert res._operators == (sx, sy)
+    assert res.components == (sx, sy)
 
 
 def test_dagger():
@@ -69,7 +69,7 @@ def test_dagger():
         term = SpinInteraction([s0, s1], coeff=1j)
         term_dagger = term.dagger()
         assert term_dagger.coeff == -1j
-        assert term_dagger._operators == (s0, s1)
+        assert term_dagger.components == (s0, s1)
     sp0 = SpinOperator("p", site=sites[0])
     sp1 = SpinOperator("p", site=sites[1])
     sm0 = SpinOperator("m", site=sites[0])
@@ -77,7 +77,7 @@ def test_dagger():
     term = SpinInteraction((sp0, sm1), coeff=1j)
     term_dagger = term.dagger()
     assert term_dagger.coeff == -1j
-    assert term_dagger._operators == (sm0, sp1)
+    assert term_dagger.components == (sm0, sp1)
 
     sx = SpinOperator("x", site=sites[0])
     sp = SpinOperator("p", site=sites[0])
@@ -85,7 +85,7 @@ def test_dagger():
     term = SpinInteraction((sx, sp, sm), coeff=1j)
     term_dagger = term.dagger()
     assert term_dagger.coeff == -1j
-    assert term_dagger._operators == (sp, sm, sx)
+    assert term_dagger.components == (sp, sm, sx)
 
 
 def test_Schwinger():
@@ -115,31 +115,53 @@ def test_Schwinger():
     sz0_times_sz1_schwinger = sz0_times_sz1.Schwinger()
 
     assert sx0_times_sx1_schwinger[0].coeff == 0.25
-    assert sx0_times_sx1_schwinger[0]._aocs == (C0_UP, A0_DOWN, C1_UP, A1_DOWN)
+    assert sx0_times_sx1_schwinger[0].components == (
+        C0_UP, A0_DOWN, C1_UP, A1_DOWN
+    )
     assert sx0_times_sx1_schwinger[1].coeff == 0.25
-    assert sx0_times_sx1_schwinger[1]._aocs == (C0_UP, A0_DOWN, C1_DOWN, A1_UP)
+    assert sx0_times_sx1_schwinger[1].components == (
+        C0_UP, A0_DOWN, C1_DOWN, A1_UP
+    )
     assert sx0_times_sx1_schwinger[2].coeff == 0.25
-    assert sx0_times_sx1_schwinger[2]._aocs == (C0_DOWN, A0_UP, C1_UP, A1_DOWN)
+    assert sx0_times_sx1_schwinger[2].components == (
+        C0_DOWN, A0_UP, C1_UP, A1_DOWN
+    )
     assert sx0_times_sx1_schwinger[3].coeff == 0.25
-    assert sx0_times_sx1_schwinger[3]._aocs == (C0_DOWN, A0_UP, C1_DOWN, A1_UP)
+    assert sx0_times_sx1_schwinger[3].components == (
+        C0_DOWN, A0_UP, C1_DOWN, A1_UP
+    )
 
     assert sy0_times_sy1_schwinger[0].coeff == -0.25
-    assert sy0_times_sy1_schwinger[0]._aocs == (C0_UP, A0_DOWN, C1_UP, A1_DOWN)
+    assert sy0_times_sy1_schwinger[0].components == (
+        C0_UP, A0_DOWN, C1_UP, A1_DOWN
+    )
     assert sy0_times_sy1_schwinger[1].coeff == 0.25
-    assert sy0_times_sy1_schwinger[1]._aocs == (C0_UP, A0_DOWN, C1_DOWN, A1_UP)
+    assert sy0_times_sy1_schwinger[1].components == (
+        C0_UP, A0_DOWN, C1_DOWN, A1_UP
+    )
     assert sy0_times_sy1_schwinger[2].coeff == 0.25
-    assert sy0_times_sy1_schwinger[2]._aocs == (C0_DOWN, A0_UP, C1_UP, A1_DOWN)
+    assert sy0_times_sy1_schwinger[2].components == (
+        C0_DOWN, A0_UP, C1_UP, A1_DOWN
+    )
     assert sy0_times_sy1_schwinger[3].coeff == -0.25
-    assert sy0_times_sy1_schwinger[3]._aocs == (C0_DOWN, A0_UP, C1_DOWN, A1_UP)
+    assert sy0_times_sy1_schwinger[3].components == (
+        C0_DOWN, A0_UP, C1_DOWN, A1_UP
+    )
 
     assert sz0_times_sz1_schwinger[0].coeff == 0.25
-    assert sz0_times_sz1_schwinger[0]._aocs == (C0_UP, A0_UP, C1_UP, A1_UP)
+    assert sz0_times_sz1_schwinger[0].components == (
+        C0_UP, A0_UP, C1_UP, A1_UP
+    )
     assert sz0_times_sz1_schwinger[1].coeff == -0.25
-    assert sz0_times_sz1_schwinger[1]._aocs == (C0_UP, A0_UP, C1_DOWN, A1_DOWN)
+    assert sz0_times_sz1_schwinger[1].components == (
+        C0_UP, A0_UP, C1_DOWN, A1_DOWN
+    )
     assert sz0_times_sz1_schwinger[2].coeff == -0.25
-    assert sz0_times_sz1_schwinger[2]._aocs == (C0_DOWN, A0_DOWN, C1_UP, A1_UP)
+    assert sz0_times_sz1_schwinger[2].components == (
+        C0_DOWN, A0_DOWN, C1_UP, A1_UP
+    )
     assert sz0_times_sz1_schwinger[3].coeff == 0.25
-    assert sz0_times_sz1_schwinger[3]._aocs == (
+    assert sz0_times_sz1_schwinger[3].components == (
         C0_DOWN, A0_DOWN, C1_DOWN, A1_DOWN
     )
 

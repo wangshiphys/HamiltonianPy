@@ -37,27 +37,27 @@ def test_multiply():
     term1 = ParticleTerm([C_DOWN, A_DOWN], coeff=0.5)
     res = term0 * term1
     assert res.coeff == 0.75
-    assert res._aocs == (C_UP, A_UP, C_DOWN, A_DOWN)
+    assert res.components == (C_UP, A_UP, C_DOWN, A_DOWN)
 
     res = term1 * term0
     assert res.coeff == 0.75
-    assert res._aocs == (C_DOWN, A_DOWN, C_UP, A_UP)
+    assert res.components == (C_DOWN, A_DOWN, C_UP, A_UP)
 
     res = term0 * C_DOWN * A_DOWN
     assert res.coeff == 1.5
-    assert res._aocs == (C_UP, A_UP, C_DOWN, A_DOWN)
+    assert res.components == (C_UP, A_UP, C_DOWN, A_DOWN)
 
     res = term0 * 2j
     assert res.coeff == 3.0j
-    assert res._aocs == (C_UP, A_UP)
+    assert res.components == (C_UP, A_UP)
 
     res = C_UP * term1 * A_UP
     assert res.coeff == 0.5
-    assert res._aocs == (C_UP, C_DOWN, A_DOWN, A_UP)
+    assert res.components == (C_UP, C_DOWN, A_DOWN, A_UP)
 
     res = 0.2j * term1
     assert res.coeff == 0.1j
-    assert res._aocs == (C_DOWN, A_DOWN)
+    assert res.components == (C_DOWN, A_DOWN)
 
 
 def test_normalize():
@@ -83,22 +83,22 @@ def test_dagger():
     term = ParticleTerm([C0, A1], coeff=1j)
     term_dagger = term.dagger()
     assert term_dagger.coeff == -1j
-    assert term_dagger._aocs == (C1, A0)
+    assert term_dagger.components == (C1, A0)
 
     term = ParticleTerm([C0, A0])
     term_dagger = term.dagger()
     assert term_dagger.coeff == 1.0
-    assert term_dagger._aocs == (C0, A0)
+    assert term_dagger.components == (C0, A0)
 
     term = ParticleTerm([C0, C1], coeff=1j)
     term_dagger = term.dagger()
     assert term_dagger.coeff == -1j
-    assert term_dagger._aocs == (A1, A0)
+    assert term_dagger.components == (A1, A0)
 
     term = ParticleTerm([C0, C1, A1, A0])
     term_dagger = term.dagger()
     assert term_dagger.coeff == 1.0
-    assert term_dagger._aocs == (C0, C1, A1, A0)
+    assert term_dagger.components == (C0, C1, A1, A0)
 
 
 def test_matrix_repr():

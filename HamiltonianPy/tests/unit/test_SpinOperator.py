@@ -30,19 +30,19 @@ def test_multiply():
 
     res = operator0 * operator1
     assert res.coeff == 1.0
-    assert res._operators == (operator1, operator0)
+    assert res.components == (operator1, operator0)
 
     res = operator0 * 0.5
     assert res.coeff == 0.5
-    assert res._operators == (operator0, )
+    assert res.components == (operator0, )
 
     res = operator1 * operator0
     assert res.coeff == 1.0
-    assert res._operators == (operator1, operator0)
+    assert res.components == (operator1, operator0)
 
     res = 0.5 * operator1
     assert res.coeff == 0.5
-    assert res._operators == (operator1, )
+    assert res.components == (operator1, )
 
 
 def test_matrix():
@@ -111,32 +111,32 @@ def test_Schwinger():
     assert len(terms) == 2
     assert terms[0].coeff == 0.5
     assert terms[1].coeff == 0.5
-    assert terms[0]._aocs == (C_UP, A_DOWN)
-    assert terms[1]._aocs == (C_DOWN, A_UP)
+    assert terms[0].components == (C_UP, A_DOWN)
+    assert terms[1].components == (C_DOWN, A_UP)
 
     terms = sy.Schwinger()
     assert len(terms) == 2
     assert terms[0].coeff == -0.5j
     assert terms[1].coeff == 0.5j
-    assert terms[0]._aocs == (C_UP, A_DOWN)
-    assert terms[1]._aocs == (C_DOWN, A_UP)
+    assert terms[0].components == (C_UP, A_DOWN)
+    assert terms[1].components == (C_DOWN, A_UP)
 
     terms = sz.Schwinger()
     assert len(terms) == 2
     assert terms[0].coeff == 0.5
     assert terms[1].coeff == -0.5
-    assert terms[0]._aocs == (C_UP, A_UP)
-    assert terms[1]._aocs == (C_DOWN, A_DOWN)
+    assert terms[0].components == (C_UP, A_UP)
+    assert terms[1].components == (C_DOWN, A_DOWN)
 
     terms = sp.Schwinger()
     assert len(terms) == 1
     assert terms[0].coeff == 1
-    assert terms[0]._aocs == (C_UP, A_DOWN)
+    assert terms[0].components == (C_UP, A_DOWN)
 
     terms = sm.Schwinger()
     assert len(terms) == 1
     assert terms[0].coeff == 1
-    assert terms[0]._aocs == (C_DOWN, A_UP)
+    assert terms[0].components == (C_DOWN, A_UP)
 
 
 def test_matrix_repr():
