@@ -1110,6 +1110,14 @@ class SpinInteraction:
         assert isinstance(value, NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = value
 
+    @property
+    def components(self):
+        """
+        The component spin operators of this term
+        """
+
+        return self._operators
+
     def __str__(self):
         """
         Return a string that describes the content of the instance
@@ -1351,6 +1359,14 @@ class ParticleTerm:
     def coeff(self, coeff):
         assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = coeff
+
+    @property
+    def components(self):
+        """
+        The component creation and/or annihilation operators of this term
+        """
+
+        return self._aocs
 
     def __str__(self):
         """
