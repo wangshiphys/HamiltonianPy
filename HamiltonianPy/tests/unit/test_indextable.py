@@ -11,18 +11,20 @@ from HamiltonianPy.indextable import IndexTable
 
 
 def test_IndexTable():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="has different type"):
         IndexTable([(1, 2), "34"])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="already exists"):
         IndexTable([(1, 2), (3, 4), (1, 2)])
 
     num0 = 7
     num1 = 3
-    objects = ((x, y) for x in range(num0) for y in range(num1))
-    table = IndexTable(objects)
+    table = IndexTable((x, y) for x in range(num0) for y in range(num1))
 
-    assert table.object_type == tuple
     assert len(table) == num0 * num1
+    assert table.object_type == tuple
+    assert list(table.indices()) == list(range(num0 * num1))
+    for judge, item in enumerate(table.objects()):
+        assert judge == table(item)
 
     for i in range(5):
         key0 = (randrange(num0), randrange(num1))
