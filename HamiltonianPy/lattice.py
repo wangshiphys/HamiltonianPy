@@ -771,15 +771,15 @@ def lattice_generator(which, num0=1, num1=1, num2=1):
     return Lattice(points=points, vectors=vectors, name=name)
 
 
-def KPath(points, min_num=100, loop=True):
+def KPath(points, min_num=100, loop=True, return_indices=True):
     """
-    Generate k-points on the path specified by the given `points`
+    Generate k-points on the path specified by the given anchor `points`
 
     If `loop` is set to `False`, the k-path is generated as follow:
         points[0] ->  ... -> points[i] -> ... -> points[N-1]
     If `loop` is set to `True`, the k-path is generated as follow:
         points[0] -> ... -> points[i] -> ... -> points[N-1] -> points[0]
-    The k-points between the given `points` are generated linearly
+    The k-points between the given anchor `points` are generated linearly
 
     Parameters
     ----------
@@ -794,13 +794,18 @@ def KPath(points, min_num=100, loop=True):
     loop : boolean, optional
         Whether to generate a k-loop or not
         default: True
+    return_indices : boolean, optional
+        Whether to return the indices of the given anchor `points` in the
+        returned `kpoints` array
+        default: True
 
     Returns
     -------
     kpoints : 2D array with shape (N, 2) or (N, 3)
         A collection of k-points on the path specified by the given `points`
     indices : list
-        The indices of the given `points` in the returned `kpoints` array
+        The indices of the given anchor `points` in the returned `kpoints`
+        array. If `return_indices` set to False, this value is not returned.
     """
 
     assert isinstance(min_num, int) and min_num >= 1
@@ -817,17 +822,17 @@ def KPath(points, min_num=100, loop=True):
     if min_length < 1e-4:
         raise ValueError("Identical adjacent points")
 
-    sampling_nums = [
-        int(min_num * length / min_length) for length in lengths
-    ]
+    sampling_nums = [int(min_num * length / min_length) for length in lengths]
     kpoints = [
         np.linspace(0, 1, num=num, endpoint=False)[:, np.newaxis] * dR + start
         for num, dR, start in zip(sampling_nums, dRs, points)
     ]
     kpoints.append(points[[end - 1]])
     kpoints = np.concatenate(kpoints, axis=0)
-    indices = [0, *np.cumsum(sampling_nums)]
-    return kpoints, indices
+    if return_indices:
+        return kpoints, [0, *np.cumsum(sampling_nums)]
+    else:
+        return kpoints
 
 
 # TODO: Add high symmetry points information for common lattice
