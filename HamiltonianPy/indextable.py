@@ -60,12 +60,13 @@ class IndexTable:
             else:
                 if not isinstance(item, object_type):
                     raise TypeError(
-                        "All the input objects should be of the same type!"
+                        "The {0}th object has different type from the "
+                        "previous ones".format(index - start)
                     )
 
             if item in object2index:
                 raise ValueError(
-                    "There are duplicate items in the given `objects`"
+                    "The {0}th object already exists".format(index - start)
                 )
             else:
                 object2index[item] = index
@@ -89,9 +90,8 @@ class IndexTable:
         Return a string that describe the content the object
         """
 
-        fmt = "Index: {0}\tKey: {1!r}"
-        info = "\n".join(
-            fmt.format(i, k) for i, k in self._index2object.items()
+        info = "Index\tObject\n==============\n" + "\n".join(
+            "{0}\t{1!r}".format(i, k) for i, k in self._index2object.items()
         )
         return info
 
