@@ -1077,7 +1077,44 @@ def KPath(points, min_num=100, loop=True, return_indices=True):
         return kpoints
 
 
-# TODO: Add high symmetry points information for common lattice
+def ShowFirstBZ(As, scale=1):
+    """
+    Draw the first Brillouin Zone(1st-BZ) corresponding to the given
+    real-space translation vectors `As`
+
+    This function only works for 2D lattice
+
+    Parameters
+    ----------
+    As : array with shape (2, 2)
+        The real-space translation vectors
+    scale : int or float, optional
+        Determine the length of the perpendicular bisector
+        default: 1
+    """
+
+    assert isinstance(As, np.ndarray) and As.shape == (2, 2)
+
+    Bs = 2 * np.pi * np.linalg.inv(As.T)
+
+    color0 = "tab:blue"
+    color1 = "tab:orange"
+    fig, ax = plt.subplots()
+    for x in range(-1, 2):
+        for y in range(-1, 2):
+            coeff = (x, y)
+            dR = np.dot(coeff, Bs)
+            ax.plot(dR[0], dR[1], marker="o", color=color0)
+            ax.text(dR[0], dR[1], str(coeff), size="xx-large", color=color0)
+            if coeff != (0, 0):
+                center = dR / 2
+                orthogonal_vector = np.array([-dR[1], dR[0]])
+                p0 = center + scale * orthogonal_vector
+                p1 = center - scale * orthogonal_vector
+                ax.plot((p0[0], p1[0]), (p0[1], p1[1]), color=color1)
+    ax.set_aspect("equal")
+    ax.set_axis_off()
+    plt.show()
 
 
 if __name__ == "__main__":
