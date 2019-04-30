@@ -2156,3 +2156,34 @@ def HeisenbergFactory(site0, site1, *, coeff=1.0):
         SpinInteraction((SM0, SP1), coeff=coeff/2),
     )
     return terms
+
+
+def IsingFactory(site0, site1, alpha, *, coeff=1.0):
+    """
+    Generate Ising type spin interaction term:
+        `coeff * S_i^{alpha} S_j^{alpha}`
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the lattice site on which the spin operator is
+        defined. `site0` and `site1` should be 1D array with length 1,
+        2 or 3. `site0` for the first spin operator and `site1` for the
+        second spin operator.
+    alpha : str
+        Which type of spin operator is involved
+        Valid values: "x", "y" and "z"
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    term: SpinInteraction
+        The corresponding spin interaction term
+    """
+
+    assert alpha in ("x", "y", "z")
+
+    S0_Alpha = SpinOperator(otype=alpha, site=site0)
+    S1_Alpha = SpinOperator(otype=alpha, site=site1)
+    return SpinInteraction((S0_Alpha, S1_Alpha), coeff=coeff)
