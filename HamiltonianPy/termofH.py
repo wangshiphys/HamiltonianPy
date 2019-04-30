@@ -1965,3 +1965,46 @@ def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
     C = AoC(CREATION, site=site, spin=spin, orbit=orbit)
     A = AoC(ANNIHILATION, site=site, spin=spin, orbit=orbit)
     return ParticleTerm((C, A), coeff=coeff)
+
+
+def HoppingFactory(
+        site0, site1, *, spin0=0, spin1=None, orbit0=0, orbit1=None, coeff=1.0
+):
+    """
+    Generate hopping term: `coeff * c_i^{\dagger} c_j`
+
+    These parameters ended with "0" are for the creation operator and "1" for
+    annihilation operator.
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the localized single-particle state
+        `site0` and `site1` should be 1D array with length 1, 2 or 3.
+    spin0, spin1 : int, keyword-only, optional
+        The spin index of the single-particle state
+        The default value for `spin0` is 0;
+        The default value for `spin1` is None, which implies that `spin1`
+        takes the same value as `spin0`.
+    orbit0, orbit1 : int, keyword-only, optional
+        The orbit index of the single-particle state
+        The default value for `orbit0` is 0;
+        The default value for `orbit1` is None, which implies that `orbit1`
+        takes the same value as `orbit0`.
+    coeff : int, float or complex, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    res : ParticleTerm
+        The corresponding hopping term
+    """
+
+    if spin1 is None:
+        spin1 = spin0
+    if orbit1 is None:
+        orbit1 = orbit0
+
+    C = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
+    A = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
+    return ParticleTerm((C, A), coeff=coeff)
