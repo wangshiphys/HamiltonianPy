@@ -1936,3 +1936,32 @@ class ParticleTerm:
             operators, right_bases, left_bases=left_bases,
             coeff=self._coeff, to_csr=to_csr, threads_num=threads_num
         )
+
+
+def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
+    """
+    Generate chemical potential term: `coeff * c_i^{\dagger} c_i`
+
+    Parameters
+    ----------
+    site : 1D np.ndarray
+        The coordinate of the localized single-particle state
+        The `site` parameter should be 1D array with length 1,2 or 3.
+    spin : int, keyword-only, optional
+        The spin index of the single-particle state
+        default: 0
+    orbit : int, keyword-only, optional
+        The orbit index of the single-particle state
+        default: 0
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    res : ParticleTerm
+        The corresponding chemical potential term
+    """
+
+    C = AoC(CREATION, site=site, spin=spin, orbit=orbit)
+    A = AoC(ANNIHILATION, site=site, spin=spin, orbit=orbit)
+    return ParticleTerm((C, A), coeff=coeff)
