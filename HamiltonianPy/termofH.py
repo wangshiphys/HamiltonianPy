@@ -2119,3 +2119,40 @@ def CoulombFactory(
     C1 = AoC(CREATION, site=site1, spin=spin1, orbit=orbit1)
     A1 = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
     return ParticleTerm((C0, A0, C1, A1), coeff=coeff)
+
+
+def HeisenbergFactory(site0, site1, *, coeff=1.0):
+    """
+    Generate Heisenberg interaction term: `coeff * S_i * S_j`
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the lattice site on which the spin operator is
+        defined. `site0` and `site1` should be 1D array with length 1,
+        2 or 3. `site0` for the first spin operator and `site1` for the
+        second spin operator.
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    terms : 3-tuple
+        terms[0] is the `coeff * S_i^z * S_j^z` term;
+        terms[1] is the `0.5 * coeff * S_i^+ * S_j^-` term;
+        terms[2] is the `0.5 * coeff * S_i^- * S_j^+` term.
+    """
+
+    SZ0 = SpinOperator(otype="z", site=site0)
+    SP0 = SpinOperator(otype="p", site=site0)
+    SM0 = SpinOperator(otype="m", site=site0)
+    SZ1 = SpinOperator(otype="z", site=site1)
+    SP1 = SpinOperator(otype="p", site=site1)
+    SM1 = SpinOperator(otype="m", site=site1)
+
+    terms= (
+        SpinInteraction((SZ0, SZ1), coeff=coeff),
+        SpinInteraction((SP0, SM1), coeff=coeff/2),
+        SpinInteraction((SM0, SP1), coeff=coeff/2),
+    )
+    return terms
