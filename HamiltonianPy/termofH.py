@@ -2008,3 +2008,48 @@ def HoppingFactory(
     C = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
     A = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
     return ParticleTerm((C, A), coeff=coeff)
+
+
+def PairingFactory(
+        site0, site1, *, spin0=0, spin1=0, orbit0=0, orbit1=0,
+        coeff=1.0, which="h"
+):
+    """
+    Generate pairing term:
+        `coeff * c_i^{\dagger} c_j^{\dagger}` or `coeff * c_i c_j`
+
+    These parameters ended with "0" are for the first operator and "1" for
+    second operator.
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the localized single-particle state
+        `site0` and `site1` should be 1D array with length 1, 2 or 3.
+    spin0, spin1 : int, keyword-only, optional
+        The spin index of the single-particle state
+        default: 0
+    orbit0, orbit1 : int, keyword-only, optional
+        The orbit index of the single-particle state
+        default: 0
+    coeff : int, float or complex, keyword-only, optional
+        The coefficient of this term
+    which : str, keyword-only, optional
+        Determine whether to generate a particle- or hole-pairing term
+        Valid values:
+            ["h" | "hole"] for hole-pairing
+            ["p" | "particle"] for particle-pairing
+        default: "h"
+
+    Returns
+    -------
+    res : ParticleTerm
+        The corresponding pairing term
+    """
+
+    assert which in ("h", "hole", "p", "particle")
+
+    otype = ANNIHILATION if which in ("h", "hole") else CREATION
+    aoc0 = AoC(otype, site=site0, spin=spin0, orbit=orbit0)
+    aoc1 = AoC(otype, site=site1, spin=spin1, orbit=orbit1)
+    return ParticleTerm((aoc0, aoc1), coeff=coeff)
