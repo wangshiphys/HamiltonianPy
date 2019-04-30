@@ -2083,3 +2083,39 @@ def HubbardFactory(site, *, orbit=0, coeff=1.0):
     A_UP = AoC(ANNIHILATION, site=site, spin=SPIN_UP, orbit=orbit)
     A_DOWN = AoC(ANNIHILATION, site=site, spin=SPIN_DOWN, orbit=orbit)
     return ParticleTerm((C_UP, A_UP, C_DOWN, A_DOWN), coeff=coeff)
+
+
+def CoulombFactory(
+        site0, site1, *, spin0=0, spin1=0, orbit0=0, orbit1=0, coeff=1.0
+):
+    """
+    Generate Coulomb interaction term: `coeff * n_i n_j`
+
+    These parameters ended with "0" are for the first operator and "1" for
+    second operator.
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the localized single-particle state
+        `site0` and `site1` should be 1D array with length 1, 2 or 3.
+    spin0, spin1 : int, keyword-only, optional
+        The spin index of the single-particle state
+        default: 0
+    orbit0, orbit1 : int, keyword-only, optional
+        The orbit index of the single-particle state
+        default: 0
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    res : ParticleTerm
+        The corresponding Coulomb interaction term
+    """
+
+    C0 = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
+    A0 = AoC(ANNIHILATION, site=site0, spin=spin0, orbit=orbit0)
+    C1 = AoC(CREATION, site=site1, spin=spin1, orbit=orbit1)
+    A1 = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
+    return ParticleTerm((C0, A0, C1, A1), coeff=coeff)
