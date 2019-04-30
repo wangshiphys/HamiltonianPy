@@ -2187,3 +2187,37 @@ def IsingFactory(site0, site1, alpha, *, coeff=1.0):
     S0_Alpha = SpinOperator(otype=alpha, site=site0)
     S1_Alpha = SpinOperator(otype=alpha, site=site1)
     return SpinInteraction((S0_Alpha, S1_Alpha), coeff=coeff)
+
+
+def TwoSpinTermFactory(site0, site1, alpha0, alpha1, *, coeff=1.0):
+    """
+    Generate general two spin interaction term:
+        `coeff * S_i^{alpha0} S_j^{alpha1}`
+
+    Parameters
+    ----------
+    site0, site1 : 1D np.ndarray
+        The coordinate of the lattice site on which the spin operator is
+        defined. `site0` and `site1` should be 1D array with length 1,
+        2 or 3. `site0` for the first spin operator and `site1` for the
+        second spin operator.
+    alpha0, alpha1 : str
+        Which type of spin operator is involved
+        Valid values: "x", "y" and "z"
+        `alpha0` for the first and `alpha1` for the second spin operator
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+        default: 1.0
+
+    Returns
+    -------
+    term: SpinInteraction
+        The corresponding spin interaction term
+    """
+
+    assert alpha0 in ("x", "y", "z")
+    assert alpha1 in ("x", "y", "z")
+
+    S0_Alpha = SpinOperator(otype=alpha0, site=site0)
+    S1_Alpha = SpinOperator(otype=alpha1, site=site1)
+    return SpinInteraction((S0_Alpha, S1_Alpha), coeff=coeff)
