@@ -7,6 +7,7 @@ __all__ = [
     "SiteID",
     "StateID",
     "AoC",
+    "NumberOperator",
     "SpinOperator",
     "SpinInteraction",
     "ParticleTerm",
@@ -760,6 +761,376 @@ class AoC:
         return matrix_function(
             term, right_bases, left_bases=left_bases,
             to_csr=to_csr, threads_num=threads_num
+        )
+
+
+class NumberOperator:
+    """
+    A unified description of the particle-number operator
+
+    Attributes
+    ----------
+    state : StateID
+        The single-particle state on which this operator is defined
+    site : 1D np.ndarray
+        The coordinate of the localized single-particle state
+    spin : int
+        The spin index of the single-particle state
+    orbit : int
+        The orbit index of the single-particle state
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from HamiltonianPy.termofH import NumberOperator
+    >>> NumberOperator(site=np.array([0, 0]), spin=0)
+    NumberOperator(site=array([0, 0]), spin=0, orbit=0)
+    """
+
+    def __init__(self, site, spin=0, orbit=0):
+        """
+        Customize the newly created instance
+
+        Parameters
+        ----------
+        site : 1D np.ndarray
+            The coordinate of the localized single-particle state
+            The `site` parameter should be 1D array with length 1, 2 or 3.
+        spin : int, optional
+            The spin index of the single-particle state
+            default: 0
+        orbit : int, optional
+            The orbit index of the single-particle state
+            default: 0
+        """
+
+        state = StateID(site=site, spin=spin, orbit=orbit)
+        self._state = state
+
+        # The tuple form of this instance
+        # It is a tuple: ("N", (site, spin, orbit)) and site itself is a
+        # tuple with length 1, 2 or 3.
+        self._tuple_form = ("N", state._tuple_form)
+
+    @property
+    def state(self):
+        """
+        The `state` attribute
+        """
+
+        return self._state
+
+    @property
+    def site(self):
+        """
+        The `site` attribute
+        """
+
+        return self._state.site
+
+    @property
+    def spin(self):
+        """
+        The `spin` attribute
+        """
+
+        return self._state.spin
+
+    @property
+    def orbit(self):
+        """
+        The `orbit` attribute
+        """
+
+        return self._state.orbit
+
+    def getIndex(self, indices_table):
+        """
+        Return the index of this operator
+
+        Parameters
+        ----------
+        indices_table : IndexTable
+            A table that associate instances of NumberOperator with integer
+            indices
+
+        Returns
+        -------
+        res : int
+            The index of this instance in the table
+
+        See also
+        --------
+        getStateIndex
+        """
+
+        return indices_table(self)
+
+    def getStateIndex(self, indices_table):
+        """
+        Return the index of the single-particle state on which this operator
+        is defined
+
+        Notes:
+            This method is different from the `getIndex` method.
+            This method return the index of the `state` attribute of the
+            operator and the `getIndex` method return the index of the
+            operator itself.
+
+        Parameters
+        ----------
+        indices_table : IndexTable
+            A table that associate instances of StateID with integer indices
+
+        Returns
+        -------
+        res : int
+            The index of the `state` attribute
+        """
+
+        return indices_table(self._state)
+
+    def __repr__(self):
+        """
+        The official string representation of the instance
+        """
+
+        info = "NumberOperator(site={0!r}, spin={1}, orbit={2})"
+        return info.format(self.site, self.spin, self.orbit)
+
+    __str__ = __repr__
+
+    def tolatex(self, site_index=None):
+        """
+        Return the LaTex form of this operator
+
+        Parameters
+        ----------
+        site_index : int, optional
+            The index of the `site` attribute.
+            If not given or None, the `site` attribute is shown as it is;
+            If given, the `site` attribute is replaced with the given
+            site_index.
+            default: None
+
+        Returns
+        -------
+        res : str
+            The LaTex form of this operator
+        """
+
+        if site_index is None:
+            site = "(" + ",".join("{:.4f}".format(i) for i in self.site) + ")"
+        else:
+            site = site_index
+        subscript = "{0},{1},{2}".format(site, self.spin, self.orbit)
+        str_latex = r"$n_{{{0}}}$".format(subscript)
+        return str_latex
+
+    def show(self, site_index=None):
+        """
+        Show the operator in handwriting form
+
+        Parameters
+        ----------
+        site_index : int, optional
+            The index of the `site` attribute.
+            If not given or None, the `site` attribute is shown as it is;
+            If given, the `site` attribute is replaced with the given
+            site_index.
+            default: None
+        """
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        str_latex = self.tolatex(site_index)
+        ax.text(
+            0.5, 0.5, str_latex, fontname="monospace", fontsize="xx-large",
+            ha="center", va="center", transform=ax.transAxes
+        )
+        plt.show()
+
+    def __hash__(self):
+        """
+        Return the hash code of the instance
+        """
+
+        return hash(self._tuple_form)
+
+    def __lt__(self, other):
+        """
+        Define the `<` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form < other._tuple_form
+        else:
+            return NotImplemented
+
+    def __gt__(self, other):
+        """
+        Define the `>` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form > other._tuple_form
+        else:
+            return NotImplemented
+
+    def __eq__(self, other):
+        """
+        Define the `==` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form == other._tuple_form
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        """
+        Define the `!=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form != other._tuple_form
+        else:
+            return NotImplemented
+
+    def __le__(self, other):
+        """
+        Define the `<=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form <= other._tuple_form
+        else:
+            return NotImplemented
+
+    def __ge__(self, other):
+        """
+        Define the `>=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form >= other._tuple_form
+        else:
+            return NotImplemented
+
+    def toterm(self):
+        """
+        Convert this operator to ParticleTerm instance
+
+        Returns
+        -------
+        term : ParticleTerm
+            The term corresponding to this operator
+        """
+
+        C = AoC(CREATION, site=self.site, spin=self.spin, orbit=self.orbit)
+        A = AoC(ANNIHILATION, site=self.site, spin=self.spin, orbit=self.orbit)
+        return ParticleTerm((C, A), coeff=1.0)
+
+    def __mul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
+
+        `self` is the left operand and `other` is the right operand
+        Return an instance of ParticleTerm
+        """
+
+        return self.toterm() * other
+
+    def __rmul__(self, other):
+        """
+        Implement the binary arithmetic operation: `*`
+
+        `self` is the right operand and `other` is the left operand
+        Return an instance of ParticleTerm
+        """
+
+        return other * self.toterm()
+
+    def dagger(self):
+        """
+        Return the Hermitian conjugate of this operator
+
+        Returns
+        -------
+        res : NumberOperator
+            The Hermitian conjugate of this operator
+        """
+
+        return self
+
+    def same_state(self, other):
+        """
+        Determine whether `self` and `other` is defined on the same
+        single-particle state
+        """
+
+        if isinstance(other, self.__class__):
+            return self._state == other._state
+        else:
+            raise TypeError(
+                "The `other` parameter is not instance of this class!"
+            )
+
+    def derive(self, *, site=None, spin=None, orbit=None):
+        """
+        Derive a new instance from `self` and the given parameters
+
+        This method creates a new instance with the same attribute as `self`
+        except for these given to this method.
+        All the parameters should be specified as keyword arguments.
+
+        Returns
+        -------
+        res : A new instance of NumberOperator
+        """
+
+        if site is None:
+            site = self.site
+        if spin is None:
+            spin = self.spin
+        if orbit is None:
+            orbit = self.orbit
+        return NumberOperator(site=site, spin=spin, orbit=orbit)
+
+    def matrix_repr(
+            self, state_indices_table, bases, *, to_csr=True,threads_num=1
+    ):
+        """
+        Return the matrix representation of this operator in the Hilbert space
+
+        Parameters
+        ----------
+        state_indices_table : IndexTable
+            A table that associate instances of StateID with integer indices
+        bases : 1D np.ndarray
+            The bases of the Hilbert space
+        to_csr : boolean, keyword-only, optional
+            Whether to construct a csr_matrix as the result
+            default: True
+        threads_num : int, keyword-only, optional
+            The number of threads to use for calculating the matrix
+            representation
+            default: 1
+
+        Returns
+        -------
+        res : csr_matrix or tuple
+            The matrix representation of the operator in the Hilbert space
+            If `to_csr` is set to True, the result is a csr_matrix;
+            If set to False, the result is a tuple: (entries, (rows, cols)),
+            where `entries` is the non-zero matrix elements, `rows` and
+            `cols` are the row and column indices of the none-zero elements.
+        """
+
+        index = self.getStateIndex(state_indices_table)
+        term = [(index, CREATION), (index, ANNIHILATION)]
+        return matrix_function(
+            term, bases, to_csr=to_csr, threads_num=threads_num
         )
 
 
