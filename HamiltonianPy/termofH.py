@@ -2053,3 +2053,33 @@ def PairingFactory(
     aoc0 = AoC(otype, site=site0, spin=spin0, orbit=orbit0)
     aoc1 = AoC(otype, site=site1, spin=spin1, orbit=orbit1)
     return ParticleTerm((aoc0, aoc1), coeff=coeff)
+
+
+def HubbardFactory(site, *, orbit=0, coeff=1.0):
+    """
+    Generate Hubbard term: `coeff * n_{i,up} n_{i,down}`
+
+    This function is valid only for spin-1/2 system.
+
+    Parameters
+    ----------
+    site : 1D np.ndarray
+        The coordinate of the localized single-particle state
+        `site` should be 1D array with length 1,2 or 3.
+    orbit : int, keyword-only, optional
+        The orbit index of the single-particle state
+        default: 0
+    coeff : int or float, keyword-only, optional
+        The coefficient of this term
+
+    Returns
+    -------
+    res : ParticleTerm
+        The corresponding Hubbard term
+    """
+
+    C_UP = AoC(CREATION, site=site, spin=SPIN_UP, orbit=orbit)
+    C_DOWN = AoC(CREATION, site=site, spin=SPIN_DOWN, orbit=orbit)
+    A_UP = AoC(ANNIHILATION, site=site, spin=SPIN_UP, orbit=orbit)
+    A_DOWN = AoC(ANNIHILATION, site=site, spin=SPIN_DOWN, orbit=orbit)
+    return ParticleTerm((C_UP, A_UP, C_DOWN, A_DOWN), coeff=coeff)
