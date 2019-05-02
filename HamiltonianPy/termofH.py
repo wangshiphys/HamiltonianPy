@@ -22,11 +22,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
+from HamiltonianPy.indextable import IndexTable
 from HamiltonianPy.matrixrepr import matrix_function
 
 
 # Useful global constants
-ZOOM = 10000
+PRECISION = 4
+ZOOM = 10 ** PRECISION
 SPIN_OTYPES = ("x", "y", "z", "p", "m")
 NUMERIC_TYPES = (int, float, complex, np.number)
 SPIN_MATRICES = {
@@ -59,7 +61,8 @@ def set_float_point_precision(precision):
 
     assert isinstance(precision, int) and precision >= 0
 
-    global  ZOOM
+    global  PRECISION, ZOOM
+    PRECISION = precision
     ZOOM = 10 ** precision
 
 
@@ -142,6 +145,40 @@ class SiteID:
         return "SiteID(site={!r})".format(self._site)
 
     __str__ = __repr__
+
+    def tolatex(self, site_index=None):
+        """
+        Return the LaTex form of this instance
+
+        Parameters
+        ----------
+        site_index : int or IndexTable, optional
+            Determine how to format this instance
+            If set to None, the instance is formatted using `np.array2string`
+            function;
+            If given as an integer, then `site_index` is the index of this
+            instance and the Latex form is the given integer;
+            If given as an IndexTable, then `site_index` is a table that
+            associate instances of SiteID with integer indices, the Latex
+            form is the index of this instance in the table.
+            default: None
+
+        Returns
+        -------
+        res : str
+            The Latex form of this instance
+        """
+
+        if isinstance(site_index, int):
+            latex_form = str(site_index)
+        elif isinstance(site_index, IndexTable):
+            latex_form = str(site_index(self))
+        else:
+            latex_form = np.array2string(
+                self._site, precision=PRECISION, separator=",",
+                suppress_small=True, floatmode="maxprec_equal"
+            ).replace("[", "(").replace("]", ")")
+        return latex_form
 
     def __hash__(self):
         """
