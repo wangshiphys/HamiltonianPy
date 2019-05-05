@@ -428,7 +428,9 @@ class AoC:
         respectively.
     state : StateID
         The single-particle state on which this operator is defined
-    site : ndarray
+    coordinate : tuple
+        The coordinate of the localized single-particle state
+    site : 1D np.ndarray
         The coordinate of the localized single-particle state
     spin : int
         The spin index of the single-particle state
@@ -437,29 +439,28 @@ class AoC:
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.termofH import AoC
-    >>> c = AoC(otype=1, site=np.array([0, 0]), spin=0)
-    >>> a = AoC(otype=0, site=np.array([0, 0]), spin=1)
+    >>> c = AoC(otype=1, site=[0, 0], spin=0)
+    >>> a = AoC(otype=0, site=[0, 0], spin=1)
     >>> c
-    AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
+    AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
     >>> a
-    AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+    AoC(otype=ANNIHILATION, site=(0, 0), spin=1, orbit=0)
     >>> c < a
     True
     >>> print(2 * c * a)
     The coefficient of this term: 2
     The component operators:
-        AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
-        AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=1, orbit=0)
     >>> print(0.5 * c)
     The coefficient of this term: 0.5
     The component operators:
-        AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
     >>> print(a * (1+2j))
     The coefficient of this term: (1+2j)
     The component operators:
-        AoC(otype=ANNIHILATION, site=array([0, 0]), spin=1, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=1, orbit=0)
     """
 
     def __init__(self, otype, site, spin=0, orbit=0):
@@ -471,8 +472,9 @@ class AoC:
         otype : int
             The type of this operator
             It can be either 0 or 1, corresponding to annihilation and
-            creation respectively.
-        site : 1D np.ndarray
+            creation respectively. It is recommended to use the constants
+            `CREATION` and `ANNIHILATION` defined in the `constant` module.
+        site : list, tuple or 1D np.ndarray
             The coordinate of the localized single-particle state
             The `site` parameter should be 1D array with length 1,2 or 3.
         spin : int, optional
@@ -510,6 +512,14 @@ class AoC:
         """
 
         return self._state
+
+    @property
+    def coordinate(self):
+        """
+        The `coordinate` attribute
+        """
+
+        return self._state.coordinate
 
     @property
     def site(self):
@@ -587,51 +597,52 @@ class AoC:
 
         otype = "CREATION" if self._otype == CREATION else "ANNIHILATION"
         info = "AoC(otype={0}, site={1!r}, spin={2}, orbit={3})"
-        return info.format(otype, self.site, self.spin, self.orbit)
+        return info.format(otype, self.coordinate, self.spin, self.orbit)
 
     __str__ = __repr__
 
-    def _tex(self, indices_table=None):
-        # Convert the instance to TeX string
-        # `indices_table` is a table that associate instances of SiteID with
-        # integer indices
+    def tolatex(self, **kwargs):
+        """
+        Return the LaTex form of this instance
 
-        if indices_table is None:
-            site = "(" + ", ".join("{:.4f}".format(i) for i in self.site) + ")"
-        else:
-            site = SiteID(site=self.site).getIndex(indices_table)
-        subscript = "{0},{1},{2}".format(site, self.spin, self.orbit)
+        Parameters
+        ----------
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `state` attribute.
+            See also: `StateID.tolatex`
 
-        # Format strings contain "replacement fields" surrounded by curly
-        # braces `{}`. Anything that is not contained in braces is considered
-        # literal text, which is copied unchanged to the output. If you need
-        # to include a brace character in the literal text, it can be
-        # escaped by doubling: `{{` and `}}`
+        Returns
+        -------
+        res : str
+            The Latex form of this instance
+        """
+
+        subscript = self._state.tolatex(**kwargs).replace("$", "")
         if self._otype == CREATION:
-            tex = r"$c_{{{0}}}^{{\dag}}$".format(subscript)
+            latex_form = r"$c_{{{0}}}^{{\dagger}}$".format(subscript)
         else:
-            tex = r"$c_{{{0}}}$".format(subscript)
-        return tex
+            latex_form = r"$c_{{{0}}}$".format(subscript)
+        return latex_form
 
-    def show(self, indices_table=None):
+    def show(self, **kwargs):
         """
         Show the instance in handwriting form
 
         Parameters
         ----------
-        indices_table : IndexTable, optional
-            A table that associate instances of SiteID with integer indices
-            If not given or None, the `site` is show as it is
-            default : None
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `state` attribute.
+            See also: `StateID.tolatex`
         """
 
         fig, ax = plt.subplots()
-        ax.set_axis_off()
-        tex = self._tex(indices_table)
         ax.text(
-            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            0.5, 0.5, self.tolatex(**kwargs), fontsize="xx-large",
             ha="center", va="center", transform=ax.transAxes
         )
+        ax.set_axis_off()
         plt.show()
 
     def __hash__(self):
@@ -822,7 +833,7 @@ class AoC:
         if otype is None:
             otype = self.otype
         if site is None:
-            site = self.site
+            site = self.coordinate
         if spin is None:
             spin = self.spin
         if orbit is None:
