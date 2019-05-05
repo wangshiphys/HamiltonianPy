@@ -30,7 +30,8 @@ from HamiltonianPy.matrixrepr import matrix_function
 PRECISION = 4
 ZOOM = 10 ** PRECISION
 SPIN_OTYPES = ("x", "y", "z", "p", "m")
-NUMERIC_TYPES = (int, float, complex, np.number)
+GENERAL_NUMERIC_TYPES = (int, float, complex, np.number)
+REAL_NUMERIC_TYPES = (int, float, np.integer, np.floating)
 SPIN_MATRICES = {
     "x": np.array([[0.0, 0.5], [0.5, 0.0]], dtype=np.float64),
     "y": np.array([[0.0, -0.5], [0.5, 0.0]], dtype=np.float64) * 1j,
@@ -680,7 +681,7 @@ class AoC:
 
         if isinstance(other, self.__class__):
             return ParticleTerm((self, other), coeff=1.0)
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             return ParticleTerm((self,), coeff=other)
         else:
             return NotImplemented
@@ -693,7 +694,7 @@ class AoC:
         Return an instance of ParticleTerm
         """
 
-        if isinstance(other, NUMERIC_TYPES):
+        if isinstance(other, GENERAL_NUMERIC_TYPES):
             return ParticleTerm((self,), coeff=other)
         else:
             return NotImplemented
@@ -1312,7 +1313,7 @@ class SpinOperator(SiteID):
 
         if isinstance(other, self.__class__):
             return SpinInteraction((self, other), coeff=1.0)
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             return SpinInteraction((self,), coeff=other)
         else:
             return NotImplemented
@@ -1325,7 +1326,7 @@ class SpinOperator(SiteID):
         Return an instance of SpinInteraction
         """
 
-        if isinstance(other, NUMERIC_TYPES):
+        if isinstance(other, GENERAL_NUMERIC_TYPES):
             return SpinInteraction((self,), coeff=other)
         else:
             return NotImplemented
@@ -1494,7 +1495,7 @@ class SpinInteraction:
             default: 1.0
         """
 
-        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
+        assert isinstance(coeff, GENERAL_NUMERIC_TYPES), "Invalid coefficient"
 
         # Sorting the spin operators in ascending order according to their
         # SiteID. The relative position of two operators with the same SiteID
@@ -1515,7 +1516,7 @@ class SpinInteraction:
 
     @coeff.setter
     def coeff(self, value):
-        assert isinstance(value, NUMERIC_TYPES), "Invalid coefficient"
+        assert isinstance(value, GENERAL_NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = value
 
     @property
@@ -1589,7 +1590,7 @@ class SpinInteraction:
         elif isinstance(other, SpinOperator):
             operators = self._operators + (other, )
             coeff = self._coeff
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             operators = self._operators
             coeff = self._coeff * other
         else:
@@ -1608,7 +1609,7 @@ class SpinInteraction:
         if isinstance(other, SpinOperator):
             operators = (other, ) + self._operators
             coeff = self._coeff
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             operators = self._operators
             coeff = other * self._coeff
         else:
@@ -1666,7 +1667,7 @@ class SpinInteraction:
         """
 
         assert isinstance(total_spin, int) and total_spin > 0
-        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
+        assert isinstance(coeff, GENERAL_NUMERIC_TYPES), "Invalid coefficient"
 
         operators = sorted(operators, key=lambda item: item[0])
         if len(operators) == 2 and operators[0][0] != operators[1][0]:
@@ -1750,7 +1751,7 @@ class ParticleTerm:
             default: 1.0
         """
 
-        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
+        assert isinstance(coeff, GENERAL_NUMERIC_TYPES), "Invalid coefficient"
 
         self._aocs = tuple(aocs)
         self._coeff = coeff
@@ -1765,7 +1766,7 @@ class ParticleTerm:
 
     @coeff.setter
     def coeff(self, coeff):
-        assert isinstance(coeff, NUMERIC_TYPES), "Invalid coefficient"
+        assert isinstance(coeff, GENERAL_NUMERIC_TYPES), "Invalid coefficient"
         self._coeff = coeff
 
     @property
@@ -1837,7 +1838,7 @@ class ParticleTerm:
         elif isinstance(other, AoC):
             aocs = self._aocs + (other, )
             coeff = self._coeff
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             aocs = self._aocs
             coeff = self._coeff * other
         else:
@@ -1856,7 +1857,7 @@ class ParticleTerm:
         if isinstance(other, AoC):
             aocs = (other, ) + self._aocs
             coeff = self._coeff
-        elif isinstance(other, NUMERIC_TYPES):
+        elif isinstance(other, GENERAL_NUMERIC_TYPES):
             aocs = self._aocs
             coeff = other * self._coeff
         else:
