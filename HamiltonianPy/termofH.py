@@ -2007,38 +2007,60 @@ class ParticleTerm:
             info.append("    {0}".format(aoc))
         return "\n".join(info)
 
-    def _tex(self, indices_table=None):
-        # Convert the instance to TeX string
-        # `indices_table` is a table that associate instances of SiteID with
-        # integer indices
-
-        if indices_table is None:
-            tex = "coeff = {0:.4f}\n".format(self._coeff)
-            tex += "\n".join(aoc._tex() for aoc in self._aocs)
-        else:
-            tex = "{0:.4f} ".format(self._coeff)
-            tex += "".join(aoc._tex(indices_table) for aoc in self._aocs)
-        return tex
-
-    def show(self, indices_table=None):
+    def tolatex(self, indices_table=None, **kwargs):
         """
-        Show the instance in handwriting form
+        Return the LaTex form of this term
 
         Parameters
         ----------
         indices_table : IndexTable, optional
-            A table that associate instances of SiteID with integer indices
-            If not given or None, the `site` is show as it is
+            A table that associate instances of SiteID with integer indices.
+            The `indices_table` is passed to the `tolatex` method of
+            `StateID` as the `site_index` argument.
+            If not given or None, the `site` is show as it is.
             default : None
+        kwargs :
+            All other keyword arguments are passed to the `tolatex` method of
+            `StateID`.
+            See also: `StateID.tolatex`
+
+        Returns
+        -------
+        res : str
+            The LaTex form of this term
+        """
+
+        latex_aocs = [
+            aoc.tolatex(site_index=indices_table, **kwargs).replace("$", "")
+            for aoc in self._aocs
+        ]
+        return "".join(["$", str(self._coeff), *latex_aocs, "$"])
+
+    def show(self, indices_table=None, **kwargs):
+        """
+        Show the term in handwriting form
+
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instances of SiteID with integer indices.
+            The `indices_table` is passed to the `tolatex` method of
+            `StateID` as the `site_index` argument.
+            If not given or None, the `site` is show as it is.
+            default : None
+        kwargs :
+            All other keyword arguments are passed to the `tolatex` method of
+            `StateID`.
+            See also: `StateID.tolatex`
         """
 
         fig, ax = plt.subplots()
-        ax.set_axis_off()
-        tex = self._tex(indices_table)
         ax.text(
-            0.5, 0.5, tex, fontname="monospace", fontsize=30,
-            ha="center", va="center", transform=ax.transAxes
+            0.5, 0.5, self.tolatex(indices_table, **kwargs),
+            fontsize="xx-large", ha="center",
+            va="center",transform=ax.transAxes
         )
+        ax.set_axis_off()
         plt.show()
 
     def __mul__(self, other):
