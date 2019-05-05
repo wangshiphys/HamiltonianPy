@@ -1252,26 +1252,29 @@ class NumberOperator:
         )
 
 
-class SpinOperator(SiteID):
+class SpinOperator:
     """
     A unified description of a spin operator
 
     Attributes
     ----------
-    site : ndarray
-        The coordinate of the lattice site on which the spin operator is defined
-    otype : string
+    otype : str
         The type of this spin operator
-        Valid value: "x" | "y" | "z" | "p" | "m"
+        Supported value: "x" | "y" | "z" | "p" | "m"
+    site_id : SiteID
+        The ID of the lattice-site on which the spin operator is defined
+    coordinate : tuple
+        The coordinate of the lattice site on which the spin operator is defined
+    site : 1D np.ndarray
+        The coordinate of the lattice site on which the spin operator is defined
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.termofH import SpinOperator
-    >>> SX = SpinOperator("x", site=np.array([0, 0]))
-    >>> SY = SpinOperator("y", site=np.array([1, 1]))
+    >>> SX = SpinOperator("x", site=[0, 0])
+    >>> SY = SpinOperator("y", site=[1, 1])
     >>> SX
-    SpinOperator(otype="x", site=array([0, 0]))
+    SpinOperator(otype="x", site=(0, 0))
     >>> SY.matrix()
     array([[ 0.+0.j , -0.-0.5j],
            [ 0.+0.5j,  0.+0.j ]])
@@ -1280,8 +1283,8 @@ class SpinOperator(SiteID):
     >>> print(2 * SX * SY)
     The coefficient of this term: 2
     The component spin operators:
-        SpinOperator(otype="x", site=array([0, 0]))
-        SpinOperator(otype="y", site=array([1, 1]))
+        SpinOperator(otype="x", site=(0, 0))
+        SpinOperator(otype="y", site=(1, 1))
     """
 
     def __init__(self, otype, site):
@@ -1292,21 +1295,23 @@ class SpinOperator(SiteID):
         ----------
         otype : str
             The type of this spin operator
-            Valid value: "x" | "y" | "z" | "p" | "m"
-        site : 1D np.ndarray
+            Supported value: "x" | "y" | "z" | "p" | "m"
+        site : list, tuple or 1D np.ndarray
             The coordinate of the lattice site on which the spin operator is
-            defined. The `site` parameter should be 1D array with shape (1,),
-            (2,) or (3,).
+            defined. The `site` parameter should be 1D array with length 1,
+            2 or 3.
         """
 
         assert otype in SPIN_OTYPES
 
-        super().__init__(site=site)
+        site_id = SiteID(site=site)
         self._otype = otype
+        self._site_id = site_id
 
-        # The self._tuple_form on the right hand has already been set properly
-        # by calling the super().__init__(site=site)
-        self._tuple_form = (otype, self._tuple_form)
+        # The tuple form of this instance
+        # It is a tuple: (otype, site) and site itself is a tuple with length
+        # 1, 2 or 3.
+        self._tuple_form = (otype, site_id._tuple_form)
 
     @property
     def otype(self):
@@ -1316,16 +1321,61 @@ class SpinOperator(SiteID):
 
         return self._otype
 
-    def getSiteID(self):
+    @property
+    def site_id(self):
         """
-        Extract the site information of this operator
+        The `site_id` attribute
         """
 
-        return SiteID(site=self._site)
+        return self._site_id
+
+    @property
+    def coordinate(self):
+        """
+        The `coordinate` attribute
+        """
+
+        return self._site_id.coordinate
+
+    @property
+    def site(self):
+        """
+        The `site` attribute
+        """
+
+        return self._site_id.site
+
+    def getIndex(self, indices_table):
+        """
+        Return the index of this operator
+
+        Parameters
+        ----------
+        indices_table : IndexTable
+            A table that associate instances of SpinOperator with integer
+            indices
+
+        Returns
+        -------
+        res : int
+            The index of this instance in the table
+
+        See also
+        --------
+        getSiteIndex
+        """
+
+        return indices_table(self)
 
     def getSiteIndex(self, indices_table):
         """
         Return the index of the lattice site on which this operator is defined
+
+        Notes:
+            This method is different from the `getIndex` method.
+            This method return the index of the site on which this operator
+            is defined and the `getIndex` method return the index of the
+            operator itself.
 
         Parameters
         ----------
@@ -1335,10 +1385,10 @@ class SpinOperator(SiteID):
         Returns
         -------
         res : int
-            The index of the site attribute of this instance
+            The index of the `site_id` attribute of this instance
         """
 
-        return self.getSiteID().getIndex(indices_table)
+        return indices_table(self._site_id)
 
     def __repr__(self):
         """
@@ -1346,42 +1396,116 @@ class SpinOperator(SiteID):
         """
 
         info = 'SpinOperator(otype="{0}", site={1!r})'
-        return info.format(self._otype, self._site)
+        return info.format(self._otype, self.coordinate)
 
     __str__ = __repr__
 
-    def _tex(self, indices_table=None):
-        # Convert the instance to TeX string
-        # `indices_table` is a table that associate instance of SiteID with an
-        # integer index
+    def tolatex(self, **kwargs):
+        """
+        Return the LaTex form of this instance
 
-        if indices_table is None:
-            site = "(" + ", ".join("{:.4f}".format(i) for i in self._site) + ")"
-        else:
-            site = self.getSiteIndex(indices_table)
-        tex = r"$\mathrm{{S}}_{{{0}}}^{{{1}}}$".format(site, self._otype)
-        return tex
+        Parameters
+        ----------
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `site_id` attribute.
+            See also: `SiteID.tolatex`
 
-    def show(self, indices_table=None):
+        Returns
+        -------
+        res : str
+            The Latex form of this instance
+        """
+
+        subscript = self._site_id.tolatex(**kwargs)
+        return r"$S_{{{0}}}^{{{1}}}$".format(subscript, self._otype)
+
+    def show(self, **kwargs):
         """
         Show the instance in handwriting form
 
         Parameters
         ----------
-        indices_table : IndexTable, optional
-            A table that associate instances of SiteID with integer indices
-            If not given or None, the `site` is show as it is
-            default : None
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `site_id` attribute.
+            See also: `SiteID.tolatex`
         """
 
         fig, ax = plt.subplots()
-        ax.set_axis_off()
-        tex = self._tex(indices_table)
         ax.text(
-            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            0.5, 0.5, self.tolatex(**kwargs), fontsize="xx-large",
             ha="center", va="center", transform=ax.transAxes
         )
+        ax.set_axis_off()
         plt.show()
+
+    def __hash__(self):
+        """
+        Return the hash code of the instance
+        """
+
+        return hash(self._tuple_form)
+
+    def __lt__(self, other):
+        """
+        Define the `<` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form < other._tuple_form
+        else:
+            return NotImplemented
+
+    def __eq__(self, other):
+        """
+        Define the `==` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form == other._tuple_form
+        else:
+            return NotImplemented
+
+    def __gt__(self, other):
+        """
+        Define the `>` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form > other._tuple_form
+        else:
+            return NotImplemented
+
+    def __le__(self, other):
+        """
+        Define the `<=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form <= other._tuple_form
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        """
+        Define the `!=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form != other._tuple_form
+        else:
+            return NotImplemented
+
+    def __ge__(self, other):
+        """
+        Define the `>=` operator between self and other
+        """
+
+        if isinstance(other, self.__class__):
+            return self._tuple_form >= other._tuple_form
+        else:
+            return NotImplemented
 
     def __mul__(self, other):
         """
@@ -1431,7 +1555,7 @@ class SpinOperator(SiteID):
         elif self._otype == "m":
             operator = self.derive(otype="p")
         else:
-            operator = self.derive()
+            operator = self
         return operator
 
     def conjugate_of(self, other):
@@ -1452,7 +1576,7 @@ class SpinOperator(SiteID):
         """
 
         if isinstance(other, self.__class__):
-            return self.getSiteID() == other.getSiteID()
+            return self._site_id == other._site_id
         else:
             raise TypeError(
                 "The `other` parameter is not instance of this class!"
@@ -1472,9 +1596,9 @@ class SpinOperator(SiteID):
         """
 
         if otype is None:
-            otype = self._otype
+            otype = self.otype
         if site is None:
-            site = self._site
+            site = self.coordinate
         return SpinOperator(otype=otype, site=site)
 
     def Schwinger(self):
@@ -1482,10 +1606,11 @@ class SpinOperator(SiteID):
         Return the Schwinger Fermion representation of this spin operator
         """
 
-        C_UP = AoC(otype=CREATION, site=self._site, spin=SPIN_UP)
-        C_DOWN = AoC(otype=CREATION, site=self._site, spin=SPIN_DOWN)
-        A_UP = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_UP)
-        A_DOWN = AoC(otype=ANNIHILATION, site=self._site, spin=SPIN_DOWN)
+        coordinate = self.coordinate
+        C_UP = AoC(otype=CREATION, site=coordinate, spin=SPIN_UP)
+        C_DOWN = AoC(otype=CREATION, site=coordinate, spin=SPIN_DOWN)
+        A_UP = AoC(otype=ANNIHILATION, site=coordinate, spin=SPIN_UP)
+        A_DOWN = AoC(otype=ANNIHILATION, site=coordinate, spin=SPIN_DOWN)
 
         terms = []
         SMatrix = self.matrix()
