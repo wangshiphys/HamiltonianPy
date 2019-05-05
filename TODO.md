@@ -18,3 +18,6 @@
 - [ ] Optimize the implementation of `ParticleConservedExactSolver` and `ParticleNotConversedExactSolver` function, change from loop implementation to matrix operation implementation for calculating the cluster Green-Function
 - [ ] For some commonly used Hamiltonian term, provide more specific as well as efficient implementation for calculating the matrix representation
 - [ ] Rename the `termofH` module to `QuantumOperator`
+- [ ] Add `statistics` attribute to `AoC` class
+- [ ] Implement the commutation and anti-commutation relation for Fermionic 
+and Bosonic operator
