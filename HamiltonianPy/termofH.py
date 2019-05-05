@@ -286,7 +286,9 @@ class StateID(SiteID):
 
     Attributes
     ----------
-    site : ndarray
+    coordinate : tuple
+        The coordinate of the localized single-particle state
+    site : 1D np.ndarray
         The coordinate of the localized single-particle state
     spin : int
         The spin index of the single-particle state
@@ -295,12 +297,11 @@ class StateID(SiteID):
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.termofH import StateID
-    >>> id0 = StateID(site=np.array([0, 0]), spin=1)
-    >>> id1 = StateID(site=np.array([1, 1]), spin=1)
+    >>> id0 = StateID(site=[0, 0], spin=1)
+    >>> id1 = StateID(site=[1, 1], spin=1)
     >>> id0
-    StateID(site=array([0, 0]), spin=1, orbit=0)
+    StateID(site=(0, 0), spin=1, orbit=0)
     >>> id0 < id1
     True
     """
@@ -311,7 +312,7 @@ class StateID(SiteID):
 
         Parameters
         ----------
-        site : 1D np.ndarray
+        site : list, tuple or 1D np.ndarray
             The coordinate of the localized single-particle state
             The `site` parameter should be 1D array with length 1, 2 or 3.
         spin : int, optional
@@ -358,6 +359,61 @@ class StateID(SiteID):
         return info.format(self._site, self._spin, self._orbit)
 
     __str__ = __repr__
+
+    def tolatex(
+            self, *, site_index=None,
+            spin_one_half=True, suppress_orbit=True, **kwargs
+    ):
+        """
+        Return the LaTex form of this instance
+
+        Parameters
+        ----------
+        site_index : int or IndexTable, keyword-only, optional
+            Determine how to format the `site` attribute
+            If set to None, the `site` attribute is formatted as '(x)', '(x,y)'
+            and '(x, y, z)' for 1, 2 and 3D respectively;
+            If given as an integer, then `site_index` is the index of the
+            lattice-site and the Latex form is the given integer;
+            If given as an IndexTable, then `site_index` is a table that
+            associate instances of SiteID with integer indices, the Latex
+            form is the index of the lattice-site in the table.
+            default: None
+        spin_one_half : boolean, keyword-only, optional
+            Whether the concerned system is a spin-1/2 system.
+            If set to True, the spin index is represented by down- or up-arrow;
+            If set to False, the spin index is represented by an integer.
+            default: True
+        suppress_orbit : boolean, keyword-only, optional
+            Whether to suppress the orbit degree of freedom.
+            If set to True, the orbit index is not shown.
+            default: True
+        kwargs: other keyword arguments, optional
+            Has no effect, do not use.
+
+        Returns
+        -------
+        res : str
+            The Latex form of this instance
+        """
+
+        latex_form_site = SiteID(site=self._site).tolatex(site_index=site_index)
+
+        if spin_one_half and self._spin in (SPIN_DOWN, SPIN_UP):
+            if self._spin == SPIN_DOWN:
+                latex_form_spin = r"$\downarrow$"
+            else:
+                latex_form_spin = r"$\uparrow$"
+        else:
+            latex_form_spin = str(self._spin)
+
+        if suppress_orbit:
+            latex_form = ",".join([latex_form_site, latex_form_spin])
+        else:
+            latex_form = ",".join(
+                [latex_form_site, latex_form_spin, str(self._orbit)]
+            )
+        return latex_form
 
 
 class AoC:
