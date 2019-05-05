@@ -891,6 +891,8 @@ class NumberOperator:
     ----------
     state : StateID
         The single-particle state on which this operator is defined
+    coordinate : tuple
+        The coordinate of the localized single-particle state
     site : 1D np.ndarray
         The coordinate of the localized single-particle state
     spin : int
@@ -900,10 +902,9 @@ class NumberOperator:
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.termofH import NumberOperator
-    >>> NumberOperator(site=np.array([0, 0]), spin=0)
-    NumberOperator(site=array([0, 0]), spin=0, orbit=0)
+    >>> NumberOperator(site=[0, 0], spin=0)
+    NumberOperator(site=(0, 0), spin=0, orbit=0)
     """
 
     def __init__(self, site, spin=0, orbit=0):
@@ -912,7 +913,7 @@ class NumberOperator:
 
         Parameters
         ----------
-        site : 1D np.ndarray
+        site : list, tuple or 1D np.ndarray
             The coordinate of the localized single-particle state
             The `site` parameter should be 1D array with length 1, 2 or 3.
         spin : int, optional
@@ -938,6 +939,14 @@ class NumberOperator:
         """
 
         return self._state
+
+    @property
+    def coordinate(self):
+        """
+        The `coordinate` attribute
+        """
+
+        return self._state.coordinate
 
     @property
     def site(self):
@@ -1015,58 +1024,48 @@ class NumberOperator:
         """
 
         info = "NumberOperator(site={0!r}, spin={1}, orbit={2})"
-        return info.format(self.site, self.spin, self.orbit)
+        return info.format(self.coordinate, self.spin, self.orbit)
 
     __str__ = __repr__
 
-    def tolatex(self, site_index=None):
+    def tolatex(self, **kwargs):
         """
-        Return the LaTex form of this operator
+        Return the LaTex form of this instance
 
         Parameters
         ----------
-        site_index : int, optional
-            The index of the `site` attribute.
-            If not given or None, the `site` attribute is shown as it is;
-            If given, the `site` attribute is replaced with the given
-            site_index.
-            default: None
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `state` attribute.
+            See also: `StateID.tolatex`
 
         Returns
         -------
         res : str
-            The LaTex form of this operator
+            The Latex form of this instance
         """
 
-        if site_index is None:
-            site = "(" + ",".join("{:.4f}".format(i) for i in self.site) + ")"
-        else:
-            site = site_index
-        subscript = "{0},{1},{2}".format(site, self.spin, self.orbit)
-        str_latex = r"$n_{{{0}}}$".format(subscript)
-        return str_latex
+        subscript = self._state.tolatex(**kwargs).replace("$", "")
+        return r"$n_{{{0}}}$".format(subscript)
 
-    def show(self, site_index=None):
+    def show(self, **kwargs):
         """
-        Show the operator in handwriting form
+        Show the instance in handwriting form
 
         Parameters
         ----------
-        site_index : int, optional
-            The index of the `site` attribute.
-            If not given or None, the `site` attribute is shown as it is;
-            If given, the `site` attribute is replaced with the given
-            site_index.
-            default: None
+        kwargs :
+            All keyword arguments are passed to the `tolatex` method of the
+            `state` attribute.
+            See also: `StateID.tolatex`
         """
 
         fig, ax = plt.subplots()
-        ax.set_axis_off()
-        str_latex = self.tolatex(site_index)
         ax.text(
-            0.5, 0.5, str_latex, fontname="monospace", fontsize="xx-large",
+            0.5, 0.5, self.tolatex(**kwargs), fontsize="xx-large",
             ha="center", va="center", transform=ax.transAxes
         )
+        ax.set_axis_off()
         plt.show()
 
     def __hash__(self):
@@ -1146,8 +1145,8 @@ class NumberOperator:
             The term corresponding to this operator
         """
 
-        C = AoC(CREATION, site=self.site, spin=self.spin, orbit=self.orbit)
-        A = AoC(ANNIHILATION, site=self.site, spin=self.spin, orbit=self.orbit)
+        C = AoC(CREATION, self.coordinate, spin=self.spin, orbit=self.orbit)
+        A = AoC(ANNIHILATION, self.coordinate, spin=self.spin, orbit=self.orbit)
         return ParticleTerm((C, A), coeff=1.0)
 
     def __mul__(self, other):
@@ -1209,7 +1208,7 @@ class NumberOperator:
         """
 
         if site is None:
-            site = self.site
+            site = self.coordinate
         if spin is None:
             spin = self.spin
         if orbit is None:
