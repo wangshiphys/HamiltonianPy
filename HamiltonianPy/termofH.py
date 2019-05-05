@@ -86,26 +86,27 @@ class SwapError(Exception):
 
 class SiteID:
     """
-    A wrapper over 1D np.ndarray which is the coordinate of a lattice site
+    A wrapper over 1D array which is the coordinate of a lattice site
 
     The reason to define this wrapper is to make the coordinate hashable as
     well as comparable as a whole.
 
     Attributes
     ----------
-    site : np.ndarray
+    coordinate : tuple
+        The coordinate of the lattice site
+    site : 1D np.ndarray
         The coordinate of the lattice site
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.termofH import SiteID
-    >>> site0 = SiteID(site=np.array([0, 0]))
-    >>> site1 = SiteID(site=np.array([1, 1]))
+    >>> site0 = SiteID(site=[0, 0])
+    >>> site1 = SiteID(site=[1, 1])
     >>> site0 < site1
     True
     >>> site0
-    SiteID(site=array([0, 0]))
+    SiteID(site=(0, 0))
     """
 
     def __init__(self, site):
@@ -114,21 +115,29 @@ class SiteID:
 
         Parameters
         ----------
-        site : 1D np.ndarray
-            The coordinate of the lattice site
-            The shape of this array should be (1,), (2,) or (3,).
+        site : list, tuple or 1D np.ndarray
+            The coordinate of the lattice site.
+            The length of this array should be 1, 2 or 3.
         """
 
-        assert isinstance(site, np.ndarray) and site.shape in ((1,), (2,), (3,))
+        site = tuple(site)
+        assert len(site) in (1, 2, 3)
+        assert all(isinstance(coord, REAL_NUMERIC_TYPES) for coord in site)
 
-        self._site = np.array(site, copy=True)
-        self._site.setflags(write=False)
-
+        self._site = site
         # The tuple form of this instance
-        # This internal attribute is useful in calculating the hash value of
+        # This internal attribute is useful for calculating the hash value of
         # the instance as well as defining compare logic between instances of
         # this class
-        self._tuple_form = tuple(int(i) for i in ZOOM * site)
+        self._tuple_form = tuple(int(ZOOM * coord) for coord in site)
+
+    @property
+    def coordinate(self):
+        """
+        The `coordinate` attribute
+        """
+
+        return self._site
 
     @property
     def site(self):
@@ -147,22 +156,24 @@ class SiteID:
 
     __str__ = __repr__
 
-    def tolatex(self, site_index=None):
+    def tolatex(self, *, site_index=None, **kwargs):
         """
         Return the LaTex form of this instance
 
         Parameters
         ----------
-        site_index : int or IndexTable, optional
+        site_index : int or IndexTable, keyword-only, optional
             Determine how to format this instance
-            If set to None, the instance is formatted using `np.array2string`
-            function;
+            If set to None, the instance is formatted as '(x)', '(x,y)'
+            and '(x, y, z)' for 1, 2 and 3D respectively;
             If given as an integer, then `site_index` is the index of this
             instance and the Latex form is the given integer;
             If given as an IndexTable, then `site_index` is a table that
             associate instances of SiteID with integer indices, the Latex
             form is the index of this instance in the table.
             default: None
+        kwargs: other keyword arguments, optional
+            Has no effect, do not use.
 
         Returns
         -------
@@ -175,10 +186,13 @@ class SiteID:
         elif isinstance(site_index, IndexTable):
             latex_form = str(site_index(self))
         else:
-            latex_form = np.array2string(
-                self._site, precision=PRECISION, separator=",",
-                suppress_small=True, floatmode="maxprec_equal"
-            ).replace("[", "(").replace("]", ")")
+            INT_TYPES = (int, np.integer)
+            fmt = "{{:.{0}f}}".format(PRECISION)
+            latex_form = "(" + ",".join(
+                str(coord)
+                if isinstance(coord, INT_TYPES) else fmt.format(coord)
+                for coord in self._site
+            ) + ")"
         return latex_form
 
     def __hash__(self):
