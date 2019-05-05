@@ -1707,7 +1707,7 @@ class SpinInteraction:
         # will not change and the exchange of two spin operators on different
         # lattice site never change the interaction term.
         self._operators = tuple(
-            sorted(operators, key=lambda item: item.getSiteID())
+            sorted(operators, key=lambda item: item.site_id)
         )
         self._coeff = coeff
 
@@ -1745,20 +1745,33 @@ class SpinInteraction:
             info.append("    {0}".format(operator))
         return "\n".join(info)
 
-    def _tex(self, indices_table=None):
-        # Convert the instance to TeX string
-        # `indices_table` is a table that associate instances of SiteID with
-        # integer indices
+    def tolatex(self, indices_table=None):
+        """
+        Return the LaTex form of this instance
 
-        if indices_table is None:
-            tex = "coeff = {0:.4f}\n".format(self._coeff)
-            tex += "\n".join(operator._tex() for operator in self._operators)
-        else:
-            tex = "{0:.4f} ".format(self._coeff)
-            tex += "".join(
-                operator._tex(indices_table) for operator in self._operators
-            )
-        return tex
+        Parameters
+        ----------
+        indices_table : IndexTable, optional
+            A table that associate instances of SiteID with integer indices
+            If not given or None, the `site` is show as it is
+            default: None
+
+        Returns
+        -------
+        res : str
+            The LaTex form of this instance
+        """
+
+        latex_form = "".join(
+            [
+                "$", str(self._coeff),
+                *[
+                    operator.tolatex(site_index=indices_table).replace("$", "")
+                    for operator in self._operators
+                ], "$"
+            ]
+        )
+        return latex_form
 
     def show(self, indices_table=None):
         """
@@ -1773,12 +1786,11 @@ class SpinInteraction:
         """
 
         fig, ax = plt.subplots()
-        ax.set_axis_off()
-        tex = self._tex(indices_table)
         ax.text(
-            0.5, 0.5, tex, fontname="monospace", fontsize=30,
+            0.5, 0.5, self.tolatex(indices_table), fontsize="xx-large",
             ha="center", va="center", transform=ax.transAxes
         )
+        ax.set_axis_off()
         plt.show()
 
     def __mul__(self, other):
