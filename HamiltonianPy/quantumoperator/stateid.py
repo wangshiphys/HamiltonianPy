@@ -6,6 +6,7 @@ single-particle state
 
 import numpy as np
 
+from HamiltonianPy.constant import SPIN_DOWN, SPIN_UP
 from HamiltonianPy.indextable import IndexTable
 
 # Useful global constants
@@ -246,3 +247,166 @@ class SiteID:
         """
 
         return indices_table(self)
+
+
+class StateID(SiteID):
+    """
+    A unified description of single-particle state
+
+    Attributes
+    ----------
+    coordinate : tuple
+        The coordinate of the localized single-particle state in tuple form
+    site : 1D np.ndarray
+        The coordinate of the localized single-particle state in np.ndarray form
+    spin : int
+        The spin index of the single-particle state
+    orbit : int
+        The orbit index of the single-particle state
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import StateID
+    >>> state0 = StateID(site=[0, 0], spin=1)
+    >>> state1 = StateID(site=(0.3, 0.75), spin=0)
+    >>> state0
+    StateID(site=(0, 0), spin=1, orbit=0)
+    >>> state1
+    StateID(site=(0.3, 0.75), spin=0, orbit=0)
+    >>> state1.coordinate
+    (0.3, 0.75)
+    >>> state1.site
+    array([0.3 , 0.75])
+    >>> state0 < state1
+    True
+    >>> state0.tolatex()
+    '(0,0),$\\\\uparrow$'
+    >>> state1.tolatex(site_index=1)
+    '1,$\\\\downarrow$'
+    >>> state2 = StateID((1/3, 2/3))
+    >>> state2.tolatex()
+    '(0.3333,0.6667),$\\\\downarrow$'
+    >>> state2.tolatex(precision=6)
+    '(0.333333,0.666667),$\\\\downarrow$'
+    """
+
+    def __init__(self, site, spin=0, orbit=0):
+        """
+        Customize the newly created instance
+
+        Parameters
+        ----------
+        site : list, tuple or 1D np.ndarray
+            The coordinate of the localized single-particle state.
+        spin : int, optional
+            The spin index of the single-particle state
+            default: 0
+        orbit : int, optional
+            The orbit index of the single-particle state
+            default: 0
+        """
+
+        assert isinstance(spin, int) and spin >= 0
+        assert isinstance(orbit, int) and orbit >= 0
+
+        super().__init__(site=site)
+        self._spin = spin
+        self._orbit = orbit
+
+        # The self._tuple_form on the right hand has already been set properly
+        # by calling `super().__init__(site=site)`
+        self._tuple_form = (self._tuple_form, spin, orbit)
+
+    @property
+    def spin(self):
+        """
+        The `spin` attribute
+        """
+
+        return self._spin
+
+    @property
+    def orbit(self):
+        """
+        The `orbit` attribute
+        """
+
+        return self._orbit
+
+    def __repr__(self):
+        """
+        Official string representation of the instance
+        """
+
+        info = "StateID(site={0!r}, spin={1}, orbit={2})"
+        return info.format(self._site, self._spin, self._orbit)
+
+    __str__ = __repr__
+
+    def tolatex(
+            self, *, site_index=None, precision=4,
+            spin_one_half=True, suppress_orbit=True, **kwargs
+    ):
+        """
+        Return the LaTex form of this instance
+
+        Parameters
+        ----------
+        site_index : int or IndexTable, keyword-only, optional
+            Determine how to format the `site` attribute
+            If set to None, the `site` attribute is formatted as '(x)', '(x,y)'
+            and '(x, y, z)' for 1, 2 and 3D respectively;
+            If given as an integer, then `site_index` is the index of the
+            lattice-site and the LaTex form of the `site` attribute is the
+            given integer;
+            If given as an IndexTable, then `site_index` is a table that
+            associate instances of SiteID with integer indices, the LaTex
+            form of the `site` attribute is the index of the lattice-site in the
+            table.
+            default: None
+        precision : int, keyword-only, optional
+            The number of digits precision after the decimal point for
+            processing float-point number.
+            default: 4
+        spin_one_half : boolean, keyword-only, optional
+            Whether the concerned system is a spin-1/2 system.
+            If set to True, the spin index is represented by down- or up-arrow;
+            If set to False, the spin index is represented by an integer.
+            default: True
+        suppress_orbit : boolean, keyword-only, optional
+            Whether to suppress the orbit degree of freedom.
+            If set to True, the orbit index is not shown.
+            default: True
+        kwargs: other keyword arguments, optional
+            Has no effect, do not use.
+
+        Returns
+        -------
+        res : str
+            The LaTex form of this instance
+        """
+
+        if isinstance(site_index, (int, np.integer)):
+            latex_form_site = str(site_index)
+        elif isinstance(site_index, IndexTable):
+            latex_form_site = str(site_index(self))
+        else:
+            latex_form_site = "(" + ",".join(
+                str(round(coord, ndigits=precision)) for coord in self._site
+            ) + ")"
+
+        if spin_one_half and self._spin in (SPIN_DOWN, SPIN_UP):
+            if self._spin == SPIN_DOWN:
+                latex_form_spin = r"$\downarrow$"
+            else:
+                latex_form_spin = r"$\uparrow$"
+        else:
+            latex_form_spin = str(self._spin)
+
+        if suppress_orbit:
+            latex_form = ",".join([latex_form_site, latex_form_spin])
+        else:
+            latex_form = ",".join(
+                [latex_form_site, latex_form_spin, str(self._orbit)]
+            )
+        return latex_form
