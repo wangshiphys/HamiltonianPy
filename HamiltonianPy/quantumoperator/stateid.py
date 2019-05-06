@@ -140,9 +140,10 @@ class SiteID:
             associate instances of SiteID with integer indices, the LaTex
             form is the index of this instance in the table.
             default: None
-        precision : int
+        precision : int, optional
             The number of digits precision after the decimal point for
             processing float-point number.
+            default: 4
         kwargs: other keyword arguments, optional
             Has no effect, do not use.
 
