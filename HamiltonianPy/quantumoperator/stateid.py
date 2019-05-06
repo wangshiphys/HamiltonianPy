@@ -1,11 +1,10 @@
 """
-This module provides classes that describe lattice site as well as
-single-particle state
+This module provides classes that describe lattice site and single-particle
+state
 """
 
 
 __all__ = [
-    "set_float_point_precision",
     "SiteID",
     "StateID",
 ]
@@ -13,13 +12,12 @@ __all__ = [
 
 import numpy as np
 
-from HamiltonianPy.constant import SPIN_DOWN, SPIN_UP
 from HamiltonianPy.indextable import IndexTable
+from HamiltonianPy.quantumoperator.constant import NUMERIC_TYPES_REAL
+from HamiltonianPy.quantumoperator.constant import SPIN_DOWN, SPIN_UP
 
 # Useful global constants
-_PRECISION = 4
-_ZOOM = 10 ** _PRECISION
-_NUMERIC_TYPES_REAL = (int, float, np.integer, np.floating)
+_ZOOM = 10000
 ################################################################################
 
 
@@ -44,8 +42,7 @@ def set_float_point_precision(precision):
 
     assert isinstance(precision, int) and precision >= 0
 
-    global  _PRECISION, _ZOOM
-    _PRECISION = precision
+    global  _ZOOM
     _ZOOM = 10 ** precision
 
 
@@ -82,7 +79,7 @@ class SiteID:
     >>> site2 = SiteID((1/3, 2/3))
     >>> site2.tolatex()
     '(0.3333,0.6667)'
-    >>> site2.tolatex(precision=6)
+    >>> site2.tolatex(ndigits=6)
     '(0.333333,0.666667)'
     """
 
@@ -98,7 +95,7 @@ class SiteID:
 
         site = tuple(site)
         assert len(site) in (1, 2, 3)
-        assert all(isinstance(coord, _NUMERIC_TYPES_REAL) for coord in site)
+        assert all(isinstance(coord, NUMERIC_TYPES_REAL) for coord in site)
 
         self._site = site
         # The tuple form of this instance
@@ -132,25 +129,26 @@ class SiteID:
 
     __str__ = __repr__
 
-    def tolatex(self, *, site_index=None, precision=4, **kwargs):
+    def tolatex(self, *, site_index=None, ndigits=4, **kwargs):
         """
         Return the LaTex form of this instance
 
         Parameters
         ----------
-        site_index : int or IndexTable, keyword-only, optional
+        site_index : int, IndexTable or None, keyword-only, optional
             Determine how to format this instance
-            If set to None, the instance is formatted as '(x)', '(x,y)'
-            and '(x, y, z)' for 1, 2 and 3D respectively;
+            If set to None, the coordinate is rounded to `ndigits` precision
+            after the decimal point and formatted as '(x)', '(x,y)' and
+            '(x,y,z)' for 1, 2 and 3D respectively;
             If given as an integer, then `site_index` is the index of this
             instance and the LaTex form is the given integer;
             If given as an IndexTable, then `site_index` is a table that
             associate instances of SiteID with integer indices, the LaTex
             form is the index of this instance in the table.
             default: None
-        precision : int, optional
-            The number of digits precision after the decimal point for
-            processing float-point number.
+        ndigits : int, keyword-only, optional
+            The number of digits precision after the decimal point.
+            This parameter only takes effect when `site_index` is None.
             default: 4
         kwargs: other keyword arguments, optional
             Has no effect, do not use.
@@ -167,7 +165,7 @@ class SiteID:
             latex_form = str(site_index(self))
         else:
             latex_form = "(" + ",".join(
-                str(round(coord, ndigits=precision)) for coord in self._site
+                str(round(coord, ndigits=ndigits)) for coord in self._site
             ) + ")"
         return latex_form
 
@@ -250,7 +248,7 @@ class SiteID:
         Returns
         -------
         index : int
-            The index of this instance in the table
+            The index of this instance in the given table
         """
 
         return indices_table(self)
