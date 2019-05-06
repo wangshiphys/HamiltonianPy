@@ -291,7 +291,7 @@ class StateID(SiteID):
     >>> state2 = StateID((1/3, 2/3))
     >>> state2.tolatex()
     '(0.3333,0.6667),$\\\\downarrow$'
-    >>> state2.tolatex(precision=6)
+    >>> state2.tolatex(ndigits=6)
     '(0.333333,0.666667),$\\\\downarrow$'
     """
 
@@ -317,7 +317,6 @@ class StateID(SiteID):
         super().__init__(site=site)
         self._spin = spin
         self._orbit = orbit
-
         # The self._tuple_form on the right hand has already been set properly
         # by calling `super().__init__(site=site)`
         self._tuple_form = (self._tuple_form, spin, orbit)
@@ -349,7 +348,7 @@ class StateID(SiteID):
     __str__ = __repr__
 
     def tolatex(
-            self, *, site_index=None, precision=4,
+            self, *, site_index=None, ndigits=4,
             spin_one_half=True, suppress_orbit=True, **kwargs
     ):
         """
@@ -357,21 +356,22 @@ class StateID(SiteID):
 
         Parameters
         ----------
-        site_index : int or IndexTable, keyword-only, optional
+        site_index : int, IndexTable or None, keyword-only, optional
             Determine how to format the `site` attribute
-            If set to None, the `site` attribute is formatted as '(x)', '(x,y)'
-            and '(x, y, z)' for 1, 2 and 3D respectively;
+            If set to None, the coordinate is rounded to `ndigits` precision
+            after the decimal point and formatted as '(x)', '(x,y)' and
+            '(x,y,z)' for 1, 2 and 3D respectively;
             If given as an integer, then `site_index` is the index of the
             lattice-site and the LaTex form of the `site` attribute is the
             given integer;
             If given as an IndexTable, then `site_index` is a table that
             associate instances of SiteID with integer indices, the LaTex
-            form of the `site` attribute is the index of the lattice-site in the
-            table.
+            form of the `site` attribute is the index of the lattice-site in
+            the given table.
             default: None
-        precision : int, keyword-only, optional
-            The number of digits precision after the decimal point for
-            processing float-point number.
+        ndigits : int, keyword-only, optional
+            The number of digits precision after the decimal point.
+            This parameter only takes effect when `site_index` is None.
             default: 4
         spin_one_half : boolean, keyword-only, optional
             Whether the concerned system is a spin-1/2 system.
@@ -391,14 +391,9 @@ class StateID(SiteID):
             The LaTex form of this instance
         """
 
-        if isinstance(site_index, (int, np.integer)):
-            latex_form_site = str(site_index)
-        elif isinstance(site_index, IndexTable):
-            latex_form_site = str(site_index(self))
-        else:
-            latex_form_site = "(" + ",".join(
-                str(round(coord, ndigits=precision)) for coord in self._site
-            ) + ")"
+        latex_form_site = SiteID(site=self._site).tolatex(
+            site_index=site_index, ndigits=ndigits
+        )
 
         if spin_one_half and self._spin in (SPIN_DOWN, SPIN_UP):
             if self._spin == SPIN_DOWN:
