@@ -15,8 +15,8 @@ import numpy as np
 
 from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
     NUMERIC_TYPES_GENERAL, SPIN_MATRICES, SPIN_OTYPES, SPIN_DOWN, SPIN_UP
-from HamiltonianPy.quantumoperator.particleoperator import AoC, ParticleTerm
-from HamiltonianPy.quantumoperator.stateid import SiteID
+from HamiltonianPy.quantumoperator.particlesystem import AoC, ParticleTerm
+from HamiltonianPy.quantumoperator.quantumstate import SiteID
 
 
 class SpinOperator:
