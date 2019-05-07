@@ -13,8 +13,8 @@ __all__ = [
 import numpy as np
 
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.quantumoperator.constant import NUMERIC_TYPES_REAL
-from HamiltonianPy.quantumoperator.constant import SPIN_DOWN, SPIN_UP
+from HamiltonianPy.quantumoperator.constant import NUMERIC_TYPES_REAL, \
+    SPIN_DOWN, SPIN_UP
 
 # Useful global constants
 _ZOOM = 10000
