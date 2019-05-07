@@ -7,6 +7,7 @@ state
 __all__ = [
     "SiteID",
     "StateID",
+    "set_float_point_precision",
 ]
 
 
