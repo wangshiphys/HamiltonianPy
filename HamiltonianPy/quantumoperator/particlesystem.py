@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
     NUMERIC_TYPES_GENERAL
 from HamiltonianPy.quantumoperator.matrixrepr import matrix_function
-from HamiltonianPy.quantumoperator.stateid import StateID
+from HamiltonianPy.quantumoperator.quantumstate import StateID
 
 
 class AoC:
