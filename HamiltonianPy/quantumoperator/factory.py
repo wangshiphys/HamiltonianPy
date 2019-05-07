@@ -17,8 +17,8 @@ __all__ = [
 
 from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
     SPIN_DOWN, SPIN_UP
-from HamiltonianPy.quantumoperator.particleoperator import AoC, ParticleTerm
-from HamiltonianPy.quantumoperator.spinoperator import *
+from HamiltonianPy.quantumoperator.particlesystem import AoC, ParticleTerm
+from HamiltonianPy.quantumoperator.spinsystem import *
 
 
 def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
