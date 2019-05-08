@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.termofH import StateID
+from HamiltonianPy.quantumoperator.quantumstate import StateID
 
 
 def test_init():
@@ -22,10 +22,10 @@ def test_init():
         StateID(site=site, orbit=-1)
 
     state_id = StateID(site=site, spin=spin, orbit=orbit)
-    assert np.all(state_id.site == site)
+    assert np.all(state_id.site == tuple(site))
     assert state_id.spin == spin
     assert state_id.orbit == orbit
-    assert repr(state_id) == "StateID(site=array([1.2, 2.3]), spin=5, orbit=7)"
+    assert repr(state_id) == "StateID(site=(1.2, 2.3), spin=5, orbit=7)"
 
 
 def test_hash():
