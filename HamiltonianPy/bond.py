@@ -1,5 +1,5 @@
 """
-Bond class that describes the bond connecting two points
+This module provides Bond class that describes the bond connecting two points
 """
 
 
@@ -9,8 +9,9 @@ __all__ = [
 ]
 
 
-import numpy as np
+import warnings
 
+import numpy as np
 
 # Useful global constant
 _ZOOM = 10000
@@ -20,14 +21,14 @@ _VIEW_AS_ZERO = 1E-4
 
 def set_float_point_precision(precision):
     """
-    Set the precision for processing float point number
+    Set the float-point precision for processing coordinates of endpoints
 
-    The coordinates of a point are treated as float point numbers no matter
-    they are given as float-point numbers or integers. The float-point
-    precision affects the internal implementation of the Bond class,
-    especially the hash value of instances of Bond class. If you want to
-    change the default value, you must call this function before creating
-    any Bond instance.
+    In the internal implementation, the coordinates of endpoints are treated
+    as float-point numbers no matter they are given as float-point numbers
+    or integers. The float-point precision affects the internal
+    implementation of the `Bond` class. If you want to change the default
+    value, you must call this function before creating any Bond instance.
+    The default value is: `precision=4`.
 
     Parameters
     ----------
@@ -48,6 +49,9 @@ class Bond:
 
     Attributes
     ----------
+    endpoints : tuple
+        The two endpoints (p0 and p1) of the bond
+        `p0` and `p1` is 1D np.ndarray with length 1, 2 or 3
     directional : boolean
         Whether the direction of the bond should be considered.
         If set to True, then the order of p0, p1 is concerned and
@@ -57,27 +61,26 @@ class Bond:
 
     Examples
     --------
-    >>> import numpy as np
     >>> from HamiltonianPy.bond import Bond
-    >>> Bond(p0=np.array([0, 0]), p1=np.array([1, 1]))
-    Bond(p0=array([0, 0]), p1=array([1, 1]), directional=True)
-
-    >>> b = Bond(p0=np.array([0, 0]), p1=np.array([1, 1]))
-    >>> b.getEndpoints()
+    >>> b0 = Bond(p0=[0, 0], p1=(1, 1))
+    >>> b1 = Bond(p0=(1.35, 2.47), p1=(2.47, 1.35))
+    >>> b0
+    Bond(p0=(0, 0), p1=(1, 1), directional=True)
+    >>> b1
+    Bond(p0=(1.35, 2.47), p1=(2.47, 1.35), directional=True)
+    >>> b0.endpoints
     (array([0, 0]), array([1, 1]))
-
-    >>> b.getLength()
-    1.4142135623730951
-
-    >>> b.getDisplace()
+    >>> b1.endpoints
+    (array([1.35, 2.47]), array([2.47, 1.35]))
+    >>> b0.getLength(ndigits=4)
+    1.4142
+    >>> b0.getDisplace()
     array([1, 1])
-
-    >>> b.getAzimuth()
+    >>> b0.getAzimuth()
     45.0
-
-    >>> b.flip()
-    Bond(p0=array([1, 1]), p1=array([0, 0]), directional=True)
-    >>> b.oppositeTo(b.flip())
+    >>> b0.flip()
+    Bond(p0=(1, 1), p1=(0, 0), directional=True)
+    >>> b0.oppositeTo(b0.flip())
     True
     """
 
@@ -87,26 +90,22 @@ class Bond:
 
         Parameters
         ----------
-        p0, p1 : np.ndarray
+        p0, p1 : list, tuple or 1D.np.ndarray
             Endpoints of the bond
-            p0 and p1 should be of the same shape and the supported shape is
-            (1,), (2,), (3,)
-        directional : boolean, optional, keyword-only
+            `p0` and `p1` should be 1D array with length 1, 2 or 3.
+        directional : boolean, keyword-only, optional
             Whether the direction of the bond should be considered
             If set to True, then the order of p0, p1 is concerned
-            and Bond(p0, p1) != Bond(p1, p0) unless p0 == p1.
+            and Bond(p0, p1) != Bond(p1, p0) unless p0 == p1;
             If set to False, then the order of p0, p1 is not concerned
             and Bond(p0, p1), Bond(p1, p0) is equivalent.
         """
 
-        assert isinstance(p0, np.ndarray) and p0.shape in ((1, ), (2, ), (3, ))
-        assert isinstance(p1, np.ndarray) and p1.shape == p0.shape
-        assert directional in (True, False)
-
         p0 = np.array(p0, copy=True)
         p1 = np.array(p1, copy=True)
-        p0.setflags(write=False)
-        p1.setflags(write=False)
+        assert p0.shape in ((1, ), (2, ), (3, )), "Invalid shape"
+        assert p1.shape == p0.shape, "Shape does not match"
+
         self._p0 = p0
         self._p1 = p1
         self._dim = p0.shape[0]
@@ -114,17 +113,25 @@ class Bond:
 
         # Combine the original information of this bond into a tuple.
         # The tuple is then used to calculate the hash code and define the
-        # comparison logic between different instances.
-        identity = [tuple(int(i) for i in _ZOOM * p) for p in [p0, p1]]
+        # compare logic between different instances.
+        identity = [tuple(int(_ZOOM * i) for i in p) for p in [p0, p1]]
         if not directional:
             identity.sort()
         identity.append(directional)
         self._tuple_form = tuple(identity)
 
     @property
+    def endpoints(self):
+        """
+        The `endpoints` attribute
+        """
+
+        return np.array(self._p0, copy=True), np.array(self._p1, copy=True)
+
+    @property
     def directional(self):
         """
-        Directional attribute of the bond
+        The `directional` attribute
         """
 
         return self._directional
@@ -133,12 +140,19 @@ class Bond:
         """
         Access the p0 and p1 endpoints of the bond
 
+        This method will be deprecated in the future, use the `endpoints`
+        attribute instead.
+
         Returns
         -------
         res : tuple
             The p0 and p1 endpoints (p0, p1)
         """
 
+        warnings.warn(
+            "This method is deprecated; use the `endpoints` attribute instead.",
+            DeprecationWarning
+        )
         return np.array(self._p0, copy=True), np.array(self._p1, copy=True)
 
     def getLength(self, ndigits=None):
@@ -154,7 +168,8 @@ class Bond:
 
         Returns
         -------
-        res : The length of the bond
+        length : np.float64
+            The length of the bond
         """
 
         length = np.linalg.norm(self._p0 - self._p1)
@@ -166,6 +181,8 @@ class Bond:
         """
         Return the displace from p0 to p1
 
+        This method is only implemented for directional bond.
+
         Parameters
         ----------
         ndigits : None or int, optional
@@ -175,7 +192,8 @@ class Bond:
 
         Returns
         -------
-        res : The displace from p0 to p1
+        dr : 1D np.ndarray
+            The displace from p0 to p1
 
         Raises
         ------
@@ -196,6 +214,8 @@ class Bond:
     def getAzimuth(self, radian=False, ndigits=None):
         """
         Return the angle between the bond and the coordinate system
+
+        This method is only implemented for directional bond.
 
         Parameters
         ----------
@@ -257,57 +277,56 @@ class Bond:
 
     def __hash__(self):
         """
-        Return the hash value of the bond
+        Calculate the hash value of the bond
         """
 
         return hash(self._tuple_form)
 
     def __eq__(self, other):
         """
-        Define the == operator between self and other
+        Implement the `==` operator between self and other
         """
 
         if isinstance(other, self.__class__):
             return self._tuple_form == other._tuple_form
         else:
-            return False
+            return NotImplemented
 
     def __ne__(self, other):
         """
-        Define the != operator between self and other
+        Implement the `!=` operator between self and other
         """
 
-        return not self.__eq__(other)
+        if isinstance(other, self.__class__):
+            return self._tuple_form != other._tuple_form
+        else:
+            return NotImplemented
 
     def __repr__(self):
         """
-        The official string representation of the bond
+        Official string representation of the bond
         """
 
         info = "Bond(p0={0!r}, p1={1!r}, directional={2!r})"
-        return info.format(self._p0, self._p1, self._directional)
+        return info.format(
+            tuple(self._p0), tuple(self._p1), self._directional
+        )
 
     def __str__(self):
         """
         Return a string that describes the content of the instance
         """
-
-        fmt_func = repr
-        #fmt_func = str
-        NDIGITS = 4
-
-        p0, p1 = self.getEndpoints()
-        length = self.getLength(ndigits=NDIGITS)
-        titles = ["P0", "P1", "Length"]
-        contents = [fmt_func(p0), fmt_func(p1), fmt_func(length)]
+        
+        ndigits = 4
+        titles = ["P0", "P1", "Length", "Azimuth", "Displace"]
+        contents = [self._p0, self._p1, self.getLength(ndigits)]
         if self._directional:
-            displace = self.getDisplace(ndigits=NDIGITS)
-            azimuth = self.getAzimuth(ndigits=NDIGITS)
-            titles.extend(["Azimuth", "Displace"])
-            contents.extend([fmt_func(azimuth), fmt_func(displace)])
-        width = max(len(item) for item in titles) + 1
-        tmp = [t.ljust(width) + ": " + c for t, c in zip(titles, contents)]
-        return "\n".join(tmp)
+            contents += [self.getAzimuth(ndigits), self.getDisplace(ndigits)]
+        else:
+            contents += ["Undefined", "Undefined"]
+        return "\n".join(
+            "{0:<8} : {1!r}".format(t, c) for t, c in zip(titles, contents)
+        )
 
     def flip(self):
         """
