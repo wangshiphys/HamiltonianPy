@@ -5,9 +5,9 @@ A test script for the AoC class
 import numpy as np
 import pytest
 
-from HamiltonianPy.constant import ANNIHILATION, CREATION
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.termofH import AoC,StateID
+from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION
+from HamiltonianPy.quantumoperator.particlesystem import AoC, StateID
 
 
 def test_init():
@@ -18,11 +18,12 @@ def test_init():
     creator = AoC(CREATION, site=site)
     assert creator.otype == CREATION
     assert creator.state == StateID(site=site)
+    assert creator.coordinate == tuple(site)
     assert np.all(creator.site == site)
     assert creator.spin == 0
     assert creator.orbit == 0
 
-    tmp = "AoC(otype=CREATION, site=array([0, 0]), spin=0, orbit=0)"
+    tmp = "AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)"
     assert repr(creator) == tmp
 
 
