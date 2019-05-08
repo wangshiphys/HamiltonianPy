@@ -6,9 +6,9 @@ A test script for the ParticleTerm class
 import numpy as np
 import pytest
 
-from HamiltonianPy.constant import ANNIHILATION, CREATION
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.termofH import AoC, ParticleTerm
+from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION
+from HamiltonianPy.quantumoperator.particlesystem import AoC, ParticleTerm
 
 
 def test_coeff():
