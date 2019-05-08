@@ -6,22 +6,26 @@ A test script for the SpinOperator class
 import numpy as np
 import pytest
 
-from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.termofH import AoC, SiteID, SpinOperator
+from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
+    SPIN_DOWN, SPIN_UP
+from HamiltonianPy.quantumoperator.particlesystem import AoC
+from HamiltonianPy.quantumoperator.quantumstate import SiteID
+from HamiltonianPy.quantumoperator.spinsystem import SpinOperator
 
 
 def test_init():
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="Invalid operator type"):
         SpinOperator(otype="X", site=np.array([0, 0]))
 
     site = np.array([1.2, 2.3])
     spin_operator = SpinOperator(otype="x", site=site)
     assert spin_operator.otype == "x"
+    assert spin_operator.site_id == SiteID(site=site)
+    assert spin_operator.coordinate == tuple(site)
     assert np.all(spin_operator.site == site)
-    tmp = 'SpinOperator(otype="x", site=array([1.2, 2.3]))'
+    tmp = 'SpinOperator(otype="x", site=(1.2, 2.3))'
     assert repr(spin_operator) == tmp
-    assert spin_operator.getSiteID() == SiteID(site=site)
 
 
 def test_multiply():
@@ -70,9 +74,9 @@ def test_dagger():
     sp = SpinOperator("p", site=site)
     sm = SpinOperator("m", site=site)
 
-    assert sx.dagger() == sx
-    assert sy.dagger() == sy
-    assert sz.dagger() == sz
+    assert sx.dagger() is sx
+    assert sy.dagger() is sy
+    assert sz.dagger() is sz
     assert sp.dagger() == sm
     assert sm.dagger() == sp
 
