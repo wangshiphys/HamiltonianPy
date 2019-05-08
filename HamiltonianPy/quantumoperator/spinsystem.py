@@ -10,8 +10,11 @@ __all__ = [
 ]
 
 
+from itertools import product
+
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.sparse import csr_matrix, identity, kron
 
 from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
     NUMERIC_TYPES_GENERAL, SPIN_MATRICES, SPIN_OTYPES, SPIN_DOWN, SPIN_UP
