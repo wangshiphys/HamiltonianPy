@@ -6,9 +6,12 @@ A test script for the SpinInteraction class
 import numpy as np
 import pytest
 
-from HamiltonianPy.constant import ANNIHILATION, CREATION, SPIN_DOWN, SPIN_UP
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.termofH import AoC, SiteID, SpinOperator, SpinInteraction
+from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
+    SPIN_DOWN, SPIN_UP
+from HamiltonianPy.quantumoperator.quantumstate import SiteID
+from HamiltonianPy.quantumoperator.particlesystem import AoC
+from HamiltonianPy.quantumoperator.spinsystem import SpinOperator, SpinInteraction
 
 
 def test_coeff():
