@@ -9,8 +9,6 @@ __all__ = [
 ]
 
 
-import warnings
-
 import numpy as np
 
 # Useful global constant
@@ -135,25 +133,6 @@ class Bond:
         """
 
         return self._directional
-
-    def getEndpoints(self):
-        """
-        Access the p0 and p1 endpoints of the bond
-
-        This method will be deprecated in the future, use the `endpoints`
-        attribute instead.
-
-        Returns
-        -------
-        res : tuple
-            The p0 and p1 endpoints (p0, p1)
-        """
-
-        warnings.warn(
-            "This method is deprecated; use the `endpoints` attribute instead.",
-            DeprecationWarning
-        )
-        return np.array(self._p0, copy=True), np.array(self._p1, copy=True)
 
     def getLength(self, ndigits=None):
         """
