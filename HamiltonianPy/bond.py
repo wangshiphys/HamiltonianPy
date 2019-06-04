@@ -1,5 +1,5 @@
 """
-This module provides Bond class that describes the bond connecting two points
+This module provides Bond class that describes the bond connecting two points.
 """
 
 
@@ -11,6 +11,7 @@ __all__ = [
 
 import numpy as np
 
+
 # Useful global constant
 _ZOOM = 10000
 ################################################################################
@@ -18,7 +19,7 @@ _ZOOM = 10000
 
 def set_float_point_precision(precision=4):
     """
-    Set the float-point precision for processing coordinates of endpoints
+    Set the float-point precision for processing coordinates of endpoints.
 
     In the internal implementation, the coordinates of endpoints are treated
     as float-point numbers no matter they are given as float-point numbers
@@ -42,17 +43,17 @@ def set_float_point_precision(precision=4):
 
 class Bond:
     """
-    Bond connecting two points
+    Bond connecting two points.
 
     Attributes
     ----------
     endpoints : tuple
-        The two endpoints (p0 and p1) of the bond
-        `p0` and `p1` is 1D np.ndarray with length 1, 2 or 3
-    directional : boolean
+        The two endpoints (p0 and p1) of the bond.
+        `p0` and `p1` is 1D np.ndarray with length 1, 2 or 3.
+    directional : bool
         Whether the direction of the bond should be considered.
         If set to True, then the order of p0, p1 is concerned and
-        Bond(p0, p1) != Bond(p1, p0) unless p0 == p1.
+        Bond(p0, p1) != Bond(p1, p0) unless p0 == p1;
         If set to False, then the order of p0, p1 is not concerned and
         Bond(p0, p1), Bond(p1, p0) is equivalent.
 
@@ -83,15 +84,15 @@ class Bond:
 
     def __init__(self, p0, p1, *, directional=True):
         """
-        Customize the newly created Bond instance
+        Customize the newly created Bond instance.
 
         Parameters
         ----------
-        p0, p1 : list, tuple or 1D.np.ndarray
-            Endpoints of the bond
+        p0, p1 : list, tuple or 1D np.ndarray
+            Endpoints of the bond.
             `p0` and `p1` should be 1D array with length 1, 2 or 3.
-        directional : boolean, keyword-only, optional
-            Whether the direction of the bond should be considered
+        directional : bool, keyword-only, optional
+            Whether the direction of the bond should be considered.
             If set to True, then the order of p0, p1 is concerned
             and Bond(p0, p1) != Bond(p1, p0) unless p0 == p1;
             If set to False, then the order of p0, p1 is not concerned
@@ -120,7 +121,7 @@ class Bond:
     @property
     def endpoints(self):
         """
-        The `endpoints` attribute
+        The `endpoints` attribute.
         """
 
         return np.array(self._p0, copy=True), np.array(self._p1, copy=True)
@@ -128,26 +129,26 @@ class Bond:
     @property
     def directional(self):
         """
-        The `directional` attribute
+        The `directional` attribute.
         """
 
         return self._directional
 
     def getLength(self, ndigits=None):
         """
-        Return the length of the bond
+        Return the length of the bond.
 
         Parameters
         ----------
         ndigits : None or int, optional
-            Number of digits to preserve after the decimal point
-            The default value `None` implies not round the result
-            default: None
+            Number of digits to preserve after the decimal point.
+            The default value `None` implies not round the result.
+            Default: None.
 
         Returns
         -------
         length : np.float64
-            The length of the bond
+            The length of the bond.
         """
 
         length = np.linalg.norm(self._p0 - self._p1)
@@ -157,26 +158,26 @@ class Bond:
 
     def getDisplace(self, ndigits=None):
         """
-        Return the displace from p0 to p1
+        Return the displace from p0 to p1.
 
         This method is only implemented for directional bond.
 
         Parameters
         ----------
         ndigits : None or int, optional
-            Number of digits to preserve after the decimal point
-            The default value `None` implies not round the result
-            default: None
+            Number of digits to preserve after the decimal point.
+            The default value `None` implies not round the result.
+            Default: None.
 
         Returns
         -------
         dr : 1D np.ndarray
-            The displace from p0 to p1
+            The displace from p0 to p1.
 
         Raises
         ------
         NotImplementedError :
-            For bond which is not directional, the method is meaningless
+            For bond which is not directional, this method is meaningless.
         """
 
         if self._directional:
@@ -191,35 +192,35 @@ class Bond:
 
     def getAzimuth(self, radian=False, ndigits=None):
         """
-        Return the angle between the bond and the coordinate system
+        Return the angle between the bond and the coordinate system.
 
         This method is only implemented for directional bond.
 
         Parameters
         ----------
-        radian : boolean, optional
-            Determine the unit of the angle, radian or degree
-            default: False
+        radian : bool, optional
+            Return the azimuth in radians if True, degrees if False.
+            Default: False.
         ndigits : None or int, optional
-            Number of digits to preserve after the decimal point
-            The default value `None` implies not round the result
-            default: None
+            Number of digits to preserve after the decimal point.
+            The default value `None` implies not round the result.
+            Default: None.
 
         Returns
         -------
         res : float or array of floats
             For 1D or 2D system, the azimuth is the angle between the
-            directional bond and the x-axis. The range of azimuth is [-pi, pi).
+            directional bond and the x-axis. The range of azimuth is [-pi, pi].
             For 3D, there are two angles,
             alpha: the angle between the directional bond and the z-axis. The
             range of alpha is [0, pi].
             beta: the angle between the projection of the bond on the xy plane
-            and the x-axis. The range of beta is [-pi, pi).
+            and the x-axis. The range of beta is [-pi, pi].
 
         Raises
         ------
         NotImplementedError :
-            For bond which is not directional, the method is meaningless
+            For bond which is not directional, this method is meaningless.
         """
 
         if self._directional:
@@ -250,14 +251,14 @@ class Bond:
 
     def __hash__(self):
         """
-        Calculate the hash value of the bond
+        Calculate the hash value of the bond.
         """
 
         return hash(self._tuple_form)
 
     def __eq__(self, other):
         """
-        Implement the `==` operator between self and other
+        Implement the `==` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -267,7 +268,7 @@ class Bond:
 
     def __ne__(self, other):
         """
-        Implement the `!=` operator between self and other
+        Implement the `!=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -277,7 +278,7 @@ class Bond:
 
     def __repr__(self):
         """
-        Official string representation of the bond
+        Official string representation of the bond.
         """
 
         info = "Bond(p0={0!r}, p1={1!r}, directional={2!r})"
@@ -287,7 +288,7 @@ class Bond:
 
     def __str__(self):
         """
-        Return a string that describes the content of the instance
+        Return a string that describes the content of the instance.
         """
         
         ndigits = 4
@@ -303,12 +304,14 @@ class Bond:
 
     def flip(self):
         """
-        Return a bond that is opposite to itself
+        Return a bond that is opposite to itself.
+
+        This method is only implemented for directional bond.
 
         Raises
         ------
         NotImplementedError :
-            For bond which is not directional, the method is meaningless.
+            For bond which is not directional, this method is meaningless.
         """
 
         if self._directional:
@@ -320,12 +323,14 @@ class Bond:
 
     def oppositeTo(self, other):
         """
-        Return whether the self bond is opposite to the other bond
+        Return whether the self bond is opposite to the other bond.
+
+        This method is only implemented for directional bond.
 
         Raises
         ------
         NotImplementedError :
-            For bond which is not directional, the method is meaningless.
+            For bond which is not directional, this method is meaningless.
         """
 
         if self._directional:
