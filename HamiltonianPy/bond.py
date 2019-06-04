@@ -296,16 +296,15 @@ class Bond:
         """
         Return a string that describes the content of the instance.
         """
-        
-        ndigits = 4
+
         titles = ["P0", "P1", "Length", "Azimuth", "Displace"]
-        contents = [self._p0, self._p1, self.getLength(ndigits)]
+        contents = [self._p0, self._p1, self.getLength()]
         if self._directional:
-            contents += [self.getAzimuth(ndigits), self.getDisplace(ndigits)]
+            contents += [self.getAzimuth(), self.getDisplace()]
         else:
             contents += ["Undefined", "Undefined"]
         return "\n".join(
-            "{0:<8} : {1!r}".format(t, c) for t, c in zip(titles, contents)
+            "{0:<8}: {1}".format(t, c) for t, c in zip(titles, contents)
         )
 
     def flip(self):
