@@ -112,7 +112,7 @@ class Bond:
         # Combine the original information of this bond into a tuple.
         # The tuple is then used to calculate the hash code and define the
         # compare logic between different instances.
-        identity = [tuple(int(_ZOOM * i) for i in p) for p in [p0, p1]]
+        identity = [tuple(int(_ZOOM * coord) for coord in p) for p in [p0, p1]]
         if not directional:
             identity.sort()
         identity.append(directional)
@@ -152,9 +152,7 @@ class Bond:
         """
 
         length = np.linalg.norm(self._p0 - self._p1)
-        if ndigits is None:
-            return length
-        return np.around(length, decimals=ndigits)
+        return length if ndigits is None else np.around(length, ndigits)
 
     def getDisplace(self, ndigits=None):
         """
@@ -182,9 +180,7 @@ class Bond:
 
         if self._directional:
             dr = self._p1 - self._p0
-            if ndigits is None:
-                return dr
-            return np.around(dr, decimals=ndigits)
+            return dr if ndigits is None else np.around(dr, ndigits)
         else:
             raise NotImplementedError(
                 "This method is meaningless for non-directional bond."
@@ -241,9 +237,7 @@ class Bond:
                 theta = np.array([alpha, beta])
 
             theta = coeff * theta
-            if ndigits is None:
-                return theta
-            return np.around(theta, decimals=ndigits)
+            return theta if ndigits is None else np.around(theta, ndigits)
         else:
             raise NotImplementedError(
                 "This method is meaningless for non-directional bond."
