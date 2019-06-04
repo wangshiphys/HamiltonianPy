@@ -270,6 +270,18 @@ class Bond:
         else:
             return NotImplemented
 
+    def __lt__(self, other):
+        return NotImplemented
+
+    def __le__(self, other):
+        return NotImplemented
+
+    def __gt__(self, other):
+        return NotImplemented
+
+    def __ge__(self, other):
+        return NotImplemented
+
     def __repr__(self):
         """
         Official string representation of the bond.
