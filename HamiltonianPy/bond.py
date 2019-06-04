@@ -13,11 +13,10 @@ import numpy as np
 
 # Useful global constant
 _ZOOM = 10000
-_VIEW_AS_ZERO = 1E-4
 ################################################################################
 
 
-def set_float_point_precision(precision):
+def set_float_point_precision(precision=4):
     """
     Set the float-point precision for processing coordinates of endpoints
 
@@ -30,15 +29,15 @@ def set_float_point_precision(precision):
 
     Parameters
     ----------
-    precision : int
-        The number of digits precision after the decimal point
+    precision : int, optional
+        The number of digits precision after the decimal point.
+        Default: 4.
     """
 
     assert isinstance(precision, int) and precision >= 0
 
-    global  _ZOOM, _VIEW_AS_ZERO
+    global  _ZOOM
     _ZOOM = 10 ** precision
-    _VIEW_AS_ZERO = 10 ** (-precision)
 
 
 class Bond:
@@ -231,18 +230,13 @@ class Bond:
 
             dr = self._p1 - self._p0
             if self._dim == 1:
-                theta = 0.0 if dr[0] >= 0.0 else -np.pi
+                theta = 0.0 if dr[0] >= 0 else -np.pi
             elif self._dim == 2:
                 theta = np.arctan2(dr[1], dr[0])
-                # If theta is pi, then it is equivalent to -pi.
-                if abs(theta - np.pi) < _VIEW_AS_ZERO:
-                    theta = -np.pi
             else:
                 x, y, z = dr
                 alpha = np.arctan2(np.sqrt(x**2+y**2), z)
                 beta = np.arctan2(y, x)
-                if abs(beta - np.pi) < _VIEW_AS_ZERO:
-                    beta = -np.pi
                 theta = np.array([alpha, beta])
 
             theta = coeff * theta
