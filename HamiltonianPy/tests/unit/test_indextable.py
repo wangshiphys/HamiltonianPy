@@ -10,31 +10,58 @@ import pytest
 from HamiltonianPy.indextable import IndexTable
 
 
-def test_IndexTable():
-    with pytest.raises(TypeError, match="has different type"):
-        IndexTable([(1, 2), "34"])
-    with pytest.raises(ValueError, match="already exists"):
-        IndexTable([(1, 2), (3, 4), (1, 2)])
+class TestIndexTable:
+    def test_init(self):
+        match0 = r"unhashable type"
+        match1 = r"The .* has different type from the previous ones"
+        match2 = r"The .* object already exists"
+        with pytest.raises(TypeError, match=match0):
+            IndexTable([[0, 1], [2, 3]])
+        with pytest.raises(TypeError, match=match1):
+            IndexTable([(0, 1), "ab"])
+        with pytest.raises(ValueError, match=match2):
+            IndexTable([(0, 1), (2, 3), (0, 1)])
 
-    num0 = 7
-    num1 = 3
-    table = IndexTable((x, y) for x in range(num0) for y in range(num1))
+    def test_object_type(self):
+        table = IndexTable((x, y) for x in range(4) for y in range(4))
+        assert table.object_type is tuple
 
-    assert len(table) == num0 * num1
-    assert table.object_type == tuple
-    assert list(table.indices()) == list(range(num0 * num1))
-    for judge, item in enumerate(table.objects()):
-        assert judge == table(item)
+    def test_str_and_iteration(self):
+        separator = "*" * 80
+        table = IndexTable((x, y) for x in range(2) for y in range(2))
+        print(table)
+        print(separator)
 
-    for i in range(5):
-        key0 = (randrange(num0), randrange(num1))
-        key1 = randrange(num0 * num1)
-        assert table(key0) == key0[0] * num1 + key0[1]
-        assert table(key1) == divmod(key1, num1)
+        for index in table.indices():
+            print(index)
+        print(separator)
 
-    with pytest.raises(TypeError):
-        table([1, 2])
-    with pytest.raises(KeyError):
-        table((num0, num1))
-    with pytest.raises(KeyError):
-        table(num0 * num1)
+        for item in table.objects():
+            print(item)
+        print(separator)
+
+        for index, item in table:
+            print(index, item)
+        print(separator)
+
+    def test_length(self):
+        num0 = 4
+        num1 = 7
+        table = IndexTable((x, y) for x in range(num0) for y in range(num1))
+        assert len(table) == num0 * num1
+
+    def test_query_index(self):
+        num0 = 7
+        num1 = 3
+        table = IndexTable((x, y) for x in range(num0) for y in range(num1))
+        for i in range(5):
+            key = (randrange(num0), randrange(num1))
+            assert table(key) == key[0] * num1 + key[1]
+
+    def test_query_object(self):
+        num0 = 7
+        num1 = 3
+        table = IndexTable((x, y) for x in range(num0) for y in range(num1))
+        for i in range(5):
+            index = randrange(num0 * num1)
+            assert table.query_object(index) == divmod(index, num1)
