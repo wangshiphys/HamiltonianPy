@@ -163,16 +163,19 @@ class SimpleHilbertSpace:
 
     Examples
     --------
+    >>> from HamiltonianPy.hilbertspace import SimpleHilbertSpace
     >>> # 2 single-particle states and no constraint on the number of particle
-    >>> SimpleHilbertSpace(states=2).base_vectors()
-    array([0, 1, 2, 3], dtype=uint64)
-    >>> SimpleHilbertSpace(states=[0, 1]).base_vectors()
+    >>> space = SimpleHilbertSpace(2)
+    >>> space
+    SimpleHilbertSpace((0, 1), -1)
+    >>> space.base_vectors()
     array([0, 1, 2, 3], dtype=uint64)
 
     >>> # 4 single-particle states and 2 particles
-    >>> SimpleHilbertSpace(4, 2).base_vectors()
-    array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
-    >>> SimpleHilbertSpace([0, 1, 2, 3], 2).base_vectors()
+    >>> space = SimpleHilbertSpace(4, 2)
+    >>> space
+    SimpleHilbertSpace((0, 1, 2, 3), 2)
+    >>> space.base_vectors()
     array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
     """
 
@@ -325,22 +328,41 @@ class HilbertSpace:
 
     Examples
     --------
+    >>> from HamiltonianPy.hilbertspace import HilbertSpace
     >>> # 2 single-particle states and no constraint on the number of particle
-    >>> HilbertSpace(2).base_vectors()
+    >>> space = HilbertSpace(2)
+    >>> space
+    HilbertSpace(((0, 1), -1))
+    >>> space.base_vectors()
     array([0, 1, 2, 3], dtype=uint64)
 
     >>> # 4 single-particle states and 2 particles
-    >>> HilbertSpace([(0, 1, 2, 3), 2]).base_vectors()
+    >>> space = HilbertSpace([(0, 1, 2, 3), 2])
+    >>> space
+    HilbertSpace(((0, 1, 2, 3), 2))
+    >>> space.base_vectors()
     array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
 
-    >>> # 2 sites and every site has spin-up and spin-down state
-    >>> # one particle in spin-down state and one particle in spin-up state
-    >>> HilbertSpace([(0, 2), 1], [(1, 3), 1]).base_vectors()
+    >>> # 2 lattice sites and every site has spin-up and spin-down state
+    >>> # Index Table
+    >>> # |site0, down> ----> 0
+    >>> # |site0, up> ----> 1
+    >>> # |site1, down> ----> 2
+    >>> # |site1, up> ----> 3
+
+    >>> # one particle in spin-down subspace and
+    >>> # one particle in spin-up subspace
+    >>> space = HilbertSpace([(0, 2), 1], [(1, 3), 1])
+    >>> space
+    HilbertSpace(((0, 2), 1), ((1, 3), 1))
+    >>> space.base_vectors()
     array([ 3,  6,  9, 12], dtype=uint64)
 
-    >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle on site0 and one particle on site1
-    >>> HilbertSpace([(0, 1), 1], [(2, 3), 1]).base_vectors()
+    >>> space = HilbertSpace([(0, 1), 1], [(2, 3), 1])
+    >>> space
+    HilbertSpace(((0, 1), 1), ((2, 3), 1))
+    >>> space.base_vectors()
     array([ 5,  6,  9, 10], dtype=uint64)
     """
 
@@ -479,6 +501,7 @@ def base_vectors(*subspace_specifiers, container="array", sort=True):
 
     Examples
     --------
+    >>> from HamiltonianPy.hilbertspace import base_vectors
     >>> # 2 single-particle states and no constraint on the number of particle
     >>> base_vectors(2)
     array([0, 1, 2, 3], dtype=uint64)
@@ -487,12 +510,18 @@ def base_vectors(*subspace_specifiers, container="array", sort=True):
     >>> base_vectors([(0, 1, 2, 3), 2])
     array([ 3,  5,  6,  9, 10, 12], dtype=uint64)
 
-    >>> # 2 sites and every site has spin-up and spin-down state
-    >>> # one particle in spin-down state and one particle in spin-up state
+    >>> # 2 lattice sites and every site has spin-up and spin-down state
+    >>> # Index Table
+    >>> # |site0, down> ----> 0
+    >>> # |site0, up> ----> 1
+    >>> # |site1, down> ----> 2
+    >>> # |site1, up> ----> 3
+
+    >>> # one particle in spin-down subspace and
+    >>> # one particle in spin-up subspace
     >>> base_vectors([(0, 2), 1], [(1, 3), 1])
     array([ 3,  6,  9, 12], dtype=uint64)
 
-    >>> # 2 sites and every site has spin-up and spin-down state
     >>> # one particle on site0 and one particle on site1
     >>> base_vectors([(0, 1), 1], [(2, 3), 1])
     array([ 5,  6,  9, 10], dtype=uint64)
