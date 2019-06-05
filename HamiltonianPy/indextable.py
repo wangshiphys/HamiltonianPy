@@ -90,8 +90,15 @@ class IndexTable:
         Return a string that describe the content the object
         """
 
-        info = "Index\tObject\n==============\n" + "\n".join(
-            "{0}\t{1!r}".format(i, k) for i, k in self._index2object.items()
+        return "\n".join(
+            [
+                "Index   Object",
+                "==============",
+                *[
+                    "{0:<8}{1!r}".format(i, k)
+                    for i, k in self._index2object.items()
+                ]
+            ]
         )
         return info
 
