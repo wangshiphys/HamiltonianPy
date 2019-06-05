@@ -1,5 +1,5 @@
 """
-Mapping hashable objects to integers in a continuous range
+Mapping hashable objects to integers in a continuous range.
 """
 
 
@@ -13,37 +13,48 @@ __all__ = [
 
 class IndexTable:
     """
-    A table that manages hashable objects and their indices
+    A table that manages hashable objects and their indices.
+
+    All the hashable objects should be of the same type.
 
     Attributes
     ----------
     object_type
-        The type of the objects managed by this table
+        The type of the objects managed by this table.
 
     Examples
     --------
     >>> from HamiltonianPy.indextable import IndexTable
-    >>> objects = [(x, y) for x in range(10) for y in range(10)]
-    >>> table = IndexTable(objects)
+    >>> table = IndexTable((x, y) for x in range(2) for y in range(2))
     >>> len(table)
-    100
-    >>> table((3, 5))
-    35
-    >>> table(23)
-    (2, 3)
+    4
+    >>> print(table)
+    Index   Object
+    ==============
+    0       (0, 0)
+    1       (0, 1)
+    2       (1, 0)
+    3       (1, 1)
+    >>> table.query_index((0, 1))
+    1
+    >>> table.query_object(2)
+    (1, 0)
+    >>> table((1, 0))
+    2
     """
 
     def __init__(self, objects, *, start=0):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         objects: iterable
-            A collection of hashable objects that is to be managed by the table
+            A collection of hashable objects that are to be managed by the
+            table. All objects should be of the same type.
         start: int, optional, keyword-only
-            The start of the index
-            default: 0
+            The start of the index.
+            Default: 0.
         """
 
         # object_type is the type of the input objects
@@ -80,14 +91,14 @@ class IndexTable:
     @property
     def object_type(self):
         """
-        The `object_type` attribute
+        The `object_type` attribute.
         """
 
         return self._object_type
 
     def __str__(self):
         """
-        Return a string that describe the content the object
+        Return a string that describe the content the object.
         """
 
         return "\n".join(
@@ -100,34 +111,33 @@ class IndexTable:
                 ]
             ]
         )
-        return info
 
     def indices(self):
         """
-        Return a new view of the objects' indices
+        Return a new view of the objects' indices.
         """
 
         return self._index2object.keys()
 
     def objects(self):
         """
-        Return a new view of the managed objects
+        Return a new view of the managed objects.
         """
 
         return self._object2index.keys()
 
     def __iter__(self):
         """
-        Make instance of this class iterable
+        Make instance of this class iterable.
 
-        Iterate over the indices and the corresponding objects: (index, obj)
+        Iterate over the indices and the corresponding objects: (index, obj).
         """
 
         return iter(self._index2object.items())
 
     def __len__(self):
         """
-        The number of entries in the table
+        The number of entries in the table.
         """
 
         return self._length
