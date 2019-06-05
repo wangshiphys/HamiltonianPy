@@ -51,6 +51,92 @@ from itertools import chain, combinations, product
 import numpy as np
 
 
+def is_valid_states_collection(states):
+    """
+    Determine whether the given `states` parameter is a valid
+    single-particle-state collection.
+
+    1. `states` must be non-empty tuple, list or set;
+    2. All elements of `states` must be non-negative integer.
+
+    Returns
+    -------
+    res : bool
+    """
+
+    if (
+        isinstance(states, (tuple, list, set)) and len(states) > 0 and
+        all(isinstance(state, int) and state >= 0 for state in states)
+    ):
+        return True
+    else:
+        return False
+
+def is_valid_subspace_specifier(specifier):
+    """
+    Determine whether the given `specifier` parameter is a valid
+    subspace-specifier.
+
+    See the docstring of the `hilbertspace` module for the definition of a
+    valid subspace-specifier.
+
+    Returns
+    -------
+    res: bool
+    """
+
+    if isinstance(specifier, int) and specifier > 0:
+        return True
+    elif isinstance(specifier, (list, tuple)) and len(specifier) == 2:
+        states, p_num = specifier
+        if isinstance(states, int) and states > 0 and states >= p_num:
+            return True
+        elif is_valid_states_collection(states) and len(states) >= p_num:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def subspace_specifier_preprocess(specifier):
+    """
+    Preprocess the given `specifier` to standard form.
+
+    See the docstring of the `hilbertspace` module for the definition of the
+    standard form of a subspace-specifier.
+
+    Parameters
+    ----------
+    specifier :
+        Subspace specifier.
+
+    Returns
+    -------
+    specifier : length-2 tuple
+        Subspace-specifier in standard form.
+
+    Raises
+    ------
+    ValueError :
+        Raised when the given `specifier` is not a valid subspace-specifier.
+    """
+
+    error_msg = "Invalid subspace-specifier: {0}"
+    if isinstance(specifier, int) and specifier > 0:
+        res = (tuple(range(specifier)), -1)
+    elif isinstance(specifier, (tuple, list)) and len(specifier) == 2:
+        states, p_num = specifier
+        if isinstance(states, int) and states > 0 and states >= p_num:
+            res = (tuple(range(states)), p_num)
+        elif is_valid_states_collection(states) and len(states) >= p_num:
+            res = (tuple(states), p_num)
+        else:
+            raise ValueError(error_msg.format(specifier))
+    else:
+        raise ValueError(error_msg.format(specifier))
+    return res
+
+
 class SimpleHilbertSpace:
     """
     A simple Hilbert space
