@@ -125,64 +125,62 @@ class IndexTable:
 
         return self._length
 
-    def __call__(self, key):
+    def query_index(self, key):
         """
-        Return the object or index according to the given key
+        Return the index corresponding to the given `key`.
 
         Parameters
         ----------
-        key : object or int
-            The key for which the corresponding object or index is queried
+        key :
+            The index corresponding to which is queried.
 
         Returns
         -------
-        res : The corresponding object or index.
+        index : int
+            The corresponding index.
 
         Raises
         ------
         KeyError :
-            The queried object or index is not managed by this table
+            The queried key is not managed by this table.
         TypeError :
-            The given key is neither of the same type as the objects managed
-            by this table nor of type int
+            The given key isn't of the same type as the objects managed by
+            this table.
         """
 
         if isinstance(key, self._object_type):
-            res = self._object2index[key]
-        elif isinstance(key, int):
-            res = self._index2object[key]
+            return self._object2index[key]
         else:
             raise TypeError(
-                "The given key is neither of the same type as the objects "
-                "managed by this table nor of type int."
+                "The given key isn't of the same type "
+                "as the objects managed by this table."
             )
-        return res
 
+    __call__ = query_index
 
-# This is a test of the IndexMap class
-if __name__ == "__main__":
-    from random import randrange
+    def query_object(self, index):
+        """
+        Return the object corresponding to the given `index`.
 
-    num0 = 7
-    num1 = 3
-    objects = ((x, y) for x in range(num0) for y in range(num1))
-    table = IndexTable(objects)
-    assert len(table) == num0 * num1
+        Parameters
+        ----------
+        index : int
+            The index.
 
-    for i in range(10):
-        key0 = (randrange(num0), randrange(num1))
-        key1 = randrange(num0 * num1)
-        assert table(key0) == key0[0] * num1 + key0[1]
-        assert table(key1) == divmod(key1, num1)
-        print("key = {0}\t value = {1}".format(key0, table(key0)))
-        print("key = {0}\t value = {1}".format(key1, table(key1)))
-        print("=" * 80)
+        Returns
+        -------
+        res :
+            The object corresponding to the given `index`.
 
-    for index in table.indices():
-        print(index)
-    print("=" * 80)
-    for obj in table.objects():
-        print(obj)
-    print("=" * 80)
-    for index, obj in table:
-        print(index, obj)
+        Raises
+        ------
+        KeyError :
+            The queried index is not managed by this table.
+        TypeError :
+            The given index is not integer.
+        """
+
+        if isinstance(index, int):
+            return self._index2object[index]
+        else:
+            raise TypeError("The given `index` should be integer!")
