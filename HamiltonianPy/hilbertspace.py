@@ -1,5 +1,5 @@
 """
-Bases of Hilbert space in the occupation-number representation
+Bases of Hilbert space in occupation-number representation.
 
 The design concept behind this module is that the concerned Hilbert space
 is consisted of one or more disjoint subspaces and every subspace can be
@@ -7,35 +7,43 @@ described by a collection of single-particle states as well as the number of
 particle belong the subspace. The subspaces are identified by specifiers and
 there are three kinds of valid subspace specifier:
 1. N
-    N is a positive integer
-    The available single-particle states: 0, 1, 2, ..., N-1
-    The particle number is not conserved
-2. (N, M)
-    N is a positive integer
-    M is an integer and M <= N
-    The available single-particle states: 0, 1, 2, ..., N-1
-    The particle number: M(if M < 0, particle number is not conserved)
-3. (states, M)
-    states is a collection of non-negative integers
-    M is an integer and M <= len(states)
-    The available single-particle states: states
-    The particle number: M(if M < 0, particle number is not conserved)
+    N is a positive integer;
+    The available single-particle states: (0, 1, 2, ..., N-1);
+    The particle number is not conserved.
+2. (N, M) or [N, M]
+    N is a positive integer, M is an integer and M <= N;
+    The available single-particle states: (0, 1, 2, ..., N-1);
+    The particle number: M(if M < 0, particle number is not conserved).
+3. (states, M) or [states, M]
+    `states` is a collection of non-negative integers;
+    M is an integer and M <= len(states);
+    The available single-particle states: states;
+    The particle number: M(if M < 0, particle number is not conserved).
+
+The standard form of a subspace specifier:
+    ((i, j, k, ...), M)
+where i, j, k is non-negative integer which represent single-particle-state
+and M is the number of particle belong the subspace.
 
 The first case is usually used for systems that the particle number is not
 conserved.
 
-The second case is used for systems that the particle number is conserved.
-For example, a spin-1/2 half-filling N-sites lattice system: (2*N, N).
+The second case is usually used for systems that the particle number is
+conserved. For example, a spin-1/2 half-filling N-sites lattice system,
+the corresponding subspace specifier is: (2*N, N).
 
 The third case is usually used for spin-conservation system or single
 occupancy system.
-For spin conservation system, the Hilbert space is divided
-into spin-up subspace and spin-down subspace and the particle number in each
-subspace is conserved:
-((|0, up>, |1, up>, ..., |n, up>), M0)
-((|0, down>, |1, down>, ..., |n, down>), M1)
+For spin conservation system, the Hilbert space is divided into spin-up
+subspace and spin-down subspace and the particle number in each subspace is
+conserved. The corresponding subspace specifiers:
+    ((|0, up>, |1, up>, ..., |N-1, up>), M0);
+    ((|0, down>, |1, down>, ..., |N-1, down>), M1).
 For single occupancy system, every lattice site has exactly one particle:
-((|0, up>, |0, down>), 1), ((|1, up>, |1, down>), 1), ...
+    ((|0, up>, |0, down>), 1);
+    ((|1, up>, |1, down>), 1);
+    ......;
+    ((|N-1, up>, |N-1, down>), 1).
 """
 
 
@@ -139,7 +147,7 @@ def subspace_specifier_preprocess(specifier):
 
 class SimpleHilbertSpace:
     """
-    A simple Hilbert space
+    A simple Hilbert space.
 
     Simple Hilbert space is defined as a Hilbert space that can not be
     divided into two or more disjoint subspaces.
@@ -170,19 +178,20 @@ class SimpleHilbertSpace:
 
     def __init__(self, states, number=-1):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
-        states : int | tuple | list | set
+        states : {int, tuple, list or set}
             If `states` is an integer, it must be positive and the available
-            single-particle states are `tuple(range(states))`.
+            single-particle states are `tuple(range(states))`;
             If `states` is a tuple, list or set, the entries are the
-            available single-particle states which must be non-negative integers
+            available single-particle states which must be non-negative
+            integers.
         number : int, optional
-            The number of particle in the system
-            Negative value means the particle number is not conserved
-            default: -1
+            The number of particle in the system.
+            Negative value implies that the particle number is not conserved.
+            Default: -1.
         """
 
         if isinstance(states, int) and states > 0:
@@ -209,7 +218,7 @@ class SimpleHilbertSpace:
     @property
     def single_particle_states(self):
         """
-        The `single_particle_states` attribute
+        The `single_particle_states` attribute.
         """
 
         return self._states
@@ -217,7 +226,7 @@ class SimpleHilbertSpace:
     @property
     def state_number(self):
         """
-        The `state_number` attribute
+        The `state_number` attribute.
         """
 
         return self._state_number
@@ -225,14 +234,14 @@ class SimpleHilbertSpace:
     @property
     def particle_number(self):
         """
-        The `particle_number` attribute
+        The `particle_number` attribute.
         """
 
         return self._particle_number
 
     def __repr__(self):
         """
-        The official string representation of the instance
+        The official string representation of the instance.
         """
 
         return "SimpleHilbertSpace({0!r}, {1!r})".format(
@@ -241,7 +250,7 @@ class SimpleHilbertSpace:
 
     def __str__(self):
         """
-        Return a string that describes the content of the instance
+        Return a string that describes the content of the instance.
         """
 
         return "\n".join(
@@ -257,23 +266,21 @@ class SimpleHilbertSpace:
 
     def base_vectors(self, *, container="array", sort=True):
         """
-        Return integers that represent the base vectors of the Hilbert space
+        Return integers that represent the base vectors of the Hilbert space.
 
         Parameters
         ----------
-        container : str, optional, keyword-only
-            The container of the returned base vectors
-            Accepted values are "list", "tuple" and "array", corresponding to
-            list, tuple and 1D np.ndarray respectively.
-            default: "array"
-        sort : boolean, optional, keyword-only
-            Sort the result in ascending order
-            default: True
+        container : {"list", "tuple" or "array"}, optional, keyword-only
+            The container of the generated base vectors.
+            Default: "array".
+        sort : bool, optional, keyword-only
+            Sort the base vectors in ascending order.
+            Default: True.
 
         Returns
          -------
-         res : tuple, list or 1D np.ndarray
-            A collection of base vectors
+         bases : tuple, list or 1D np.ndarray
+            A collection of base vectors.
         """
 
         assert container in ("list", "tuple", "array")
@@ -303,18 +310,18 @@ class SimpleHilbertSpace:
 
 class HilbertSpace:
     """
-    Description of a general Hilbert Space
+    Description of a general Hilbert Space.
 
-    Generally, a Hilbert space is composed of several subspaces. Each
-    subspace is described by a collection of single-particle states as well
+    Generally, a Hilbert space is composed of several disjoint subspaces.
+    Each subspace is described by a collection of single-particle states as well
     as the number of particle in the subspace.
 
     Attributes
     ----------
     subspace_number : int
-        The number of subspace
+        The number of subspace.
     subspace_specifiers : sequence of tuples
-        A collection of subspace specifiers
+        A collection of subspace-specifiers in standard form.
 
     Examples
     --------
@@ -339,12 +346,13 @@ class HilbertSpace:
 
     def __init__(self, *subspace_specifiers):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
-        subspaces : Specifiers for different subspaces.
-            See also the document for this module
+        subspace_specifiers :
+            Specifiers for the composing subspaces.
+            See also the docstring of this module.
         """
 
         subspace_specifiers = [
@@ -365,7 +373,7 @@ class HilbertSpace:
     @property
     def subspace_number(self):
         """
-        The `subspace_number` attribute
+        The `subspace_number` attribute.
         """
 
         return self._subspace_number
@@ -373,14 +381,14 @@ class HilbertSpace:
     @property
     def subspace_specifiers(self):
         """
-        The `subspace_specifiers` attribute
+        The `subspace_specifiers` attribute.
         """
 
         return self._subspace_specifiers
 
     def __repr__(self):
         """
-        The official string representation of this instance
+        The official string representation of this instance.
         """
 
         parameters = ", ".join(
@@ -390,7 +398,7 @@ class HilbertSpace:
 
     def __str__(self):
         """
-        Return a string that describes the content of this instance
+        Return a string that describes the content of this instance.
         """
 
         return "\n".join(
@@ -406,23 +414,21 @@ class HilbertSpace:
 
     def base_vectors(self, *, container="array", sort=True):
         """
-        Return integers that represent the base vectors of the Hilbert space
+        Return integers that represent the base vectors of the Hilbert space.
 
         Parameters
         ----------
-        container : str, optional, keyword-only
-            The container of the returned base vectors
-            Accepted values are "list", "tuple" and "array", corresponding to
-            list, tuple and 1D np.ndarray respectively.
-            default: "array"
-        sort : boolean, keyword-only, optional
-            Sort the result or not
-            default: True
+        container : {"list", "tuple" or "array"}, optional, keyword-only
+            The container of the generated base vectors.
+            Default: "array".
+        sort : bool, optional, keyword-only
+            Sort the base vectors in ascending order.
+            Default: True.
 
         Returns
          -------
-         res : tuple, list or 1D np.ndarray
-            A collection of base vectors
+         bases : tuple, list or 1D np.ndarray
+            A collection of base vectors.
         """
 
         assert container in ("list", "tuple", "array")
@@ -452,24 +458,23 @@ class HilbertSpace:
 
 def base_vectors(*subspace_specifiers, container="array", sort=True):
     """
-    Return integers that represent the base vectors of the Hilbert space
+    Return integers that represent the base vectors of the Hilbert space.
 
     Parameters
     ----------
-    subspaces : Specifiers for different subspaces.
-        See also the document for this module
-    container : str, optional, keyword-only
-        The container of the returned base vectors
-        Accepted values are "list", "tuple" and "array", corresponding to
-        list, tuple and 1D np.ndarray respectively.
-        default: "array"
-    sort : boolean, keyword-only, optional
-        Sort the result or not
-        default: True
+    subspace_specifiers :
+        Specifiers for the composing subspaces.
+        See also the docstring of this module.
+    container : {"list", "tuple" or "array"}, optional, keyword-only
+        The container of the generated base vectors.
+        Default: "array".
+    sort : bool, optional, keyword-only
+        Sort the base vectors in ascending order.
+        Default: True.
 
     Returns
     -------
-    res : tuple, list or 1D np.ndarray
+    bases : tuple, list or 1D np.ndarray
         A collection of base vectors
 
     Examples
