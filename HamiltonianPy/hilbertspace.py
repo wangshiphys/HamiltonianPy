@@ -187,10 +187,7 @@ class SimpleHilbertSpace:
 
         if isinstance(states, int) and states > 0:
             states = tuple(range(states))
-        elif (
-            isinstance(states, (tuple, list, set)) and len(states) > 0 and
-            all(isinstance(state, int) and state >= 0 for state in states)
-        ):
+        elif is_valid_states_collection(states):
             states = tuple(states)
         else:
             raise ValueError(
@@ -202,7 +199,7 @@ class SimpleHilbertSpace:
         if not isinstance(number, int) or number > state_number:
             raise ValueError(
                 "The `number` parameter must be integer and no "
-                "larger than the number of single-particle state!"
+                "larger than the total number of single-particle state!"
             )
 
         self._states = states
@@ -247,9 +244,16 @@ class SimpleHilbertSpace:
         Return a string that describes the content of the instance
         """
 
-        info = "All available single-particle states:\n    {0}\n" \
-               "The number of particle: {1}"
-        return info.format(self._states, self._particle_number)
+        return "\n".join(
+            [
+                "The number of particle: {0}".format(self._particle_number),
+                "The number of single-particle state: {0}".format(
+                    self._state_number
+                ),
+                "All available single-particle states:",
+                "    {0}".format(self._states),
+            ]
+        )
 
     def base_vectors(self, *, container="array", sort=True):
         """
@@ -275,16 +279,16 @@ class SimpleHilbertSpace:
         assert container in ("list", "tuple", "array")
 
         if self._particle_number < 0:
-            basis_iterator = chain(
+            basis_generator = chain(
                 *[
                     combinations(self._states, i)
                     for i in range(self._state_number + 1)
                 ]
             )
         else:
-            basis_iterator = combinations(self._states, self._particle_number)
+            basis_generator = combinations(self._states, self._particle_number)
 
-        kets = [sum(1<<pos for pos in basis) for basis in basis_iterator]
+        kets = [sum(1<<pos for pos in basis) for basis in basis_generator]
         if sort:
             kets.sort()
 
@@ -333,7 +337,7 @@ class HilbertSpace:
     array([ 5,  6,  9, 10], dtype=uint64)
     """
 
-    def __init__(self, *subspaces):
+    def __init__(self, *subspace_specifiers):
         """
         Customize the newly created instance
 
@@ -343,29 +347,10 @@ class HilbertSpace:
             See also the document for this module
         """
 
-        subspace_specifiers = []
-        for subspace in subspaces:
-            if isinstance(subspace, int) and subspace > 0:
-                specifier = (tuple(range(subspace)), -1)
-            elif isinstance(subspace, (tuple, list)) and len(subspace) == 2:
-                tmp, particle_number = subspace
-                if isinstance(tmp, int) and tmp > 0 and particle_number <= tmp:
-                    specifier = (tuple(range(tmp)), particle_number)
-                elif (
-                    isinstance(tmp, (list, tuple, set)) and len(tmp) > 0 and
-                    all(isinstance(state, int) and state >= 0 for state in tmp)
-                    and particle_number <= len(tmp)
-                ):
-                    specifier = (tuple(tmp), particle_number)
-                else:
-                    raise ValueError(
-                        "Invalid subspace specifier: {}".format(subspace)
-                    )
-            else:
-                raise ValueError(
-                    "Invalid subspace specifier: {}".format(subspace)
-                )
-            subspace_specifiers.append(specifier)
+        subspace_specifiers = [
+            subspace_specifier_preprocess(specifier)
+            for specifier in subspace_specifiers
+        ]
 
         # All the subspaces should be disjoint to each other
         if not all(
@@ -399,7 +384,7 @@ class HilbertSpace:
         """
 
         parameters = ", ".join(
-            "{0!r}".format(tmp) for tmp in self._subspace_specifiers
+            "{0!r}".format(specifier) for specifier in self._subspace_specifiers
         )
         return "HilbertSpace({0})".format(parameters)
 
@@ -408,13 +393,18 @@ class HilbertSpace:
         Return a string that describes the content of this instance
         """
 
-        info = "subspace_number: {0}\n".format(self._subspace_number)
-        info += "subspace_specifiers:\n"
-        for specifier in self._subspace_specifiers:
-            info += "    {0}\n".format(specifier)
-        return info
+        return "\n".join(
+            [
+                "subspace number: {0}".format(self._subspace_number),
+                "subspace specifiers:",
+                *[
+                    "    {0}".format(specifier)
+                    for specifier in self._subspace_specifiers
+                ]
+            ]
+        )
 
-    def base_vectors(self, container="array", sort=True):
+    def base_vectors(self, *, container="array", sort=True):
         """
         Return integers that represent the base vectors of the Hilbert space
 
@@ -437,19 +427,15 @@ class HilbertSpace:
 
         assert container in ("list", "tuple", "array")
 
-        subspace_basis_iterators = []
-        for states, particle_number in self._subspace_specifiers:
-            if particle_number < 0:
-                basis_iterator = chain(
-                    *[combinations(states, i) for i in range(len(states) + 1)]
-                )
-            else:
-                basis_iterator = combinations(states, particle_number)
-            subspace_basis_iterators.append(basis_iterator)
+        subspace_basis_generators = [
+            chain(*[combinations(states, i) for i in range(len(states) + 1)])
+            if particle_number < 0 else combinations(states, particle_number)
+            for states, particle_number in self._subspace_specifiers
+        ]
 
         kets = [
             sum(1 << pos for pos in chain(*basis))
-            for basis in product(*subspace_basis_iterators)
+            for basis in product(*subspace_basis_generators)
         ]
 
         if sort:
@@ -464,7 +450,7 @@ class HilbertSpace:
     __call__ = base_vectors
 
 
-def base_vectors(*subspaces, container="array", sort=True):
+def base_vectors(*subspace_specifiers, container="array", sort=True):
     """
     Return integers that represent the base vectors of the Hilbert space
 
@@ -509,47 +495,27 @@ def base_vectors(*subspaces, container="array", sort=True):
 
     assert container in ("list", "tuple", "array")
 
-    subspace_specifiers = []
-    for subspace in subspaces:
-        if isinstance(subspace, int) and subspace > 0:
-            specifier = (tuple(range(subspace)), -1)
-        elif isinstance(subspace, (tuple, list)) and len(subspace) == 2:
-            tmp, particle_number = subspace
-            if isinstance(tmp, int) and tmp > 0 and particle_number <= tmp:
-                specifier = (tuple(range(tmp)), particle_number)
-            elif (
-                isinstance(tmp, (tuple, list, set)) and len(tmp) > 0 and
-                all(isinstance(state, int) and state >= 0 for state in tmp)
-                and particle_number <= len(tmp)
-            ):
-                specifier = (tuple(tmp), particle_number)
-            else:
-                raise ValueError(
-                    "Invalid subspace specifier: {0}".format(subspace)
-                )
-        else:
-            raise ValueError("Invalid subspace specifier: {0}".format(subspace))
-        subspace_specifiers.append(specifier)
+    subspace_specifiers = [
+        subspace_specifier_preprocess(specifier)
+        for specifier in subspace_specifiers
+    ]
 
+    # All the subspaces should be disjoint to each other
     if not all(
         set(s0[0]).isdisjoint(set(s1[0]))
         for s0, s1 in combinations(subspace_specifiers, 2)
     ):
         raise ValueError("All subspaces should be disjoint to each other!")
 
-    subspace_basis_iterators = []
-    for states, particle_number in subspace_specifiers:
-        if particle_number < 0:
-            basis_iterator = chain(
-                *[combinations(states, i) for i in range(len(states) + 1)]
-            )
-        else:
-            basis_iterator = combinations(states, particle_number)
-        subspace_basis_iterators.append(basis_iterator)
+    subspace_basis_generators = [
+        chain(*[combinations(states, i) for i in range(len(states) + 1)])
+        if particle_number < 0 else combinations(states, particle_number)
+        for states, particle_number in subspace_specifiers
+    ]
 
     kets = [
         sum(1 << pos for pos in chain(*basis))
-        for basis in product(*subspace_basis_iterators)
+        for basis in product(*subspace_basis_generators)
     ]
 
     if sort:
