@@ -1,5 +1,9 @@
 """
-Implementation of the Lanczos Algorithm
+Implementation of the Lanczos Algorithm.
+
+See also:
+    http://www.netlib.org/utk/people/JackDongarra/etemplates/node85.html
+    https://www.cond-mat.de/events/correl11/manuscript/Koch.pdf
 """
 
 
@@ -9,16 +13,17 @@ __all__ = [
 ]
 
 
-from scipy.sparse import isspmatrix_csr
-from time import strftime, time
+import logging
+from time import time
 
 import numpy as np
-
+from scipy.sparse import isspmatrix_csr
 
 # Useful global constant
 _VIEW_AS_ZERO = 1E-10
 ################################################################################
 
+logging.getLogger("Lanczos").addHandler(logging.NullHandler())
 
 
 def set_threshold(threshold=1E-10):
@@ -42,32 +47,31 @@ def set_threshold(threshold=1E-10):
 
 class ConvergenceError(Exception):
     """
-    Exception raised when the requested convergence is not obtained
+    Exception raised when the requested convergence is not obtained.
     """
 
-    def __init__(self, msg):
-        self.msg = msg
+    def __init__(self, message):
+        self.message = message
 
 
 class Lanczos:
     """
-    Implementation of the Lanczos Algorithm
+    Implementation of the Lanczos Algorithm.
 
-    The basic idea behind the Lanczos method is to build a projection
-    HM_Krylov of the full Hamiltonian matrix HM onto a Krylov subspace.
-    After the projection, the representation of vectors and HM in this Krylov
-    subspace can be obtained and used for later calculation.
+    The basic idea behind the Lanczos algorithm is to build a Krylov subspace
+    from a matrix(usually large sparse matrix) and a starting vector. Then
+    the matrix and vectors can be projected to this Krylov subspace.
     """
 
     def __init__(self, HM):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         HM : csr_matrix
-            The compressed sparse row matrix to be processed
-            It must be an Hermitian matrix
+            The compressed sparse row matrix to be processed.
+            It must be an Hermitian matrix.
         """
 
         assert isspmatrix_csr(HM), "`HM` must be instance of csr_matrix"
@@ -76,284 +80,320 @@ class Lanczos:
         self._HM = HM
         self._HMDim = HM.shape[0]
 
-    def _starting_vector(self, v0=None):
-        # Prepare starting vector for Lanczos iteration
+    def _starting_vector(self, v0=None, which="random"):
+        # Prepare starting vector for Lanczos iteration.
+        # The `which` parameter only takes effect when `v0` is None.
+
         shape = (self._HMDim, 1)
-        if not isinstance(v0, np.ndarray) or v0.shape != shape:
-            if (v0 is None) or (v0 == "random"):
-                v0 = np.random.random_sample(size=shape)
-            elif v0 == "uniform":
-                v0 = np.ones(shape=shape)
+        assert (
+            (v0 is None) or (isinstance(v0, np.ndarray) and v0.shape == shape)
+        ), "Invalid `v0` parameter!"
+
+        if v0 is None:
+            core_func = np.ones if which == "uniform" else np.random.random
+            while True:
+                v0 = core_func(shape)
+                v0_norm = np.linalg.norm(v0)
+                if v0_norm > _VIEW_AS_ZERO:
+                    v0 /= v0_norm
+                    break
+        else:
+            v0_norm = np.linalg.norm(v0)
+            if v0_norm > _VIEW_AS_ZERO:
+                v0 = v0 / v0_norm
             else:
-                raise ValueError("Invalid `v0` parameter!")
+                raise ValueError("The given `v0` is a zero vector!")
+        return np.zeros(shape), v0
 
-        v0_norm = np.linalg.norm(v0)
-        if v0_norm < _VIEW_AS_ZERO:
-            raise ValueError("The given `v0` is a zero vector!")
-        return v0 / v0_norm
+    # Core function for generating basis of Krylov subspace
+    def _lanczos_iter_core(self, vector, vector_old):
+        # Calculate the matrix elements:
+        # < vector | HM | vector > and < vector_old | HM | vector_old >.
+        # In theory, the above matrix elements should be real numbers,
+        # but because of numerical errors, they will have small imaginary parts.
+        # Here we discard the imaginary parts manually.
+        vector_new = self._HM.dot(vector)
+        alpha = np.vdot(vector, vector_new).real
+        beta = np.vdot(vector_old, vector_new).real
 
-    def ground_state(self, v0=None, tol=1e-12):
+        # Orthogonalize `vector_new` with `vector` and `vector_old`
+        vector_new -= alpha * vector
+        vector_new -= beta * vector_old
+        # If `vector_new` is non-zero vector, normalize it;
+        # If zero vector, return None.
+        vector_new_norm = np.linalg.norm(vector_new)
+        if vector_new_norm <= _VIEW_AS_ZERO:
+            vector_new = None
+        else:
+            vector_new /= vector_new_norm
+        return alpha, beta, vector_new
+
+    def ground_state(self, v0=None, *, which="random", tol=1E-12, maxdim=None):
         """
-        Find the smallest eigenvalue of HM using Lanczos algorithm
+        Finding the smallest eigenvalue of `HM` using Lanczos algorithm.
+
+        This method stop the Lanczos iteration when the difference between
+        the smallest eigenvalue of the tridiagonal matrix in this iteration
+        and previous iteration is less than the given `tol`. This criterion
+        is simple but impractical. This method is not suitable for use in
+        practice, it is only provided as a demonstration of the Lanczos
+        algorithm. The `eigsh` function in the `scipy.sparse.linalg` package
+        is recommended for practical usage.
 
         Parameters
         ----------
-        v0 : ndarray
-            Starting vector for Lanczos iteration
-            Valid value for v0:
-                None | "random" | "uniform" | ndarray with shape (N, 1)
-            default: None(The same as "random")
-        tol : float
-            Relative accuracy for eigenvalue(stopping criterion)
-            default: 1e-12
+        v0 : np.ndarray or None, optional
+            Starting vector for Lanczos iteration.
+            If not given or None, a starting vector will be generated
+            according to the `which` parameter.
+            Default: None.
+        which : {"random" or "uniform"}, optional, keyword-only
+            Whether to generate a random or uniform starting vector.
+            This parameter only takes effect when `v0` is None.
+            Default: "random".
+        tol : float, optional, keyword-only
+            Relative accuracy for eigenvalue(stopping criterion).
+            Default: 1E-12.
+        maxdim : int, optional, keyword-only
+            Maximum dimension of the Krylov subspace. `maxdim` should be in the
+            range [1, N] where N is the dimension of `HM`. If `maxdim` was
+            set to any invalid value, then `maxdim` will be reset to N.
+            Default : None.
 
         Returns
         -------
-        val : float
-            The smallest eigenvalue of the matrix
-
-        Raises
-        ------
-        ConvergenceError
-            When the requested convergence accuracy is not obtained
+        res : float
+            The smallest eigenvalue of `HM`.
         """
 
-        HM = self._HM
-        v_old = 0.0
-        v = self._starting_vector(v0)
-        v_new = HM.dot(v)
+        assert isinstance(tol, float) and tol >= 0
 
-        c1 = np.vdot(v, v_new)
-        c1s = [c1]
-        c0s = []
+        logger = logging.getLogger("Lanczos.ground_state")
+        message_template = "Time spend on {0:03}th iteration: {1:.3f}s"
+        if not (isinstance(maxdim, int) and 0 < maxdim <= self._HMDim):
+            maxdim = self._HMDim
 
-        E = c1
-        for i in range(self._HMDim):
-            v_new -= c1 * v
-            v_new -= v_old
+        alphas = []
+        betas = []
+        values = []
+        vector_old, vector = self._starting_vector(v0=v0, which=which)
+        for i in range(maxdim):
+            t0 = time()
+            alpha, beta, vector_new = self._lanczos_iter_core(
+                vector, vector_old
+            )
+            alphas.append(alpha)
+            betas.append(beta)
+            tri = np.diag(alphas, 0)
+            tri += np.diag(betas[1:], 1)
+            tri += np.diag(betas[1:], -1)
+            values.append(np.linalg.eigvalsh(tri)[0])
+            message = message_template.format(i, time() - t0)
+            logger.info(message)
 
-            c0 = np.linalg.norm(v_new)
-            if c0 < _VIEW_AS_ZERO:
-                raise ConvergenceError("Got an invariant subspace!")
-            v_new /= c0
-
-            v_old = v
-            v_old *= c0
-            v = v_new
-            v_new = HM.dot(v)
-            c1 = np.vdot(v, v_new)
-            c1s.append(c1)
-            c0s.append(c0)
-
-            val = np.linalg.eigvalsh(
-                np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
-            )[0]
-            if abs(val - E) < tol:
-                return val
+            if len(values) >= 2 and abs(values[-1] - values[-2]) < tol:
+                return values[-1]
             else:
-                E = val
-        raise ConvergenceError(
-            "Got Krylov subspace larger than the original space!"
-        )
+                if vector_new is not None:
+                    # Update `vector_old` and `vector` for next iteration
+                    vector_old = vector
+                    vector = vector_new
+                else:
+                    raise RuntimeError("Got an invariant subspace.")
+        raise ConvergenceError("The required accuracy cannot be obtained!")
 
-    def krylov_basis(self, v0=None, maxiter=200):
+    def krylov_basis(self, v0=None, *, which="random", maxdim=200):
         """
-        Generate the bases of the Krylov subspace
+        Generate the bases of the Krylov subspace.
 
         This method calculate the bases of the Krylov subspace as well as the
-        representation of the matrix in the Krylov subspace.
+        representation of `HM` in the Krylov subspace.
 
-        The bases are stored as a np.ndarray with dimension (N, maxiter) and
-        every column of the array represents a base vector.
+        The bases are stored as a np.ndarray with dimension (N, maxdim) and
+        every column of the array corresponds to a base vector.
 
         Parameters
         ----------
-        v0 : ndarray, optional
-            Starting vector for iteration
-            Valid value for v0:
-                None | "random" | "uniform" | ndarray with shape (N, 1)
-            default : None(The same as "random")
-        maxiter : int, optional
-            Number of maximum Lanczos iteration
-            The actual number of iteration may less than this because of
-            achieving an invariant subspace!
-            default: 200
+        v0 : np.ndarray or None, optional
+            Starting vector for Lanczos iteration.
+            If not given or None, a starting vector will be generated
+            according to the `which` parameter.
+            Default: None.
+        which : {"random" or "uniform"}, optional, keyword-only
+            Whether to generate a random or uniform starting vector.
+            This parameter only takes effect when `v0` is None.
+            Default: "random".
+        maxdim : int, optional, keyword-only
+            Maximum dimension of the Krylov subspace. `maxdim` should be in the
+            range [1, N] where N is the dimension of `HM`. If `maxdim` was
+            set to any invalid value, then `maxdim` will be reset to N.
+            Default : 200.
 
         Returns
         -------
         krylov_repr_matrix : np.ndarray
-            The representation of `HM` in the Krylov subspace
+            The representation of `HM` in the Krylov subspace.
         krylov_bases : np.ndarray
-            The bases of the Krylov subspace
+            The bases of the Krylov subspace.
         """
 
-        assert isinstance(maxiter, int) and 0 < maxiter < self._HMDim
+        logger = logging.getLogger("Lanczos.krylov_basis")
+        message_template = "Time spend on {0:03}th iteration: {1:.3f}s"
+        if not (isinstance(maxdim, int) and 0 < maxdim <= self._HMDim):
+            maxdim = self._HMDim
 
-        HM = self._HM
-        v_old = 0.0
-        v = self._starting_vector(v0)
-        v_new = HM.dot(v)
+        alphas = []
+        betas = []
+        bases = []
+        vector_old, vector = self._starting_vector(v0=v0, which=which)
+        for i in range(maxdim):
+            t0 = time()
+            alpha, beta, vector_new = self._lanczos_iter_core(
+                vector, vector_old
+            )
+            alphas.append(alpha)
+            betas.append(beta)
+            bases.append(vector)
+            message = message_template.format(i, time() - t0)
+            logger.info(message)
 
-        c1 = np.vdot(v, v_new)
-        c1s = [c1]
-        c0s = []
-        bases = [v]
-
-        for i in range(1, maxiter):
-            v_new -= c1 * v
-            v_new -= v_old
-
-            c0 = np.linalg.norm(v_new)
-            if c0 < _VIEW_AS_ZERO:
+            if vector_new is not None:
+                # Update `vector_old` and `vector` for next iteration
+                vector_old = vector
+                vector = vector_new
+            else:
                 break
-            v_new /= c0
-
-            v_old = v
-            v_old *= c0
-            v = v_new
-            v_new = HM.dot(v)
-            c1 = np.vdot(v, v_new)
-            bases.append(v)
-            c1s.append(c1)
-            c0s.append(c0)
 
         krylov_bases = np.concatenate(bases, axis=1)
-        krylov_repr_matrix = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
+        krylov_repr_matrix = np.diag(alphas, 0)
+        krylov_repr_matrix += np.diag(betas[1:], 1)
+        krylov_repr_matrix += np.diag(betas[1:], -1)
         return krylov_repr_matrix, krylov_bases
 
-    def projection(self, vectors, v0=None, maxiter=200):
+    def projection(self, vectors, v0=None, *, which="random", maxdim=200):
         """
-        Return the representation of vectors and matrix in the Krylov subspace
+        Return the representation of `vectors` and `HM` in the Krylov subspace.
 
-        The representation of HM in the Krylov subspace is a tri-diagonal
+        The representation of `HM` in the Krylov subspace is a tri-diagonal
         matrix and is returned as a np.ndarray.
 
-        The representation of the given vectors in the Krylov subspace are
+        The representation of the given `vectors` in the Krylov subspace are
         stored as a dict. The keys of the dict are the identifiers of these
-        vectors and the values should be np.ndarray with shape (maxiter, 1).
+        vectors and the values should be np.ndarray with shape (maxdim, 1).
 
         Parameters
         ----------
         vectors : dict
-            The vectors to be projected onto the Krylov subspace
+            The vectors to be projected onto the Krylov subspace.
             The keys of the dict are the identifiers of these vectors and the
-            values of this dict should be np.ndarray with shape (N, 1).
-        v0 : ndarray, optional
-            Starting vector for iteration
-            Valid value for v0:
-                None | "random" | "uniform" | ndarray with shape (N, 1)
-            default : None(The same as "random")
-        maxiter : int, optional
-            Number of maximum Lanczos iteration
-            The actual number of iteration may less than this because of
-            achieving an invariant subspace!
-            default: 200
+            values of the dict should be np.ndarray with shape (N, 1).
+        v0 : np.ndarray or None, optional
+            Starting vector for Lanczos iteration.
+            If not given or None, a starting vector will be generated
+            according to the `which` parameter.
+            Default: None.
+        which : {"random" or "uniform"}, optional, keyword-only
+            Whether to generate a random or uniform starting vector.
+            This parameter only takes effect when `v0` is None.
+            Default: "random".
+        maxdim : int, optional, keyword-only
+            Maximum dimension of the Krylov subspace. `maxdim` should be in the
+            range [1, N] where N is the dimension of `HM`. If `maxdim` was
+            set to any invalid value, then `maxdim` will be reset to N.
+            Default : 200.
 
         Returns
         -------
         krylov_repr_matrix : np.ndarray
-            The representation of the matrix in the Krylov subspace
+            The representation of `HM` in the Krylov subspace.
         krylov_repr_vectors : dict
-            The representation of the vectors in the Krylov subspace
+            The representation of `vectors` in the Krylov subspace.
         """
 
-        assert isinstance(maxiter, int) and 0 < maxiter < self._HMDim
+        logger = logging.getLogger("Lanczos.projection")
+        message_template = "Time spend on {0:03}th iteration: {1:.3f}s"
+        if not (isinstance(maxdim, int) and 0 < maxdim <= self._HMDim):
+            maxdim = self._HMDim
 
-        HM = self._HM
-        v_old = 0.0
-        v = self._starting_vector(v0)
-        v_new = HM.dot(v)
-
-        c1 = np.vdot(v, v_new)
-        c1s = [c1]
-        c0s = []
-
+        alphas = []
+        betas = []
         krylov_repr_vectors = dict()
         for key in vectors:
-            krylov_repr_vectors[key] = [np.vdot(v, vectors[key])]
+            krylov_repr_vectors[key] = list()
 
-        for i in range(1, maxiter):
-            v_new -= c1 * v
-            v_new -= v_old
-
-            c0 = np.linalg.norm(v_new)
-            if c0 < _VIEW_AS_ZERO:
-                break
-            v_new /= c0
-
-            v_old = v
-            v_old *= c0
-            v = v_new
-            v_new = HM.dot(v)
-            c1 = np.vdot(v, v_new)
-            c1s.append(c1)
-            c0s.append(c0)
-
+        vector_old, vector = self._starting_vector(v0=v0, which=which)
+        for i in range(maxdim):
+            t0 = time()
+            alpha, beta, vector_new = self._lanczos_iter_core(
+                vector, vector_old
+            )
+            alphas.append(alpha)
+            betas.append(beta)
             for key in vectors:
-                krylov_repr_vectors[key].append(np.vdot(v, vectors[key]))
+                krylov_repr_vectors[key].append(np.vdot(vector, vectors[key]))
+            message = message_template.format(i, time() - t0)
+            logger.info(message)
+
+            if vector_new is not None:
+                # Update `vector_old` and `vector` for next iteration
+                vector_old = vector
+                vector = vector_new
+            else:
+                break
 
         for key in vectors:
             krylov_repr_vectors[key] = np.reshape(
                 krylov_repr_vectors[key], newshape=(-1, 1)
             )
-        krylov_repr_matrix = np.diag(c1s, 0) + np.diag(c0s, -1) + np.diag(c0s, 1)
+        krylov_repr_matrix = np.diag(alphas, 0)
+        krylov_repr_matrix += np.diag(betas[1:], 1)
+        krylov_repr_matrix += np.diag(betas[1:], -1)
         return krylov_repr_matrix, krylov_repr_vectors
 
-    def __call__(self, vectors, maxiter=200, process_num=1, log=False):
+    def __call__(self, vectors, *, maxdim=200):
         """
-        Return the representation of vectors and matrix in the Krylov subspace
+        Return the representation of `vectors` and `HM` in the Krylov subspace.
 
         Choosing every vector in `vectors` as the starting vector, this method
-        generate the Krylov subspace, calculate the representation of the
-        matrix and all vectors in this space.
+        generate the corresponding Krylov subspace, calculate the
+        representation of `HM` and `vectors` in this space.
 
         Parameters
         ----------
         vectors : dict
-            The vectors to be projected onto the Krylov subspace
+            The vectors to be projected onto the Krylov subspace.
             The keys of the dict are the identifiers of these vectors and the
-            values of this dict should be np.ndarray with shape (N, 1).
-        maxiter : int, optional
-            Number of maximum Lanczos iteration
-            The actual number of iteration may less than this because of
-            achieving an invariant subspace!
-            default: 200
-        process_num : int, optional
-            The number of process to use.
-            It is recommended to set this parameter to be integer which can be
-            divided exactly by the number of vectors for load balancing of every
-            process, also, this parameter should not be too large because of the
-            bandwidth limit of the RAM.
-            default: 1
-        log : boolean, optional
-            Whether to print the log information to stdout
-            default: False
+            values of the dict should be np.ndarray with shape (N, 1).
+        maxdim : int, optional, keyword-only
+            Maximum dimension of the Krylov subspace. `maxdim` should be in the
+            range [1, N] where N is the dimension of `HM`. If `maxdim` was
+            set to any invalid value, then `maxdim` will be reset to N.
+            Default : 200.
 
         Returns
         -------
         krylov_reprs_matrix : dict
-            The representations of HM in these Krylov subspaces.
+            The representations of `HM` in these Krylov subspaces.
         krylov_reprs_vectors : dict
-            The representations of the vectors in these Krylov subspaces.
+            The representations of `vectors` in these Krylov subspaces.
         """
 
-        assert isinstance(process_num, int) and process_num > 0
-        # TODO: add support for multi-process parallel
+        logger = logging.getLogger("Lanczos.__call__")
+        message_template = "Time spend on the {0:03}th " \
+                           "starting vector: {1:.3f}s"
+        if not (isinstance(maxdim, int) and 0 < maxdim <= self._HMDim):
+            maxdim = self._HMDim
 
         krylov_reprs_matrix = dict()
         krylov_reprs_vectors = dict()
 
-        fmt = "%Y-%d-%m %H:%M:%S"
-        log_template = "{0}: {1}, {2}th vector, {3}s"
         for index, key in enumerate(vectors):
             t0 = time()
             krylov_repr_matrix, krylov_repr_vectors = self.projection(
-                vectors, vectors[key], maxiter
+                vectors, v0=vectors[key], maxdim=maxdim
             )
             krylov_reprs_matrix[key] = krylov_repr_matrix
             krylov_reprs_vectors[key] = krylov_repr_vectors
-            t1 = time()
-            if log:
-                msg = log_template.format(strftime(fmt), key, index, t1 - t0)
-                print(msg, flush=True)
+            message = message_template.format(index, time() - t0)
+            logger.info(message)
         return krylov_reprs_matrix, krylov_reprs_vectors
