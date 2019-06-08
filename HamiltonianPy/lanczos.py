@@ -5,7 +5,7 @@ Implementation of the Lanczos Algorithm
 
 __all__ = [
     "Lanczos",
-    "set_float_point_precision",
+    "set_threshold",
 ]
 
 
@@ -20,25 +20,24 @@ _VIEW_AS_ZERO = 1E-10
 ################################################################################
 
 
-def set_float_point_precision(precision):
-    """
-    Set the precision for processing float point number
 
-    The float-point precision affects the internal implementation of the
-    Lanczos class. If you want to change the default value, you must call
-    this function before creating any Lanczos instance. The default value is
-    `precision = 10`.
+def set_threshold(threshold=1E-10):
+    """
+    Set the threshold for viewing a vector as zero-vector.
+
+    If the norm of a vector is less than the given `threshold`, then the
+    vector is viewed as zero-vector.
 
     Parameters
     ----------
-    precision : int
-        The number of digits precision after the decimal point
+    threshold : float, optional
+        The threshold value.
+        Default: 1E-10.
     """
 
-    assert isinstance(precision, int) and precision >= 0
-
-    global  _VIEW_AS_ZERO
-    _VIEW_AS_ZERO = 10 ** (-precision)
+    assert isinstance(threshold, float) and threshold >= 0
+    global _VIEW_AS_ZERO
+    _VIEW_AS_ZERO = threshold
 
 
 class ConvergenceError(Exception):
