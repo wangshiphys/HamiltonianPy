@@ -1,3 +1,8 @@
+"""
+Database for some commonly used cluster
+"""
+
+
 from itertools import product
 
 import numpy as np
@@ -49,12 +54,12 @@ __all__ = [
 ]
 
 
-# Calculate the translation vectors in k-space from translation vectors in
-# real-space
+# Calculate the translation vectors in k-space
+# from translation vectors in real-space
 _BSCalculator = lambda AS: 2 * np.pi * np.linalg.inv(AS.T)
 
-# The following matrices are defined for calculating the high-symmetry points
-# in the first Brillouin Zone(1st-BZ)
+# The following matrices are defined for calculating
+# the high-symmetry points in the first Brillouin Zone(1st-BZ)
 # When the two real-space translation vectors a0, a1 have the same length and
 # the angle between them is 90 degree, then the 1st-BZ is a square. The
 # middle-points of the edges of the 1st-BZ are called X-points and the
@@ -262,6 +267,7 @@ TRIANGLE_STAR_MS = np.dot(_HEXAGON_MS_COEFF_60, TRIANGLE_STAR_BS) / 2
 TRIANGLE_STAR_KS = np.dot(_HEXAGON_KS_COEFF_60, TRIANGLE_STAR_BS) / 3
 ################################################################################
 
+# 6-sites cluster division of the honeycomb lattice
 HONEYCOMB_BENZENE_POINTS = np.array(
     [
         [0.0, -1 / np.sqrt(3)], [-0.5, -0.5 / np.sqrt(3)],
@@ -282,6 +288,7 @@ HONEYCOMB_BENZENE_MS = np.dot(_HEXAGON_MS_COEFF_60, HONEYCOMB_BENZENE_BS) / 2
 HONEYCOMB_BENZENE_KS = np.dot(_HEXAGON_KS_COEFF_60, HONEYCOMB_BENZENE_BS) / 3
 ################################################################################
 
+# 10-sites cluster division of the honeycomb lattice
 HONEYCOMB_DIPHENYL_POINTS = np.array(
     [
         [-0.5, -1.0 / np.sqrt(3)], [-1.0, -0.5 / np.sqrt(3)],
@@ -299,6 +306,8 @@ HONEYCOMB_DIPHENYL_BS = _BSCalculator(HONEYCOMB_DIPHENYL_AS)
 HONEYCOMB_DIPHENYL_GAMMA = np.array([0.0, 0.0], dtype=_dtype)
 ################################################################################
 
+# 24-sites cluster division of the honeycomb lattice
+# The appearance of this cluster looks like a gear
 HONEYCOMB_GEAR_POINTS = np.array(
     [
         # The inner 6 points
@@ -418,6 +427,7 @@ _special_clusters_info = {
     "triangle_star": _triangle_star_info,
     "triangle_13": _triangle_star_info,
     "star": _triangle_star_info,
+    "SD": _triangle_star_info,
 
     "honeycomb_benzene": _honeycomb_benzene_info,
     "honeycomb_6": _honeycomb_benzene_info,
@@ -435,12 +445,12 @@ _special_clusters_info = {
 
 def special_cluster(which):
     """
-    Generate special cluster
+    Generate special cluster.
 
     Parameters
     ----------
     which : str
-        Which special lattice to generate
+        Which special lattice to generate.
         Currently supported special lattice:
             "square_cross"
             "square_z"
@@ -453,7 +463,7 @@ def special_cluster(which):
             "square_cross" | "square_12" | "cross";
             "square_z" | "z";
             "square_s" | "s";
-            "triangle_star" | "triangle_13" | "star";
+            "triangle_star" | "triangle_13" | "star" | "SD";
             "honeycomb_benzene" | "honeycomb_6"| "benzene";
             "honeycomb_diphenyl" | "honeycomb_10" | "diphenyl";
             "honeycomb_gear" | "honeycomb_24" | "gear";
@@ -461,7 +471,7 @@ def special_cluster(which):
     Returns
     -------
     res : Lattice
-        The corresponding cluster
+        The corresponding cluster.
     """
 
     try:
@@ -473,25 +483,25 @@ def special_cluster(which):
 
 def lattice_generator(which, num0=1, num1=1, num2=1):
     """
-    Generate a common cluster with translation symmetry
+    Generate a common cluster with translation symmetry.
 
     Parameters
     ----------
     which : str
-        Which  type of lattice to generate.
-        Legal value:
+        Which type of lattice to generate.
+        Current supported value:
             "chain" | "square" | "triangle" | "honeycomb" | "kagome" | "cubic"
     num0 : int, optional
-        The number of unit cell along the first translation vector
-        default: 1
+        The number of unit cell along the first translation vector.
+        Default: 1.
     num1 : int, optional
-        The number of unit cell along the second translation vector. It only
-        takes effect for 2D and 3D lattice.
-        default: 1
+        The number of unit cell along the second translation vector.
+        It only takes effect for 2D and 3D lattice.
+        Default: 1.
     num2 : int, optional
-        The number of unit cell along the second translation vector. It only
-        takes effect for 3D lattice.
-        default: 1
+        The number of unit cell along the second translation vector.
+        It only takes effect for 3D lattice.
+        Default: 1.
 
     Returns
     -------
@@ -537,3 +547,21 @@ def lattice_generator(which, num0=1, num1=1, num2=1):
     points = np.reshape(dRs[:, np.newaxis, :] + cell_points, newshape=(-1, dim))
 
     return Lattice(points=points, vectors=vectors, name=name)
+
+
+if __name__ == "__main__":
+    for cell in ["chain", "square", "triangle", "honeycomb", "kagome"]:
+        lattice = lattice_generator(cell)
+        lattice.show()
+        lattice.show(scope=1)
+
+    for cluster in ["cross", "z", "s", "star", "benzene", "diphenyl", "gear"]:
+        lattice = special_cluster(cluster)
+        lattice.show()
+        lattice.show(1)
+
+    lattice_generator("chain", num0=10).show()
+    lattice_generator("square", num0=6, num1=6).show()
+    lattice_generator("honeycomb", num0=6, num1=6).show()
+    lattice_generator("triangle", num0=6, num1=6).show()
+    lattice_generator("kagome", num0=6, num1=6).show()
