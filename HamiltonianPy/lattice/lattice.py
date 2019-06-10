@@ -1,44 +1,45 @@
 """
-Description of common lattice with translation symmetry
+Description of common lattice with translation symmetry.
 """
 
 
 __all__ = [
     "Lattice",
-    "lattice_generator",
-    "special_cluster",
     "KPath",
+    "ShowFirstBZ",
+    "set_float_point_precision",
 ]
 
 
 from itertools import product
-from scipy.spatial import cKDTree
-from scipy.spatial.distance import cdist, pdist
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist, pdist
 
 from HamiltonianPy.bond import Bond
 
-
 # Useful global constant
 _ZOOM = 10000
-_VIEW_AS_ZERO = 1e-4
+_VIEW_AS_ZERO = 1E-4
 ################################################################################
 
 
-def set_float_point_precision(precision):
+def set_float_point_precision(precision=4):
     """
-    Set the precision for processing float point number
+    Set the float point precision for processing float point number.
 
-    The float-point precision affects the internal implementation of the
+    The float point precision affects the internal implementation of the
     Lattice class. If you want to change the default value, you must call
     this function before creating any Lattice instance.
+    The default value is: `precision=4`.
 
     Parameters
     ----------
-    precision : int
-        The number of digits precision after the decimal point
+    precision : int, optional
+        The number of digits precision after the decimal point.
+        Default: 4.
     """
 
     assert isinstance(precision, int) and precision >= 0
@@ -50,17 +51,17 @@ def set_float_point_precision(precision):
 
 class Lattice:
     """
-    Unified description of a cluster with translation symmetry
+    Unified description of a cluster with translation symmetry.
 
     Attributes
     ----------
-    points : array-like, shape (n, m)
+    points : np.ndarray, shape (n, m)
         A collection of the coordinates of the points in the cluster and
         every row represents a point.
-    vectors : array-like, shape (k, m)
+    vectors : np.ndarray, shape (k, m)
         A collection of the translation vectors of the lattice and every row
         represents a translation vector.
-    bs : array-like, shape (k, m)
+    bs : np.ndarray, shape (k, m)
         A collection of the base vectors of the reciprocal space and every
         row represents a vector.
     point_num : int
@@ -71,26 +72,26 @@ class Lattice:
         The number of linear independent directions along which the lattice
         is translational invariant.
     name : str
-        The name of this cluster
+        The name of this cluster.
     """
 
     def __init__(self, points, vectors, name=""):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
-        points : array-like, shape (n, m)
+        points : np.ndarray, shape (n, m)
             A collection of the coordinates of the points in the cluster and
             every row represents a point. There should be no duplicate
             points in the collection.
-        vectors : array-like, shape (k, m)
+        vectors : np.ndarray, shape (k, m)
             A collection of the translation vectors of the lattice and every
             row represents a translation vector. There should be no duplicate
             vectors in the collection.
         name : str, optional
             The name of this cluster.
-            default: ""(empty string)
+            Default: "".
         """
 
         assert isinstance(points, np.ndarray) and points.ndim == 2
@@ -100,28 +101,29 @@ class Lattice:
         trans_dim, tmp = vectors.shape
         if space_dim > 3:
             raise ValueError("Not supported space dimension.")
-
         if trans_dim > space_dim:
             raise ValueError(
-                "The number of translation vectors should not be greater "
-                "than the space dimension!"
+                "The number of translation vectors should "
+                "be no larger than the space dimension!"
             )
         if tmp != space_dim:
             raise ValueError(
-                "The translation vectors should have the same space "
-                "dimension as the points!"
+                "The translation vectors should have "
+                "the same space dimension as points!"
             )
 
         # Check is there duplicate translation vectors in the given `vectors`
         if np.any(pdist(vectors) < _VIEW_AS_ZERO):
             raise ValueError(
-                "There are duplicate translation vectors in the given `vectors`"
+                "There are duplicate vectors in the given `vectors`!"
             )
 
         # Check is there duplicate points in the given `points`
         tmp = pdist(points)
         if np.any(tmp < _VIEW_AS_ZERO):
-            raise ValueError("There are duplicate points in the given `points`")
+            raise ValueError(
+                "There are duplicate points in the given `points`!"
+            )
         else:
             dists = np.insert(np.unique(np.ceil(tmp * _ZOOM)) / _ZOOM, 0, 0.0)
 
@@ -135,20 +137,17 @@ class Lattice:
 
         self._points = np.array(points, copy=True)
         self._vectors = np.array(vectors, copy=True)
-        self._points.setflags(write=False)
-        self._vectors.setflags(write=False)
 
         # bs = np.matmul(coeff, As)
         # np.matmul(bs, As.T) == 2 * np.pi * I
         self._bs = 2 * np.pi * np.linalg.solve(
             np.matmul(vectors, vectors.T), vectors
         )
-        self._bs.setflags(write=False)
 
     @property
     def points(self):
         """
-        The `points` attribute of the instance
+        The `points` attribute of the instance.
         """
 
         return np.array(self._points, copy=True)
@@ -156,7 +155,7 @@ class Lattice:
     @property
     def vectors(self):
         """
-        The `vectors` attribute of the instance
+        The `vectors` attribute of the instance.
         """
 
         return np.array(self._vectors, copy=True)
@@ -164,7 +163,7 @@ class Lattice:
     @property
     def bs(self):
         """
-        The `bs` attribute of the instance
+        The `bs` attribute of the instance.
         """
 
         return np.array(self._bs, copy=True)
@@ -172,15 +171,15 @@ class Lattice:
     @property
     def point_num(self):
         """
-        The `point_num` attribute of the instance
+        The `point_num` attribute of the instance.
         """
 
         return self._point_num
 
     @property
-    def space_dim(self):# {{{
+    def space_dim(self):
         """
-        The `space_dim` attribute of the instance
+        The `space_dim` attribute of the instance.
         """
 
         return self._space_dim
@@ -188,7 +187,7 @@ class Lattice:
     @property
     def trans_dim(self):
         """
-        The `trans_dim` attribute of the instance
+        The `trans_dim` attribute of the instance.
         """
 
         return self._trans_dim
@@ -198,45 +197,42 @@ class Lattice:
         Return a string that describes the content of the instance.
         """
 
+        fomatter = lambda array: np.array2string(array, separator=", ")
         return "\n".join(
             [
                 "Point Number: {0}".format(self._point_num),
                 "Space Dimension: {0}".format(self._space_dim),
                 "Translation Dimension: {0}".format(self._trans_dim),
                 "Points:",
-                *[
-                    "    {0}".format(np.array2string(point, separator=", "))
-                    for point in self._points
-                ],
+                *["    {0}".format(fomatter(p)) for p in self._points],
                 "Vectors:",
-                *[
-                    "    {0}".format(np.array2string(vector, separator=", "))
-                    for vector in self._vectors
-                ],
+                *["    {0}".format(fomatter(v)) for v in self._vectors],
                 "Bs:",
-                *[
-                    "    {0}".format(np.array2string(b, separator=", "))
-                    for b in self._bs
-                ]
+                *["    {0}".format(fomatter(b)) for b in self._bs],
             ]
         )
 
     def getIndex(self, site, *, fold=False):
         """
-        Return the index corresponding to the given site
+        Return the index corresponding to the given site.
 
         Parameters
         ----------
         site : np.ndarray
-            The site whose index is queried
-        fold : boolean, keyword-only, optional
-            Whether to fold the given site back to the cluster
-            default: False
+            The site whose index is queried.
+        fold : bool, optional, keyword-only
+            Whether to fold the given site back to the cluster.
+            Default: False.
 
         Returns
         -------
         index : int
-            The index of the given site if it belong the cluster
+            The index of the given site if it belong the lattice.
+
+        Raises
+        ------
+        KeyError:
+            Raised when the given `site` does not belong the lattice.
         """
 
         assert isinstance(site, np.ndarray) and site.shape == (self._space_dim,)
@@ -248,7 +244,7 @@ class Lattice:
         if dist < _VIEW_AS_ZERO:
             return index
         else:
-            raise KeyError("The given site does not belong the lattice")
+            raise KeyError("The given site does not belong the lattice!")
 
     def getSite(self, index):
         """
@@ -261,18 +257,13 @@ class Lattice:
 
         Returns
         -------
-        res : np.array
-            The site corresponding to the index.
+        site : np.ndarray
+            The site corresponding to the given `index`.
         """
 
-        assert isinstance(index, int), "The `index` should be an integer"
+        assert isinstance(index, int) and 0 <= index < self._point_num
 
-        if index < 0:
-            raise ValueError("The `index` should be none negative integer")
-        elif index < self._point_num:
-            return np.array(self._points[index], copy=True)
-        else:
-            raise ValueError("The `index` is larger than the number of sites")
+        return np.array(self._points[index], copy=True)
 
     def _guess_scope(self, ref_distance):
         repeat = self._trans_dim
@@ -317,28 +308,28 @@ class Lattice:
 
         Parameters
         ----------
-        site : ndarray
-            The site to be decomposed
+        site : np.ndarray
+            The site to be decomposed.
 
         Returns
         -------
-        site : ndarray
-            The equivalent point in the cluster
-        dR : ndarray
-            The translation vector
+        site : np.ndarray
+            The equivalent point in the cluster.
+        dR : np.ndarray
+            The translation vector.
         """
 
-        assert isinstance(site, np.ndarray) and site.shape == (self.space_dim,)
+        assert isinstance(site, np.ndarray) and site.shape == (self._space_dim,)
 
-        if not hasattr(self, "_dRs_DataBase"):
+        if not hasattr(self, "_dRsDataBase"):
             mesh = product([-1, 0, 1], repeat=self._trans_dim)
-            self._dRs_DataBase = cKDTree(np.matmul(list(mesh), self._vectors))
+            self._dRsDataBase = cKDTree(np.matmul(list(mesh), self._vectors))
 
         # First search in a small area, if success then return the result,
-        #  if failed, calculate the possible scope and search in that area
+        #  if failed, calculate the possible scope and search in that area.
         all_displaces = site - self._points
-        dRs_DataBase = self._dRs_DataBase
-        res = self._searching(dRs_DataBase, all_displaces)
+        dRsDataBase = self._dRsDataBase
+        res = self._searching(dRsDataBase, all_displaces)
         if res is not None:
             return res
 
@@ -346,28 +337,28 @@ class Lattice:
             np.max(np.linalg.norm(all_displaces, axis=-1))
         )
         mesh = product(range(-scope, scope + 1), repeat=self._trans_dim)
-        dRs_DataBase = cKDTree(np.matmul(list(mesh), self._vectors))
-        res = self._searching(dRs_DataBase, all_displaces)
+        dRsDataBase = cKDTree(np.matmul(list(mesh), self._vectors))
+        res = self._searching(dRsDataBase, all_displaces)
         if res is not None:
             return res
         else:
             raise RuntimeError(
-                "Failed to decompose the input site. It might not belong "
-                "the lattice. Check carefully!"
+                "Failed to decompose the input site. "
+                "It might not belong the lattice, check carefully!"
             )
 
     def show(self, scope=0, savefig=False):
         """
-        Show all the points in the cluster
+        Show all the points in the cluster.
 
         Parameters
         ----------
         scope : int, optional
-            Determine the number of clusters to show
-            default: 0
-        savefig : boolean, optional
-            Determine whether to save or display the figure
-            default: False
+            Determine the number of clusters to show.
+            Default: 0.
+        savefig : bool, optional
+            Determine whether to save or display the figure.
+            Default: False.
         """
 
         assert isinstance(scope, int) and scope >= 0
@@ -386,12 +377,10 @@ class Lattice:
         if self._space_dim == 1:
             ys = np.zeros(shape=self._points.shape)
             for cluster in clusters:
-                ax.plot(cluster, ys, marker="o", ls="None", ms=8)
+                ax.plot(cluster, ys, marker="o", ls="None")
         else:
             for cluster in clusters:
-                ax.plot(
-                    cluster[:, 0], cluster[:, 1], marker="o", ls="None", ms=8
-                )
+                ax.plot(cluster[:, 0], cluster[:, 1], marker="o", ls="None")
 
         left, right = ax.get_xlim()
         bottom, top = ax.get_ylim()
@@ -400,10 +389,10 @@ class Lattice:
         y_center = (top + bottom) / 2
         ax.set_xlim(left=x_center-half, right=x_center+half)
         ax.set_ylim(bottom=y_center-half, top=y_center+half)
-        ax.set_title("{0}_show-scope={1}".format(self.name, scope))
+        ax.set_title("{0},scope={1}".format(self.name, scope))
 
         if savefig:
-            name = Path(".") / "{0}_scope={1}.png".format(self.name, scope)
+            name = Path(".") / "{0},scope={1}.png".format(self.name, scope)
             fig.savefig(name)
             plt.close()
             print("The figure has been saved to:\n{0}".format(name.resolve()))
@@ -430,7 +419,7 @@ class Lattice:
 
     def neighbor_distance(self, nth):
         """
-        Return the `nth` neighbor distance
+        Return the `nth` neighbor distance.
 
         In this method, nth=0 represents onsite, nth=1 nearest-neighbor,
         nth=2 next-nearest neighbor, etc.
@@ -448,12 +437,14 @@ class Lattice:
 
         assert isinstance(nth, int) and nth >= 0
 
-        if len(self._all_distances) <= nth:
+        try:
+            return self._all_distances[nth]
+        except IndexError:
             sites = self._sites_factory(scope=nth, no_inversion=False)
             self._all_distances = np.insert(
                 np.unique(np.ceil(pdist(sites) * _ZOOM)) / _ZOOM, 0, 0.0
             )
-        return self._all_distances[nth]
+            return self._all_distances[nth]
 
     def bonds(self, nth, *, only=True, fold=False):
         """
@@ -464,14 +455,14 @@ class Lattice:
         nth : int
             0 means onsite, 1 represents nearest neighbor, 2 represents
             next-nearest neighbor, etc.
-        only : boolean, keyword-only, optional
+        only : bool, optional, keyword-only
             If True, only these bonds which length equals to the nth neighbor
             distance. If False, all the bonds which length equal or less than
             the nth neighbor distance.
-            default: True
-        fold : boolean, keyword-only, optional
-            Whether to fold the boundary bond
-            default: False
+            Default: True.
+        fold : bool, optional, keyword-only
+            Whether to fold the boundary bond.
+            Default: False.
 
         Returns
         -------
@@ -524,13 +515,13 @@ class Lattice:
 
         Parameters
         ----------
-        site : ndarray
+        site : np.ndarray
             The site which is to be checked.
 
         Returns
         -------
-        result : boolean
-            If site belong to the initial cluster return true, else false.
+        result : bool
+            If site belong to the initial cluster return True, else False.
         """
 
         try:
@@ -542,36 +533,36 @@ class Lattice:
 
 def KPath(points, min_num=100, loop=True, return_indices=True):
     """
-    Generate k-points on the path specified by the given anchor `points`
+    Generate k-points on the path specified by the given anchor `points`.
 
     If `loop` is set to `False`, the k-path is generated as follow:
-        points[0] ->  ... -> points[i] -> ... -> points[N-1]
+        points[0] -> ... -> points[i] -> ... -> points[N-1];
     If `loop` is set to `True`, the k-path is generated as follow:
-        points[0] -> ... -> points[i] -> ... -> points[N-1] -> points[0]
-    The k-points between the given anchor `points` are generated linearly
+        points[0] -> ... -> points[i] -> ... -> points[N-1] -> points[0];
+    The k-points between the given anchor `points` are generated linearly.
 
     Parameters
     ----------
     points : sequence of 1D arrays
-        Special points on the k-path
-        It is assumed that the adjacent points should be different
+        Special points on the k-path.
+        It is assumed that the adjacent points should be different.
     min_num : int, optional
-        The number of k-point on the shortest k-path segment
+        The number of k-point on the shortest k-path segment.
         The number of k-point on other k-path segments are scaled according
-        to their length
-        default: 100
-    loop : boolean, optional
-        Whether to generate a k-loop or not
-        default: True
-    return_indices : boolean, optional
+        to their length.
+        Default: 100.
+    loop : bool, optional
+        Whether to generate a k-loop or not.
+        Default: True.
+    return_indices : bool, optional
         Whether to return the indices of the given anchor `points` in the
-        returned `kpoints` array
-        default: True
+        returned `kpoints` array.
+        Default: True.
 
     Returns
     -------
     kpoints : 2D array with shape (N, 2) or (N, 3)
-        A collection of k-points on the path specified by the given `points`
+        A collection of k-points on the path specified by the given `points`.
     indices : list
         The indices of the given anchor `points` in the returned `kpoints`
         array. If `return_indices` set to False, this value is not returned.
@@ -589,7 +580,7 @@ def KPath(points, min_num=100, loop=True, return_indices=True):
 
     min_length = np.min(lengths)
     if min_length < 1e-4:
-        raise ValueError("Identical adjacent points")
+        raise ValueError("Identical adjacent points!")
 
     sampling_nums = [int(min_num * length / min_length) for length in lengths]
     kpoints = [
@@ -607,17 +598,17 @@ def KPath(points, min_num=100, loop=True, return_indices=True):
 def ShowFirstBZ(As, scale=1):
     """
     Draw the first Brillouin Zone(1st-BZ) corresponding to the given
-    real-space translation vectors `As`
+    real-space translation vectors `As`.
 
-    This function only works for 2D lattice
+    This function only works for 2D lattice.
 
     Parameters
     ----------
     As : array with shape (2, 2)
-        The real-space translation vectors
+        The real-space translation vectors.
     scale : int or float, optional
-        Determine the length of the perpendicular bisector
-        default: 1
+        Determine the length of the perpendicular bisector.
+        Default: 1.
     """
 
     assert isinstance(As, np.ndarray) and As.shape == (2, 2)
@@ -627,18 +618,16 @@ def ShowFirstBZ(As, scale=1):
     color0 = "tab:blue"
     color1 = "tab:orange"
     fig, ax = plt.subplots()
-    for x in range(-1, 2):
-        for y in range(-1, 2):
-            coeff = (x, y)
-            dR = np.dot(coeff, Bs)
-            ax.plot(dR[0], dR[1], marker="o", color=color0)
-            ax.text(dR[0], dR[1], str(coeff), size="xx-large", color=color0)
-            if coeff != (0, 0):
-                center = dR / 2
-                orthogonal_vector = np.array([-dR[1], dR[0]])
-                p0 = center + scale * orthogonal_vector
-                p1 = center - scale * orthogonal_vector
-                ax.plot((p0[0], p1[0]), (p0[1], p1[1]), color=color1)
+    for coeff in product(range(-1, 2), repeat=2):
+        dR = np.dot(coeff, Bs)
+        ax.plot(dR[0], dR[1], marker="o", color=color0)
+        ax.text(dR[0], dR[1], str(coeff), size="xx-large", color=color0)
+        if coeff != (0, 0):
+            center = dR / 2
+            orthogonal_vector = np.array([-dR[1], dR[0]])
+            p0 = center + scale * orthogonal_vector
+            p1 = center - scale * orthogonal_vector
+            ax.plot((p0[0], p1[0]), (p0[1], p1[1]), color=color1)
     ax.set_aspect("equal")
     ax.set_axis_off()
     plt.show()
