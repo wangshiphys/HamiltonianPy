@@ -195,16 +195,31 @@ class Lattice:
 
     def __str__(self):
         """
-        Return a string that describes the content of the instance
+        Return a string that describes the content of the instance.
         """
 
-        info = "Point number: {0}\n".format(self._point_num)
-        info += "Space dimension: {0}\n".format(self._space_dim)
-        info += "Translation dimension: {0}\n".format(self._trans_dim)
-        info += "points:\n" + str(self._points) + '\n'
-        info += "vectors:\n" + str(self._vectors) + '\n'
-        info += "bs:\n" + str(self._bs) + '\n'
-        return info
+        return "\n".join(
+            [
+                "Point Number: {0}".format(self._point_num),
+                "Space Dimension: {0}".format(self._space_dim),
+                "Translation Dimension: {0}".format(self._trans_dim),
+                "Points:",
+                *[
+                    "    {0}".format(np.array2string(point, separator=", "))
+                    for point in self._points
+                ],
+                "Vectors:",
+                *[
+                    "    {0}".format(np.array2string(vector, separator=", "))
+                    for vector in self._vectors
+                ],
+                "Bs:",
+                *[
+                    "    {0}".format(np.array2string(b, separator=", "))
+                    for b in self._bs
+                ]
+            ]
+        )
 
     def getIndex(self, site, *, fold=False):
         """
