@@ -1,6 +1,6 @@
 """
 Implementation of the algorithm for calculating the matrix representation of
-a Fermionic operator/term in occupation number representation
+a Fermionic operator/term in occupation number representation.
 """
 
 
@@ -30,9 +30,9 @@ def _core_general(term, right_bases, left_bases):
             state_index = term[j, 0]
             mask = term[j, 1]
             criterion = term[j, 2]
-            # Whether the jth Fermionic operator acts on the `ket` results zero
+            # Whether the jth Fermionic operator acts on the `ket` results zero.
             # If not zero, count the number of swap (odd or even) for
-            # performing this action; After this action, a new ket is produced
+            # performing this action; After this action, a new ket is produced.
             if (ket & mask) == criterion:
                 for pos in range(state_index):
                     if ket & (1 << pos):
@@ -53,17 +53,15 @@ def _core_general(term, right_bases, left_bases):
                 result[2, i] = -1 if swap else 1
             else:
                 raise KeyError(
-                    "The generated ket does not belong the left_bases"
+                    "The generated ket does not belong the left_bases."
                 )
     return result
 
 
-# The core function for calculating the matrix representation of the hopping
-# term: '$c_i^{\\dagger} c_j$', `i != j` is assumed.
+# The core function for calculating the matrix representation of a hopping term:
+# '$c_i^{\\dagger} c_j$', `i != j` is assumed.
 # The `term` parameter is assumed of the following form:
-# np.array(
-#     [[index0, 1<<index0, 0], [index1, 1<<index1, 1<<index1]], dtype=np.uint64
-# )
+# np.array([[i, 1<<i, 0], [j, 1<<j, 1<<j]], dtype=np.uint64)
 @jit(int64[:, :](uint64[:, :], uint64[:], uint64[:]), nopython=True, cache=True)
 def _core_hopping(term, right_bases, left_bases):
     start = np.min(term[:, 0])
@@ -90,15 +88,15 @@ def _core_hopping(term, right_bases, left_bases):
                 result[2, i] = -1 if swap else 1
             else:
                 raise KeyError(
-                    "The generated ket does not belong the left_bases"
+                    "The generated ket does not belong the left_bases."
                 )
     return result
 
 
 # The core function for calculating the matrix representation of the
-# particle-number operator: '$c_i^{\\dagger} c_i$'
+# particle-number operator: '$c_i^{\\dagger} c_i$'.
 # The `term` parameter is assumed of the following form:
-# np.array([[index, 1<<index, 0], [index, 1<<index, 1<<index]], dtype=np.uint64)
+# np.array([[i, 1<<i, 0], [i, 1<<i, 1<<i]], dtype=np.uint64)
 @jit(int64[:, :](uint64[:, :], uint64[:]), nopython=True, cache=True)
 def _core_particle_number(term, bases):
     mask = term[0, 1]
@@ -117,10 +115,10 @@ def _core_particle_number(term, bases):
 # The `term` parameter is assumed of the following form:
 # np.array(
 #     [
-#         [index0, 1 << index0, 0],
-#         [index0, 1 << index0, 1 << index0],
-#         [index1, 1 << index1, 0],
-#         [index1, 1 << index1, 1 << index1],
+#         [i, 1 << i, 0],
+#         [i, 1 << i, 1 << i],
+#         [j, 1 << j, 0],
+#         [j, 1 << j, 1 << j],
 #     ], dtype=np.uint64
 # )
 @jit(int64[:, :](uint64[:, :], uint64[:]), nopython=True, cache=True)
@@ -139,10 +137,11 @@ def _core_coulomb(term, bases):
 
 
 def matrix_function(
-        term, right_bases, *, left_bases=None, coeff=1.0, to_csr=True,
+        term, right_bases, *, left_bases=None,
+        coeff=1.0, to_csr=True, special_tag="general"
 ):
     """
-    Return the matrix representation of the given term
+    Return the matrix representation of the given term.
 
     Parameters
     ----------
@@ -155,22 +154,34 @@ def matrix_function(
     right_bases : 1D np.ndarray
         The bases of the Hilbert space before the operation.
         The data-type of the array's elements is np.uint64.
-    left_bases : 1D np.ndarray, keyword-only, optional
+    left_bases : 1D np.ndarray, optional, keyword-only
         The bases of the Hilbert space after the operation.
         If given, the data-type of the array's elements is np.uint64.
-        It not given or None, left_bases is the same as right_bases.
-        default: None
-    coeff : int, float or complex, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
-    to_csr : boolean, keyword-only, optional
-        Whether to construct a csr_matrix as the result
-        default: True
+        If not given or None, left_bases is the same as right_bases.
+        Default: None.
+    coeff : int, float or complex, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
+    to_csr : bool, optional, keyword-only
+        Whether to construct a csr_matrix as the result.
+        Default: True.
+    special_tag : str, optional, keyword-only
+        Special tag for the given term.
+        Supported values: "general", "hopping", "number" and "Coulomb".
+        If `special_tag` is set to "general", then the given `term` is
+        treated as a general term;
+        If `special_tag` is set to "hopping", then the given `term` is
+        treated as a hopping term;
+        If `special_tag` is set to "number", then the given term is treated
+        as a particle number(chemical potential) term;
+        If `special_tag` is set to "Coulomb", then the given term is treated
+        as a Coulomb interaction term.
+        Default: "general".
 
     Returns
     -------
     res : csr_matrix or tuple
-        The matrix representation of the term in the Hilbert space
+        The matrix representation of the term in the Hilbert space.
         If `to_csr` is set to True, the result is a csr_matrix;
         If set to False, the result is a tuple: (entries, (rows, cols)),
         where `entries` is the non-zero matrix elements, `rows` and
@@ -207,12 +218,26 @@ def matrix_function(
         shape = (right_dim, right_dim)
     else:
         shape = (left_bases.shape[0], right_dim)
-    data = _core_general(term, right_bases, left_bases)
 
+    if special_tag == "hopping":
+        core_func = _core_hopping
+        args = (term, right_bases, left_bases)
+    elif special_tag == "number":
+        core_func = _core_particle_number
+        args = (term, right_bases)
+    elif special_tag == "Coulomb":
+        core_func = _core_coulomb
+        args = (term, right_bases)
+    else:
+        core_func = _core_general
+        args = (term, right_bases, left_bases)
+
+    data = core_func(*args)
     if to_csr:
         res = csr_matrix((coeff * data[2], (data[0], data[1])), shape=shape)
         res.eliminate_zeros()
     else:
+        # Eliminate the explicitly stored zero entries
         tmp = data[:, data[2] != 0]
         res = (coeff * tmp[2], (tmp[0], tmp[1]))
     return res
