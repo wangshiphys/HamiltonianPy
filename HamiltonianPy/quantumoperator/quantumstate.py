@@ -1,6 +1,6 @@
 """
 This module provides classes that describe lattice site and single-particle
-state
+state.
 """
 
 
@@ -14,8 +14,8 @@ __all__ = [
 import numpy as np
 
 from HamiltonianPy.indextable import IndexTable
-from HamiltonianPy.quantumoperator.constant import NUMERIC_TYPES_REAL, \
-    SPIN_DOWN, SPIN_UP
+from HamiltonianPy.quantumoperator.constant import NUMERIC_TYPES_REAL
+from HamiltonianPy.quantumoperator.constant import SPIN_DOWN, SPIN_UP
 
 # Useful global constants
 _ZOOM = 10000
@@ -50,14 +50,14 @@ def set_float_point_precision(precision=4):
 
 class SiteID:
     """
-    A unified description of lattice site
+    A unified description of lattice site.
 
     Attributes
     ----------
     coordinate : tuple
-        The coordinate of the lattice site in tuple form
+        The coordinates of the lattice site in tuple form.
     site : 1D np.ndarray
-        The coordinate of the lattice site in np.ndarray form
+        The coordinates of the lattice site in np.ndarray form.
 
     Examples
     --------
@@ -87,12 +87,12 @@ class SiteID:
 
     def __init__(self, site):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         site : list, tuple or 1D np.ndarray
-            The coordinate of the lattice site.
+            The coordinates of the lattice site.
         """
 
         site = tuple(site)
@@ -109,7 +109,7 @@ class SiteID:
     @property
     def coordinate(self):
         """
-        The `coordinate` attribute
+        The `coordinate` attribute.
         """
 
         return self._site
@@ -117,14 +117,14 @@ class SiteID:
     @property
     def site(self):
         """
-        The `site` attribute
+        The `site` attribute.
         """
 
         return np.array(self._site, copy=True)
 
     def __repr__(self):
         """
-        Official string representation of the instance
+        Official string representation of the instance.
         """
 
         return "SiteID(site={!r})".format(self._site)
@@ -133,32 +133,32 @@ class SiteID:
 
     def tolatex(self, *, site_index=None, ndigits=4, **kwargs):
         """
-        Return the LaTex form of this instance
+        Return the LaTex form of this instance.
 
         Parameters
         ----------
-        site_index : int, IndexTable or None, keyword-only, optional
-            Determine how to format this instance
-            If set to None, the coordinate is rounded to `ndigits` precision
-            after the decimal point and formatted as '(x)', '(x,y)' and
-            '(x,y,z)' for 1, 2 and 3D respectively;
+        site_index : int, IndexTable or None, optional, keyword-only
+            Determine how to format this instance.
+            If set to None, the coordinates are rounded to `ndigits`
+            precision after the decimal point and formatted as '(x)',
+            '(x,y)' and '(x,y,z)' for 1, 2 and 3D respectively;
             If given as an integer, then `site_index` is the index of this
             instance and the LaTex form is the given integer;
             If given as an IndexTable, then `site_index` is a table that
             associate instances of SiteID with integer indices, the LaTex
             form is the index of this instance in the table.
-            default: None
-        ndigits : int, keyword-only, optional
+            Default: None.
+        ndigits : int, optional, keyword-only
             The number of digits precision after the decimal point.
             This parameter only takes effect when `site_index` is None.
-            default: 4
+            Default: 4.
         kwargs: other keyword arguments, optional
             Has no effect, do not use.
 
         Returns
         -------
-        res : str
-            The LaTex form of this instance
+        latex : str
+            The LaTex form of this instance.
         """
 
         if isinstance(site_index, (int, np.integer)):
@@ -173,14 +173,14 @@ class SiteID:
 
     def __hash__(self):
         """
-        Calculate the hash code of the instance
+        Calculate the hash code of the instance.
         """
 
         return hash(self._tuple_form)
 
     def __lt__(self, other):
         """
-        Implement the `<` operator between self and other
+        Implement the `<` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -190,7 +190,7 @@ class SiteID:
 
     def __eq__(self, other):
         """
-        Implement the `==` operator between self and other
+        Implement the `==` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -200,7 +200,7 @@ class SiteID:
 
     def __gt__(self, other):
         """
-        Implement the `>` operator between self and other
+        Implement the `>` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -210,7 +210,7 @@ class SiteID:
 
     def __le__(self, other):
         """
-        Implement the `<=` operator between self and other
+        Implement the `<=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -220,7 +220,7 @@ class SiteID:
 
     def __ne__(self, other):
         """
-        Implement the `!=` operator between self and other
+        Implement the `!=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -230,7 +230,7 @@ class SiteID:
 
     def __ge__(self, other):
         """
-        Implement the `>=` operator between self and other
+        Implement the `>=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -240,17 +240,17 @@ class SiteID:
 
     def getIndex(self, indices_table):
         """
-        Return the index associated with the instance
+        Return the index associated with the instance.
 
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instances of SiteID with integer indices
+            A table that associate instances of SiteID with integer indices.
 
         Returns
         -------
         index : int
-            The index of this instance in the given table
+            The index of this instance in the given table.
         """
 
         return indices_table(self)
@@ -258,18 +258,19 @@ class SiteID:
 
 class StateID(SiteID):
     """
-    A unified description of single-particle state
+    A unified description of single-particle state.
 
     Attributes
     ----------
     coordinate : tuple
-        The coordinate of the localized single-particle state in tuple form
+        The coordinates of the localized single-particle state in tuple form.
     site : 1D np.ndarray
-        The coordinate of the localized single-particle state in np.ndarray form
+        The coordinates of the localized single-particle state in np.ndarray
+        form.
     spin : int
-        The spin index of the single-particle state
+        The spin index of the single-particle state.
     orbit : int
-        The orbit index of the single-particle state
+        The orbit index of the single-particle state.
 
     Examples
     --------
@@ -299,18 +300,18 @@ class StateID(SiteID):
 
     def __init__(self, site, spin=0, orbit=0):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         site : list, tuple or 1D np.ndarray
-            The coordinate of the localized single-particle state.
+            The coordinates of the localized single-particle state.
         spin : int, optional
-            The spin index of the single-particle state
-            default: 0
+            The spin index of the single-particle state.
+            Default: 0.
         orbit : int, optional
-            The orbit index of the single-particle state
-            default: 0
+            The orbit index of the single-particle state.
+            Default: 0.
         """
 
         assert isinstance(spin, int) and spin >= 0
@@ -326,7 +327,7 @@ class StateID(SiteID):
     @property
     def spin(self):
         """
-        The `spin` attribute
+        The `spin` attribute.
         """
 
         return self._spin
@@ -334,14 +335,14 @@ class StateID(SiteID):
     @property
     def orbit(self):
         """
-        The `orbit` attribute
+        The `orbit` attribute.
         """
 
         return self._orbit
 
     def __repr__(self):
         """
-        Official string representation of the instance
+        Official string representation of the instance.
         """
 
         info = "StateID(site={0!r}, spin={1}, orbit={2})"
@@ -354,15 +355,15 @@ class StateID(SiteID):
             spin_one_half=True, suppress_orbit=True, **kwargs
     ):
         """
-        Return the LaTex form of this instance
+        Return the LaTex form of this instance.
 
         Parameters
         ----------
-        site_index : int, IndexTable or None, keyword-only, optional
-            Determine how to format the `site` attribute
-            If set to None, the coordinate is rounded to `ndigits` precision
-            after the decimal point and formatted as '(x)', '(x,y)' and
-            '(x,y,z)' for 1, 2 and 3D respectively;
+        site_index : int, IndexTable or None, optional, keyword-only
+            Determine how to format the `site` attribute.
+            If set to None, the coordinates are rounded to `ndigits`
+            precision after the decimal point and formatted as '(x)',
+            '(x,y)' and '(x,y,z)' for 1, 2 and 3D respectively;
             If given as an integer, then `site_index` is the index of the
             lattice-site and the LaTex form of the `site` attribute is the
             given integer;
@@ -370,27 +371,27 @@ class StateID(SiteID):
             associate instances of SiteID with integer indices, the LaTex
             form of the `site` attribute is the index of the lattice-site in
             the given table.
-            default: None
-        ndigits : int, keyword-only, optional
+            Default: None.
+        ndigits : int, optional, keyword-only
             The number of digits precision after the decimal point.
             This parameter only takes effect when `site_index` is None.
-            default: 4
-        spin_one_half : boolean, keyword-only, optional
+            Default: 4.
+        spin_one_half : bool, optional, keyword-only
             Whether the concerned system is a spin-1/2 system.
             If set to True, the spin index is represented by down- or up-arrow;
             If set to False, the spin index is represented by an integer.
-            default: True
-        suppress_orbit : boolean, keyword-only, optional
+            Default: True.
+        suppress_orbit : bool, optional, keyword-only
             Whether to suppress the orbit degree of freedom.
             If set to True, the orbit index is not shown.
-            default: True
+            Default: True.
         kwargs: other keyword arguments, optional
             Has no effect, do not use.
 
         Returns
         -------
-        res : str
-            The LaTex form of this instance
+        latex : str
+            The LaTex form of this instance.
         """
 
         latex_form_site = SiteID(site=self._site).tolatex(
