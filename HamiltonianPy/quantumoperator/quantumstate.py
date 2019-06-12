@@ -22,23 +22,24 @@ _ZOOM = 10000
 ################################################################################
 
 
-def set_float_point_precision(precision):
+def set_float_point_precision(precision=4):
     """
-    Set the float-point precision for processing coordinate of lattice site
+    Set the float-point precision for processing coordinates of lattice site.
 
-    In the internal implementation, the coordinate of lattice site is treated
-    as float-point number no matter it is given as float-point number or
-    integer. The float-point precision affects the internal implementation of
-    the `SiteID` class as well as classes inherited from it. It also affects
-    the behavior of classes which contain instance of `SiteID` or `StateID`
-    as attribute. If you want to change the default value, you must call this
-    function before using any other components defined in this subpackage.
-    The default value is: `precision=4`.
+    In the internal implementation, the coordinates of lattice site are
+    treated as float-point numbers no matter they are given as float-point
+    numbers or integers. The float-point precision affects the internal
+    implementation of the `SiteID` class as well as classes inherited from
+    it. It also affects the behavior of classes which contain instance of
+    `SiteID` or `StateID` as attribute. If you want to change the default
+    value, you must call this function before using any other components
+    defined in this subpackage. The default value is: `precision=4`.
 
     Parameters
     ----------
     precision : int
-        The number of digits precision after the decimal point
+        The number of digits precision after the decimal point.
+        Default: 4.
     """
 
     assert isinstance(precision, int) and precision >= 0
