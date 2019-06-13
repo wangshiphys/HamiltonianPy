@@ -1203,5 +1203,6 @@ class ParticleTerm:
         ]
         return matrix_function(
             term, right_bases,
-            left_bases=left_bases, coeff=self._coeff, to_csr=to_csr
+            left_bases=left_bases, coeff=self._coeff,
+            to_csr=to_csr, special_tag=self._classification
         )
