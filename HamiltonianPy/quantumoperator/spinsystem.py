@@ -622,7 +622,7 @@ class SpinInteraction:
         else:
             return NotImplemented
 
-        return SpinInteraction(operators, coeff=coeff)
+        return self.__class__(operators, coeff=coeff)
 
     def __rmul__(self, other):
         """
@@ -641,7 +641,7 @@ class SpinInteraction:
         else:
             return NotImplemented
 
-        return SpinInteraction(operators, coeff=coeff)
+        return self.__class__(operators, coeff=coeff)
 
     def dagger(self):
         """
