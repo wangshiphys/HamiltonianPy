@@ -1077,7 +1077,7 @@ class ParticleTerm:
         else:
             return NotImplemented
 
-        return ParticleTerm(aocs=aocs, coeff=coeff)
+        return self.__class__(aocs=aocs, coeff=coeff)
 
     def __rmul__(self, other):
         """
@@ -1096,7 +1096,7 @@ class ParticleTerm:
         else:
             return NotImplemented
 
-        return ParticleTerm(aocs=aocs, coeff=coeff)
+        return self.__class__(aocs=aocs, coeff=coeff)
 
     @staticmethod
     def normalize(aocs):
