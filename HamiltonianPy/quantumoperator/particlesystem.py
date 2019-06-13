@@ -21,24 +21,24 @@ from HamiltonianPy.quantumoperator.quantumstate import StateID
 
 class AoC:
     """
-    A unified description of the creation and annihilation operator
+    A unified description of the creation and annihilation operator.
 
     Attributes
     ----------
     otype : int
-        The type of this operator
-        It can be either 0 or 1, corresponding to annihilation and creation
-        respectively.
+        The type of this operator. It can be either 0 or 1, corresponding to
+        annihilation and creation respectively.
     state : StateID
-        The single-particle state on which this operator is defined
+        The single-particle state on which this operator is defined.
     coordinate : tuple
-        The coordinate of the localized single-particle state in tuple form
+        The coordinates of the localized single-particle state in tuple form.
     site : 1D np.ndarray
-        The coordinate of the localized single-particle state in np.ndarray form
+        The coordinates of the localized single-particle state in np.ndarray
+        form.
     spin : int
-        The spin index of the single-particle state
+        The spin index of the single-particle state.
     orbit : int
-        The orbit index of the single-particle state
+        The orbit index of the single-particle state.
 
     Examples
     --------
@@ -76,24 +76,24 @@ class AoC:
 
     def __init__(self, otype, site, spin=0, orbit=0):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         otype : int
-            The type of this operator
+            The type of this operator.
             It can be either 0 or 1, corresponding to annihilation and
             creation respectively. It is recommended to use the constants
             `CREATION` and `ANNIHILATION` defined in the `constant` module.
         site : list, tuple or 1D np.ndarray
-            The coordinate of the localized single-particle state
+            The coordinates of the localized single-particle state.
             The `site` parameter should be 1D array with length 1,2 or 3.
         spin : int, optional
-            The spin index of the single-particle state
-            default: 0
+            The spin index of the single-particle state.
+            Default: 0.
         orbit : int, optional
-            The orbit index of the single-particle state
-            default: 0
+            The orbit index of the single-particle state.
+            Default: 0.
         """
 
         assert otype in (ANNIHILATION, CREATION)
@@ -109,7 +109,7 @@ class AoC:
     @property
     def otype(self):
         """
-        The `otype` attribute
+        The `otype` attribute.
         """
 
         return self._otype
@@ -117,7 +117,7 @@ class AoC:
     @property
     def state(self):
         """
-        The `state` attribute
+        The `state` attribute.
         """
 
         return self._state
@@ -125,7 +125,7 @@ class AoC:
     @property
     def coordinate(self):
         """
-        The `coordinate` attribute
+        The `coordinate` attribute.
         """
 
         return self._state.coordinate
@@ -133,7 +133,7 @@ class AoC:
     @property
     def site(self):
         """
-        The `site` attribute
+        The `site` attribute.
         """
 
         return self._state.site
@@ -141,7 +141,7 @@ class AoC:
     @property
     def spin(self):
         """
-        The `spin` attribute
+        The `spin` attribute.
         """
 
         return self._state.spin
@@ -149,24 +149,24 @@ class AoC:
     @property
     def orbit(self):
         """
-        The `orbit` attribute
+        The `orbit` attribute.
         """
 
         return self._state.orbit
 
     def getIndex(self, indices_table):
         """
-        Return the index of this operator
+        Return the index of this operator.
 
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instances of AoC with integer indices
+            A table that associate instances of AoC with integer indices.
 
         Returns
         -------
         index : int
-            The index of this instance in the given table
+            The index of this instance in the given table.
 
         See also
         --------
@@ -178,7 +178,7 @@ class AoC:
     def getStateIndex(self, indices_table):
         """
         Return the index of the single-particle state on which this operator is
-        defined
+        defined.
 
         Notes:
             This method is different from the `getIndex` method.
@@ -189,19 +189,19 @@ class AoC:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instances of StateID with integer indices
+            A table that associate instances of StateID with integer indices.
 
         Returns
         -------
         index : int
-            The index of the `state` attribute in the given table
+            The index of the `state` attribute in the given table.
         """
 
         return indices_table(self._state)
 
     def __repr__(self):
         """
-        Official string representation of the instance
+        Official string representation of the instance.
         """
 
         otype = "CREATION" if self._otype == CREATION else "ANNIHILATION"
@@ -212,19 +212,19 @@ class AoC:
 
     def tolatex(self, **kwargs):
         """
-        Return the LaTex form of this instance
+        Return the LaTex form of this instance.
 
         Parameters
         ----------
         kwargs :
             All keyword arguments are passed to the `tolatex` method of the
             `state` attribute.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
 
         Returns
         -------
-        res : str
-            The LaTex form of this instance
+        latex : str
+            The LaTex form of this instance.
         """
 
         subscript = self._state.tolatex(**kwargs).replace("$", "")
@@ -236,14 +236,14 @@ class AoC:
 
     def show(self, **kwargs):
         """
-        Show the instance in handwriting form
+        Show the instance in handwriting form.
 
         Parameters
         ----------
         kwargs :
             All keyword arguments are passed to the `tolatex` method of the
             `state` attribute.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
         """
 
         fig, ax = plt.subplots()
@@ -256,20 +256,25 @@ class AoC:
 
     def __hash__(self):
         """
-        Calculate the hash code of the instance
+        Calculate the hash code of the instance.
         """
 
         return hash(self._tuple_form)
 
     def __lt__(self, other):
         """
-        Implement the `<` operator between self and other
+        Implement the `<` operator between self and other.
 
         The comparison logic is as follow:
         Creation operator is always compare less than annihilation operator;
         The smaller the single-particle state, the smaller the creation
         operator; The larger the single-particle state, the smaller the
         annihilation operator.
+
+        See also
+        --------
+        StateID.__lt__
+        StateID.__gt__
         """
 
         if isinstance(other, self.__class__):
@@ -290,7 +295,7 @@ class AoC:
 
     def __gt__(self, other):
         """
-        Implement the `>` operator between self and other
+        Implement the `>` operator between self and other.
 
         See also
         --------
@@ -315,7 +320,7 @@ class AoC:
 
     def __eq__(self, other):
         """
-        Implement the `==` operator between self and other
+        Implement the `==` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -325,7 +330,7 @@ class AoC:
 
     def __ne__(self, other):
         """
-        Implement the `!=` operator between self and other
+        Implement the `!=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -335,7 +340,7 @@ class AoC:
 
     def __le__(self, other):
         """
-        Implement the `<=` operator between self and other
+        Implement the `<=` operator between self and other.
 
         See also
         --------
@@ -349,7 +354,7 @@ class AoC:
 
     def __ge__(self, other):
         """
-        Implement the `>=` operator between self and other
+        Implement the `>=` operator between self and other.
 
         See also
         --------
@@ -363,10 +368,10 @@ class AoC:
 
     def __mul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the left operand and `other` is the right operand
-        Return an instance of ParticleTerm
+        `self` is the left operand and `other` is the right operand;
+        Return an instance of ParticleTerm.
         """
 
         if isinstance(other, self.__class__):
@@ -378,10 +383,10 @@ class AoC:
 
     def __rmul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the right operand and `other` is the left operand
-        Return an instance of ParticleTerm
+        `self` is the right operand and `other` is the left operand;
+        Return an instance of ParticleTerm.
         """
 
         if isinstance(other, NUMERIC_TYPES_GENERAL):
@@ -391,7 +396,7 @@ class AoC:
 
     def dagger(self):
         """
-        Return the Hermitian conjugate of this operator
+        Return the Hermitian conjugate of this operator.
         """
 
         otype = ANNIHILATION if self._otype == CREATION else CREATION
@@ -399,7 +404,7 @@ class AoC:
 
     def conjugate_of(self, other):
         """
-        Determine whether `self` is the Hermitian conjugate of `other`
+        Determine whether `self` is the Hermitian conjugate of `other`.
         """
 
         if isinstance(other, self.__class__):
@@ -412,7 +417,7 @@ class AoC:
     def same_state(self, other):
         """
         Determine whether `self` and `other` is defined on the same
-        single-particle state
+        single-particle state.
         """
 
         if isinstance(other, self.__class__):
@@ -424,7 +429,7 @@ class AoC:
 
     def derive(self, *, otype=None, site=None, spin=None, orbit=None):
         """
-        Derive a new instance from `self` and the given parameters
+        Derive a new instance from `self` and the given parameters.
 
         This method creates a new instance with the same attribute as `self`
         except for these given to this method.
@@ -432,7 +437,7 @@ class AoC:
 
         Returns
         -------
-        res : A new instance of AoC
+        res : A new instance of AoC.
         """
 
         if otype is None:
@@ -451,26 +456,28 @@ class AoC:
             left_bases=None, to_csr=True
     ):
         """
-        Return the matrix representation of this operator in the Hilbert space
+        Return the matrix representation of this operator in the Hilbert space.
 
         Parameters
         ----------
         state_indices_table : IndexTable
-            A table that associate instances of StateID with integer indices
+            A table that associate instances of StateID with integer indices.
         right_bases : 1D np.ndarray
-            The bases of the Hilbert space before the operation
-        left_bases : 1D np.ndarray, keyword-only, optional
-            The bases of the Hilbert space after the operation
-            If not given or None, left_bases is the same as right_bases
-            default: None
-        to_csr : boolean, keyword-only, optional
-            Whether to construct a csr_matrix as the result
-            default: True
+            The bases of the Hilbert space before the operation.
+            The data-type of the array's elements is np.uint64.
+        left_bases : 1D np.ndarray, optional, keyword-only
+            The bases of the Hilbert space after the operation.
+            If given, the data-type of the array's elements is np.uint64.
+            If not given or None, left_bases is the same as right_bases.
+            Default: None.
+        to_csr : bool, optional, keyword-only
+            Whether to construct a csr_matrix as the result.
+            Default: True.
 
         Returns
         -------
         res : csr_matrix or tuple
-            The matrix representation of the operator in the Hilbert space
+            The matrix representation of the operator in the Hilbert space.
             If `to_csr` is set to True, the result is a csr_matrix;
             If set to False, the result is a tuple: (entries, (rows, cols)),
             where `entries` is the non-zero matrix elements, `rows` and
@@ -485,20 +492,21 @@ class AoC:
 
 class NumberOperator:
     """
-    A unified description of the particle-number operator
+    A unified description of the particle-number operator.
 
     Attributes
     ----------
     state : StateID
-        The single-particle state on which this operator is defined
+        The single-particle state on which this operator is defined.
     coordinate : tuple
-        The coordinate of the localized single-particle state in tuple form
+        The coordinates of the localized single-particle state in tuple form.
     site : 1D np.ndarray
-        The coordinate of the localized single-particle state in np.ndarray form
+        The coordinates of the localized single-particle state in np.ndarray
+        form.
     spin : int
-        The spin index of the single-particle state
+        The spin index of the single-particle state.
     orbit : int
-        The orbit index of the single-particle state
+        The orbit index of the single-particle state.
 
     Examples
     --------
@@ -533,19 +541,19 @@ class NumberOperator:
 
     def __init__(self, site, spin=0, orbit=0):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
         site : list, tuple or 1D np.ndarray
-            The coordinate of the localized single-particle state
+            The coordinates of the localized single-particle state.
             The `site` parameter should be 1D array with length 1, 2 or 3.
         spin : int, optional
-            The spin index of the single-particle state
-            default: 0
+            The spin index of the single-particle state.
+            Default: 0.
         orbit : int, optional
-            The orbit index of the single-particle state
-            default: 0
+            The orbit index of the single-particle state.
+            Default: 0.
         """
 
         state = StateID(site=site, spin=spin, orbit=orbit)
@@ -558,7 +566,7 @@ class NumberOperator:
     @property
     def state(self):
         """
-        The `state` attribute
+        The `state` attribute.
         """
 
         return self._state
@@ -566,7 +574,7 @@ class NumberOperator:
     @property
     def coordinate(self):
         """
-        The `coordinate` attribute
+        The `coordinate` attribute.
         """
 
         return self._state.coordinate
@@ -574,7 +582,7 @@ class NumberOperator:
     @property
     def site(self):
         """
-        The `site` attribute
+        The `site` attribute.
         """
 
         return self._state.site
@@ -582,7 +590,7 @@ class NumberOperator:
     @property
     def spin(self):
         """
-        The `spin` attribute
+        The `spin` attribute.
         """
 
         return self._state.spin
@@ -590,25 +598,25 @@ class NumberOperator:
     @property
     def orbit(self):
         """
-        The `orbit` attribute
+        The `orbit` attribute.
         """
 
         return self._state.orbit
 
     def getIndex(self, indices_table):
         """
-        Return the index of this operator
+        Return the index of this operator.
 
         Parameters
         ----------
         indices_table : IndexTable
             A table that associate instances of NumberOperator with integer
-            indices
+            indices.
 
         Returns
         -------
         index : int
-            The index of this instance in the given table
+            The index of this instance in the given table.
 
         See also
         --------
@@ -620,7 +628,7 @@ class NumberOperator:
     def getStateIndex(self, indices_table):
         """
         Return the index of the single-particle state on which this operator
-        is defined
+        is defined.
 
         Notes:
             This method is different from the `getIndex` method.
@@ -631,19 +639,19 @@ class NumberOperator:
         Parameters
         ----------
         indices_table : IndexTable
-            A table that associate instances of StateID with integer indices
+            A table that associate instances of StateID with integer indices.
 
         Returns
         -------
         index : int
-            The index of the `state` attribute in the given table
+            The index of the `state` attribute in the given table.
         """
 
         return indices_table(self._state)
 
     def __repr__(self):
         """
-        Official string representation of the instance
+        Official string representation of the instance.
         """
 
         info = "NumberOperator(site={0!r}, spin={1}, orbit={2})"
@@ -653,19 +661,19 @@ class NumberOperator:
 
     def tolatex(self, **kwargs):
         """
-        Return the LaTex form of this instance
+        Return the LaTex form of this instance.
 
         Parameters
         ----------
         kwargs :
             All keyword arguments are passed to the `tolatex` method of the
             `state` attribute.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
 
         Returns
         -------
-        res : str
-            The LaTex form of this instance
+        latex : str
+            The LaTex form of this instance.
         """
 
         subscript = self._state.tolatex(**kwargs).replace("$", "")
@@ -673,14 +681,14 @@ class NumberOperator:
 
     def show(self, **kwargs):
         """
-        Show the instance in handwriting form
+        Show the instance in handwriting form.
 
         Parameters
         ----------
         kwargs :
             All keyword arguments are passed to the `tolatex` method of the
             `state` attribute.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
         """
 
         fig, ax = plt.subplots()
@@ -693,14 +701,14 @@ class NumberOperator:
 
     def __hash__(self):
         """
-        Calculate the hash code of the instance
+        Calculate the hash code of the instance.
         """
 
         return hash(self._tuple_form)
 
     def __lt__(self, other):
         """
-        Implement the `<` operator between self and other
+        Implement the `<` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -710,7 +718,7 @@ class NumberOperator:
 
     def __gt__(self, other):
         """
-        Implement the `>` operator between self and other
+        Implement the `>` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -720,7 +728,7 @@ class NumberOperator:
 
     def __eq__(self, other):
         """
-        Implement the `==` operator between self and other
+        Implement the `==` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -730,7 +738,7 @@ class NumberOperator:
 
     def __ne__(self, other):
         """
-        Implement the `!=` operator between self and other
+        Implement the `!=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -740,7 +748,7 @@ class NumberOperator:
 
     def __le__(self, other):
         """
-        Implement the `<=` operator between self and other
+        Implement the `<=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -750,7 +758,7 @@ class NumberOperator:
 
     def __ge__(self, other):
         """
-        Implement the `>=` operator between self and other
+        Implement the `>=` operator between self and other.
         """
 
         if isinstance(other, self.__class__):
@@ -760,12 +768,12 @@ class NumberOperator:
 
     def toterm(self):
         """
-        Convert this operator to ParticleTerm instance
+        Convert this operator to ParticleTerm instance.
 
         Returns
         -------
         term : ParticleTerm
-            The term corresponding to this operator
+            The term corresponding to this operator.
         """
 
         spin = self.spin
@@ -777,27 +785,27 @@ class NumberOperator:
 
     def __mul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the left operand and `other` is the right operand
-        Return an instance of ParticleTerm
+        `self` is the left operand and `other` is the right operand;
+        Return an instance of ParticleTerm.
         """
 
         return self.toterm() * other
 
     def __rmul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the right operand and `other` is the left operand
-        Return an instance of ParticleTerm
+        `self` is the right operand and `other` is the left operand;
+        Return an instance of ParticleTerm.
         """
 
         return other * self.toterm()
 
     def dagger(self):
         """
-        Return the Hermitian conjugate of this operator
+        Return the Hermitian conjugate of this operator.
         """
 
         return self
@@ -805,7 +813,7 @@ class NumberOperator:
     def same_state(self, other):
         """
         Determine whether `self` and `other` is defined on the same
-        single-particle state
+        single-particle state.
         """
 
         if isinstance(other, self.__class__):
@@ -817,7 +825,7 @@ class NumberOperator:
 
     def derive(self, *, site=None, spin=None, orbit=None):
         """
-        Derive a new instance from `self` and the given parameters
+        Derive a new instance from `self` and the given parameters.
 
         This method creates a new instance with the same attribute as `self`
         except for these given to this method.
@@ -825,7 +833,7 @@ class NumberOperator:
 
         Returns
         -------
-        res : A new instance of NumberOperator
+        res : A new instance of NumberOperator.
         """
 
         if site is None:
@@ -840,22 +848,23 @@ class NumberOperator:
             self, state_indices_table, bases, *, to_csr=True
     ):
         """
-        Return the matrix representation of this operator in the Hilbert space
+        Return the matrix representation of this operator in the Hilbert space.
 
         Parameters
         ----------
         state_indices_table : IndexTable
-            A table that associate instances of StateID with integer indices
+            A table that associate instances of StateID with integer indices.
         bases : 1D np.ndarray
-            The bases of the Hilbert space
-        to_csr : boolean, keyword-only, optional
-            Whether to construct a csr_matrix as the result
-            default: True
+            The bases of the Hilbert space.
+            The data-type of the array's elements is np.uint64.
+        to_csr : bool, optional, keyword-only
+            Whether to construct a csr_matrix as the result.
+            Default: True.
 
         Returns
         -------
         res : csr_matrix or tuple
-            The matrix representation of the operator in the Hilbert space
+            The matrix representation of the operator in the Hilbert space.
             If `to_csr` is set to True, the result is a csr_matrix;
             If set to False, the result is a tuple: (entries, (rows, cols)),
             where `entries` is the non-zero matrix elements, `rows` and
@@ -870,7 +879,7 @@ class NumberOperator:
 class SwapFermionError(Exception):
     """
     Raised when swap creation and annihilation operators defined on the same
-    single-particle state
+    single-particle state.
     """
 
     def __init__(self, aoc0, aoc1):
@@ -887,14 +896,14 @@ class SwapFermionError(Exception):
 class ParticleTerm:
     """
     A unified description of any term composed of creation and/or
-    annihilation operators
+    annihilation operators.
 
     Attributes
     ----------
     coeff : float, int or complex
-        The coefficient of this term
+        The coefficient of this term.
     components : tuple
-        The component creation and/or annihilation operators of this term
+        The component creation and/or annihilation operators of this term.
 
     Examples
     --------
@@ -916,7 +925,7 @@ class ParticleTerm:
 
     def __init__(self, aocs, coeff=1.0):
         """
-        Customize the newly created instance
+        Customize the newly created instance.
 
         Parameters
         ----------
@@ -925,7 +934,7 @@ class ParticleTerm:
             composing this term.
         coeff : float, int or complex, optional
             The coefficient of this term.
-            default: 1.0
+            Default: 1.0.
         """
 
         assert isinstance(coeff, NUMERIC_TYPES_GENERAL), "Invalid coefficient"
@@ -936,7 +945,7 @@ class ParticleTerm:
     @property
     def coeff(self):
         """
-        The coefficient of this term
+        The coefficient of this term.
         """
 
         return self._coeff
@@ -949,14 +958,14 @@ class ParticleTerm:
     @property
     def components(self):
         """
-        The component creation and/or annihilation operators of this term
+        The component creation and/or annihilation operators of this term.
         """
 
         return self._aocs
 
     def __str__(self):
         """
-        Return a string that describes the content of this instance
+        Return a string that describes the content of this instance.
         """
 
         return "\n".join(
@@ -968,25 +977,25 @@ class ParticleTerm:
 
     def tolatex(self, indices_table=None, **kwargs):
         """
-        Return the LaTex form of this term
+        Return the LaTex form of this term.
 
         Parameters
         ----------
-        indices_table : IndexTable, optional
+        indices_table : IndexTable or None, optional
             A table that associate instances of SiteID with integer indices.
             The `indices_table` is passed to the `tolatex` method of
             `StateID` as the `site_index` argument.
             If not given or None, the `site` is show as it is.
-            default : None
+            Default : None.
         kwargs :
             All other keyword arguments are passed to the `tolatex` method of
             `StateID`.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
 
         Returns
         -------
-        res : str
-            The LaTex form of this term
+        latex : str
+            The LaTex form of this term.
         """
 
         latex_aocs = [
@@ -997,20 +1006,20 @@ class ParticleTerm:
 
     def show(self, indices_table=None, **kwargs):
         """
-        Show the term in handwriting form
+        Show the term in handwriting form.
 
         Parameters
         ----------
-        indices_table : IndexTable, optional
+        indices_table : IndexTable or None, optional
             A table that associate instances of SiteID with integer indices.
             The `indices_table` is passed to the `tolatex` method of
             `StateID` as the `site_index` argument.
             If not given or None, the `site` is show as it is.
-            default : None
+            Default : None.
         kwargs :
             All other keyword arguments are passed to the `tolatex` method of
             `StateID`.
-            See also: `StateID.tolatex`
+            See also: `StateID.tolatex`.
         """
 
         fig, ax = plt.subplots()
@@ -1024,9 +1033,9 @@ class ParticleTerm:
 
     def __mul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the left operand and `other` is the right operand
+        `self` is the left operand and `other` is the right operand;
         Return a new instance of this class.
         """
 
@@ -1046,10 +1055,10 @@ class ParticleTerm:
 
     def __rmul__(self, other):
         """
-        Implement the binary arithmetic operation: `*`
+        Implement the binary arithmetic operation: `*`.
 
-        `self` is the right operand and `other` is the left operand
-        This method return a new instance of this class
+        `self` is the right operand and `other` is the left operand;
+        This method return a new instance of this class.
         """
 
         if isinstance(other, AoC):
@@ -1066,7 +1075,7 @@ class ParticleTerm:
     @staticmethod
     def normalize(aocs):
         """
-        Reordering the given `aocs` into norm form
+        Reordering the given `aocs` into norm form.
 
         For a composite operator consisting of creation and/or annihilation
         operators, the norm form means that all the creation operators appear
@@ -1075,19 +1084,19 @@ class ParticleTerm:
         respectively according to the single-particle state associated with
         the operator.
 
-        See the document of __lt__ method of AoC for the comparison logic.
+        See the document of `__lt__` method of AoC for the comparison logic.
 
         Parameters
         ----------
         aocs : list or tuple
-            A collection of creation and/or annihilation operators
+            A collection of creation and/or annihilation operators.
 
         Returns
         -------
         aocs : list
-            The norm form of the operator
+            The norm form of the operator.
         swap_count : int
-            The number of swap to obtain the normal form
+            The number of swap to obtain the normal form.
 
         Raises
         ------
@@ -1116,7 +1125,7 @@ class ParticleTerm:
 
     def dagger(self):
         """
-        Return the Hermitian conjugate of this term
+        Return the Hermitian conjugate of this term.
         """
 
         aocs = [aoc.dagger() for aoc in self._aocs[::-1]]
@@ -1127,30 +1136,32 @@ class ParticleTerm:
             left_bases=None, coeff=None, to_csr=True
     ):
         """
-        Return the matrix representation of this term
+        Return the matrix representation of this term.
 
         Parameters
         ----------
         state_indices_table : IndexTable
-            A table that associate instances of StateID with integer indices
+            A table that associate instances of StateID with integer indices.
         right_bases : 1D np.ndarray
-            The bases of the Hilbert space before the operation
-        left_bases : 1D np.ndarray, keyword-only, optional
-            The bases of the Hilbert space after the operation
-            It not given or None, left_bases is the same as right_bases.
-            default: None
-        coeff : int, float or complex, keyword-only, optional
-            A new coefficient for this term
+            The bases of the Hilbert space before the operation.
+            The data-type of the array's elements is np.uint64.
+        left_bases : 1D np.ndarray, optional, keyword-only
+            The bases of the Hilbert space after the operation.
+            If given, the data-type of the array's elements is np.uint64.
+            If not given or None, left_bases is the same as right_bases.
+            Default: None.
+        coeff : int, float or complex, optional, keyword-only
+            A new coefficient for this term.
             If not given or None, use the original coefficient.
-            default: None
-        to_csr : boolean, keyword-only, optional
-            Whether to construct a csr_matrix as the result
-            default: True
+            Default: None.
+        to_csr : bool, optional, keyword-only
+            Whether to construct a csr_matrix as the result.
+            Default: True.
 
         Returns
         -------
         res : csr_matrix or tuple
-            The matrix representation of the operator in the Hilbert space
+            The matrix representation of the operator in the Hilbert space.
             If `to_csr` is set to True, the result is a csr_matrix;
             If set to False, the result is a tuple: (entries, (rows, cols)),
             where `entries` is the non-zero matrix elements, `rows` and
