@@ -449,7 +449,7 @@ class AoC:
         if orbit is None:
             orbit = self.orbit
 
-        return AoC(otype=otype, site=site, spin=spin, orbit=orbit)
+        return self.__class__(otype=otype, site=site, spin=spin, orbit=orbit)
 
     def matrix_repr(
             self, state_indices_table, right_bases, *,
