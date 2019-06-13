@@ -829,7 +829,7 @@ class NumberOperator:
             spin = self.spin
         if orbit is None:
             orbit = self.orbit
-        return NumberOperator(site=site, spin=spin, orbit=orbit)
+        return self.__class__(site=site, spin=spin, orbit=orbit)
 
     def matrix_repr(
             self, state_indices_table, bases, *, to_csr=True
