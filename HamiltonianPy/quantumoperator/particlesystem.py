@@ -810,19 +810,6 @@ class NumberOperator:
 
         return self
 
-    def same_state(self, other):
-        """
-        Determine whether `self` and `other` is defined on the same
-        single-particle state.
-        """
-
-        if isinstance(other, self.__class__):
-            return self._state == other._state
-        else:
-            raise TypeError(
-                "The `other` parameter is not instance of this class!"
-            )
-
     def derive(self, *, site=None, spin=None, orbit=None):
         """
         Derive a new instance from `self` and the given parameters.
