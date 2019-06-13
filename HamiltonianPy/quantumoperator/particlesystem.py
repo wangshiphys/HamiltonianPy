@@ -874,10 +874,14 @@ class SwapFermionError(Exception):
         self.aoc1 = aoc1
 
     def __str__(self):
-        msg = "Swapping the following two operators would generate extra " \
-              "identity operator which can not be processed properly:\n"
-        msg += "    {0!r}\n    {1!r}".format(self.aoc0, self.aoc1)
-        return msg
+        return "\n".join(
+            [
+                "Swapping the following two operators would generate extra "
+                "identity operator which can not be processed properly:",
+                "    {0!r}".format(self.aoc0),
+                "    {0!r}".format(self.aoc1),
+            ]
+        )
 
 
 class ParticleTerm:
