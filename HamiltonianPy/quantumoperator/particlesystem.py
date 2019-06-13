@@ -860,7 +860,7 @@ class NumberOperator:
 
         index = state_indices_table(self._state)
         term = [(index, CREATION), (index, ANNIHILATION)]
-        return matrix_function(term, bases, to_csr=to_csr)
+        return matrix_function(term, bases, to_csr=to_csr, special_tag="number")
 
 
 class SwapFermionError(Exception):
