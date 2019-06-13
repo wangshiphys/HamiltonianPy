@@ -1155,7 +1155,7 @@ class ParticleTerm:
         """
 
         aocs = [aoc.dagger() for aoc in self._aocs[::-1]]
-        return ParticleTerm(aocs=aocs, coeff=self._coeff.conjugate())
+        return self.__class__(aocs=aocs, coeff=self._coeff.conjugate())
 
     def matrix_repr(
             self, state_indices_table, right_bases, *,
