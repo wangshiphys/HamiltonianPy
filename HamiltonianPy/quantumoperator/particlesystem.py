@@ -895,6 +895,8 @@ class ParticleTerm:
         The coefficient of this term.
     components : tuple
         The component creation and/or annihilation operators of this term.
+    classification : {"general", "hopping", "number" or "Coulomb"}
+        The classification of the term.
 
     Examples
     --------
@@ -914,7 +916,7 @@ class ParticleTerm:
         AoC(otype=ANNIHILATION, site=(0.3, 0.75), spin=1, orbit=0)
     """
 
-    def __init__(self, aocs, coeff=1.0):
+    def __init__(self, aocs, coeff=1.0, *, classification="general"):
         """
         Customize the newly created instance.
 
@@ -926,12 +928,36 @@ class ParticleTerm:
         coeff : float, int or complex, optional
             The coefficient of this term.
             Default: 1.0.
+        classification : str, optional, keyword-only
+            A tag that identify the classification of the instance.
+            Supported values: "general", "hopping", "number" and "Coulomb".
+            If you are not sure about this parameter, just use the default
+            value.
+            "general" means that the instance is just a term composed of
+            creation and/or annihilation operators;
+            "hopping" means that the instance is a hopping term:
+            '$c_i^{\\dagger} c_j$' and `i != j`(Note: the `i == j` case does
+            not belong to this category);
+            "number" means that the instance is a particle-number(chemical
+            potential) term: 'c_i^{\\dagger} c_i';
+            "Coulomb" means that the instance is a Coulomb interaction term:
+            'n_i n_j'.
+            The "hopping", "number" and "Coulomb" categories can also be
+            classified as "general".
+            Currently, this class does not check whether the given `aocs` is
+            compatible with the `classification` parameter. The user is
+            responsible for the compatibility of these two parameters. If
+            these two parameters are incompatible, the corresponding
+            instance would behave incorrectly, so use this parameter with
+            caution.
         """
 
         assert isinstance(coeff, NUMERIC_TYPES_GENERAL), "Invalid coefficient"
+        assert classification in ("general", "hopping", "number", "Coulomb")
 
         self._aocs = tuple(aocs)
         self._coeff = coeff
+        self._classification = classification
 
     @property
     def coeff(self):
@@ -953,6 +979,14 @@ class ParticleTerm:
         """
 
         return self._aocs
+
+    @property
+    def classification(self):
+        """
+        The `classification` attribute.
+        """
+
+        return self._classification
 
     def __str__(self):
         """
