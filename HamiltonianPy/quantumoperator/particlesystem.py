@@ -997,7 +997,8 @@ class ParticleTerm:
             [
                 "The coefficient of this term: {0}".format(self._coeff),
                 "The component operators:",
-            ] + ["    {0}".format(aoc) for aoc in self._aocs]
+                *["    {0}".format(aoc) for aoc in self._aocs],
+            ]
         )
 
     def tolatex(self, indices_table=None, **kwargs):
