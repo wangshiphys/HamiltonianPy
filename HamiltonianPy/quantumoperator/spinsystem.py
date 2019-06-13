@@ -541,7 +541,8 @@ class SpinInteraction:
             [
                 "The coefficient of this term: {0}".format(self._coeff),
                 "The component operators:",
-            ] + ["    {0}".format(operator) for operator in self._operators]
+                *["    {0}".format(operator) for operator in self._operators],
+            ]
         )
 
     def tolatex(self, indices_table=None, **kwargs):
