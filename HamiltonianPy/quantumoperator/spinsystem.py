@@ -374,7 +374,7 @@ class SpinOperator:
             otype = self.otype
         if site is None:
             site = self.coordinate
-        return SpinOperator(otype=otype, site=site)
+        return self.__class__(otype=otype, site=site)
 
     def Schwinger(self):
         """
