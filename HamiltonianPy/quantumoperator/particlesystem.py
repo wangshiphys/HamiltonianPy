@@ -1001,6 +1001,41 @@ class ParticleTerm:
             ]
         )
 
+    def check_compatibility(self):
+        """
+        Check whether this term is compatible with the `classification`
+        attribute.
+
+        Returns
+        -------
+        res : bool
+        """
+
+        aoc_num = len(self._aocs)
+        otypes = [aoc.otype for aoc in self._aocs]
+        states = [aoc.state for aoc in self._aocs]
+        if self._classification == "hopping":
+            return  (
+                aoc_num == 2 and
+                otypes[0] == CREATION and otypes[1] == ANNIHILATION and
+                states[0] != states[1]
+            )
+        elif self._classification == "number":
+            return (
+                aoc_num == 2 and
+                otypes[0] == CREATION and otypes[1] == ANNIHILATION and
+                states[0] == states[1]
+            )
+        elif self._classification == "Coulomb":
+            return (
+                aoc_num == 4 and
+                otypes[0] == CREATION and otypes[1] == ANNIHILATION and
+                otypes[2] == CREATION and otypes[3] == ANNIHILATION and
+                states[0] == states[1] and states[2] == states[3]
+            )
+        else:
+            return True
+
     def tolatex(self, indices_table=None, **kwargs):
         """
         Return the LaTex form of this term.
