@@ -649,7 +649,7 @@ class SpinInteraction:
         """
 
         operators = [operator.dagger() for operator in self._operators[::-1]]
-        return SpinInteraction(operators, coeff=self._coeff.conjugate())
+        return self.__class__(operators, coeff=self._coeff.conjugate())
 
     def Schwinger(self):
         """
