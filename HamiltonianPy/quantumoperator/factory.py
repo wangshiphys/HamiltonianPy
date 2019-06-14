@@ -4,6 +4,8 @@ This module provides functions that generate commonly used Hamiltonian terms.
 
 
 __all__ = [
+    "Annihilator",
+    "Creator",
     "CPFactory",
     "HoppingFactory",
     "PairingFactory",
@@ -19,6 +21,68 @@ from HamiltonianPy.quantumoperator.constant import ANNIHILATION, CREATION, \
     SPIN_DOWN, SPIN_UP
 from HamiltonianPy.quantumoperator.particlesystem import AoC, ParticleTerm
 from HamiltonianPy.quantumoperator.spinsystem import *
+
+
+def Creator(site, spin=0, orbit=0):
+    """
+    Generate creation operator: $c_i^{\\dagger}$.
+
+    Parameters
+    ----------
+    site : list, tuple or 1D np.ndarray
+        The coordinates of the localized single-particle state.
+        The `site` parameter should be 1D array with length 1,2 or 3.
+    spin : int, optional
+        The spin index of the single-particle state.
+        Default: 0.
+    orbit : int, optional
+        The orbit index of the single-particle state.
+        Default: 0.
+
+    Returns
+    -------
+    operator : AoC
+        The corresponding creation operator.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import Creator
+    >>> Creator((0, 0), spin=1)
+    AoC(otype=CREATION, site=(0, 0), spin=1, orbit=0)
+    """
+
+    return AoC(CREATION, site=site, spin=spin, orbit=orbit)
+
+
+def Annihilator(site, spin=0, orbit=0):
+    """
+    Generate annihilation operator: $c_i$.
+
+    Parameters
+    ----------
+    site : list, tuple or 1D np.ndarray
+        The coordinates of the localized single-particle state.
+        The `site` parameter should be 1D array with length 1,2 or 3.
+    spin : int, optional
+        The spin index of the single-particle state.
+        Default: 0.
+    orbit : int, optional
+        The orbit index of the single-particle state.
+        Default: 0.
+
+    Returns
+    -------
+    operator : AoC
+        The corresponding annihilation operator.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import Annihilator
+    >>> Annihilator((0, 0), spin=0)
+    AoC(otype=ANNIHILATION, site=(0, 0), spin=0, orbit=0)
+    """
+
+    return AoC(ANNIHILATION, site=site, spin=spin, orbit=orbit)
 
 
 def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
