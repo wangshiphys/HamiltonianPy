@@ -44,6 +44,16 @@ def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
     -------
     term : ParticleTerm
         The corresponding chemical potential term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import CPFactory
+    >>> term = CPFactory((0, 0))
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=0, orbit=0)
     """
 
     c = AoC(CREATION, site=site, spin=spin, orbit=orbit)
@@ -83,6 +93,22 @@ def HoppingFactory(
     -------
     term : ParticleTerm
         The corresponding hopping term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import HoppingFactory
+    >>> term = HoppingFactory(site0=(0, 0), site1=(1, 1), spin0=1)
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=1, orbit=0)
+        AoC(otype=ANNIHILATION, site=(1, 1), spin=1, orbit=0)
+    >>> term = HoppingFactory(site0=(0, 0), site1=(1, 1), spin0=0, spin1=1)
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(1, 1), spin=1, orbit=0)
     """
 
     if spin1 is None:
@@ -131,6 +157,22 @@ def PairingFactory(
     -------
     term : ParticleTerm
         The corresponding pairing term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import PairingFactory
+    >>> term = PairingFactory((0, 0), (1, 1), spin0=0, spin1=1, which="h")
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(1, 1), spin=1, orbit=0)
+    >>> term = PairingFactory((0, 0), (1, 1), spin0=0, spin1=1, which="p")
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=CREATION, site=(1, 1), spin=1, orbit=0)
     """
 
     assert which in ("h", "hole", "p", "particle")
@@ -163,6 +205,18 @@ def HubbardFactory(site, *, orbit=0, coeff=1.0):
     -------
     term : ParticleTerm
         The corresponding Hubbard term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import HubbardFactory
+    >>> term = HubbardFactory(site=(0, 0))
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=1, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=1, orbit=0)
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=0, orbit=0)
     """
 
     c_up = AoC(CREATION, site=site, spin=SPIN_UP, orbit=orbit)
@@ -202,6 +256,18 @@ def CoulombFactory(
     -------
     term : ParticleTerm
         The corresponding Coulomb interaction term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import CoulombFactory
+    >>> term = CoulombFactory((0, 0), (1, 1), spin0=0, spin1=1)
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        AoC(otype=CREATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=ANNIHILATION, site=(0, 0), spin=0, orbit=0)
+        AoC(otype=CREATION, site=(1, 1), spin=1, orbit=0)
+        AoC(otype=ANNIHILATION, site=(1, 1), spin=1, orbit=0)
     """
 
     c0 = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
@@ -232,6 +298,26 @@ def HeisenbergFactory(site0, site1, *, coeff=1.0):
         terms[0] is the '$J   S_i^z S_j^z$' term;
         terms[1] is the '$J/2 S_i^+ S_j^-$' term;
         terms[2] is the '$J/2 S_i^- S_j^+$' term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import HeisenbergFactory
+    >>> term = HeisenbergFactory((0, 0), (1, 1))
+    >>> print(term[0])
+    The coefficient of this term: 1.0
+    The component operators:
+        SpinOperator(otype="z", site=(0, 0))
+        SpinOperator(otype="z", site=(1, 1))
+    >>> print(term[1])
+    The coefficient of this term: 0.5
+    The component operators:
+        SpinOperator(otype="p", site=(0, 0))
+        SpinOperator(otype="m", site=(1, 1))
+    >>> print(term[2])
+    The coefficient of this term: 0.5
+    The component operators:
+        SpinOperator(otype="m", site=(0, 0))
+        SpinOperator(otype="p", site=(1, 1))
     """
 
     sz0 = SpinOperator(otype="z", site=site0)
@@ -270,6 +356,16 @@ def IsingFactory(site0, site1, alpha, *, coeff=1.0):
     -------
     term: SpinInteraction
         The corresponding spin interaction term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import IsingFactory
+    >>> term = IsingFactory((0, 0), (1, 1), "x")
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        SpinOperator(otype="x", site=(0, 0))
+        SpinOperator(otype="x", site=(1, 1))
     """
 
     assert alpha in ("x", "y", "z")
@@ -302,6 +398,16 @@ def TwoSpinTermFactory(site0, site1, alpha0, alpha1, *, coeff=1.0):
     -------
     term: SpinInteraction
         The corresponding spin interaction term.
+
+    Examples
+    --------
+    >>> from HamiltonianPy.quantumoperator import TwoSpinTermFactory
+    >>> term = TwoSpinTermFactory((0, 0), (1, 1), alpha0="x", alpha1="y")
+    >>> print(term)
+    The coefficient of this term: 1.0
+    The component operators:
+        SpinOperator(otype="x", site=(0, 0))
+        SpinOperator(otype="y", site=(1, 1))
     """
 
     assert alpha0 in ("x", "y", "z")
