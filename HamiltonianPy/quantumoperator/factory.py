@@ -1,5 +1,5 @@
 """
-This module provides functions that generate commonly used Hamiltonian terms
+This module provides functions that generate commonly used Hamiltonian terms.
 """
 
 
@@ -23,27 +23,27 @@ from HamiltonianPy.quantumoperator.spinsystem import *
 
 def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
     """
-    Generate chemical potential term: '$\\mu c_i^{\\dagger} c_i$'
+    Generate chemical potential term: '$\\mu c_i^{\\dagger} c_i$'.
 
     Parameters
     ----------
     site : list, tuple or 1D np.ndarray
-        The coordinate of the localized single-particle state
+        The coordinates of the localized single-particle state.
         The `site` parameter should be 1D array with length 1,2 or 3.
-    spin : int, keyword-only, optional
-        The spin index of the single-particle state
-        default: 0
-    orbit : int, keyword-only, optional
-        The orbit index of the single-particle state
-        default: 0
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    spin : int, optional, keyword-only
+        The spin index of the single-particle state.
+        Default: 0.
+    orbit : int, optional, keyword-only
+        The orbit index of the single-particle state.
+        Default: 0.
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term : ParticleTerm
-        The corresponding chemical potential term
+        The corresponding chemical potential term.
     """
 
     c = AoC(CREATION, site=site, spin=spin, orbit=orbit)
@@ -55,7 +55,7 @@ def HoppingFactory(
         site0, site1, *, spin0=0, spin1=None, orbit0=0, orbit1=None, coeff=1.0
 ):
     """
-    Generate hopping term: '$t c_i^{\\dagger} c_j$'
+    Generate hopping term: '$t c_i^{\\dagger} c_j$'.
 
     These parameters suffixed with '0' are for the creation operator and '1'
     for annihilation operator.
@@ -63,26 +63,26 @@ def HoppingFactory(
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the localized single-particle state
+        The coordinates of the localized single-particle state.
         `site0` and `site1` should be 1D array with length 1, 2 or 3.
-    spin0, spin1 : int, keyword-only, optional
-        The spin index of the single-particle state
+    spin0, spin1 : int, optional, keyword-only
+        The spin index of the single-particle state.
         The default value for `spin0` is 0;
         The default value for `spin1` is None, which implies that `spin1`
         takes the same value as `spin0`.
-    orbit0, orbit1 : int, keyword-only, optional
-        The orbit index of the single-particle state
+    orbit0, orbit1 : int, optional, keyword-only
+        The orbit index of the single-particle state.
         The default value for `orbit0` is 0;
         The default value for `orbit1` is None, which implies that `orbit1`
         takes the same value as `orbit0`.
-    coeff : int, float or complex, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    coeff : int, float or complex, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term : ParticleTerm
-        The corresponding hopping term
+        The corresponding hopping term.
     """
 
     if spin1 is None:
@@ -100,7 +100,7 @@ def PairingFactory(
         coeff=1.0, which="h"
 ):
     """
-    Generate pairing term: '$p c_i^{\\dagger} c_j^{\\dagger}$' or '$p c_i c_j$'
+    Generate pairing term: '$p c_i^{\\dagger} c_j^{\\dagger}$' or '$p c_i c_j$'.
 
     These parameters suffixed with '0' are for the 1st operator and '1' for
     2nd operator.
@@ -108,28 +108,28 @@ def PairingFactory(
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the localized single-particle state
+        The coordinates of the localized single-particle state.
         `site0` and `site1` should be 1D array with length 1, 2 or 3.
-    spin0, spin1 : int, keyword-only, optional
-        The spin index of the single-particle state
-        default: 0
-    orbit0, orbit1 : int, keyword-only, optional
-        The orbit index of the single-particle state
-        default: 0
-    coeff : int, float or complex, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
-    which : str, keyword-only, optional
-        Determine whether to generate a particle- or hole-pairing term
+    spin0, spin1 : int, optional, keyword-only
+        The spin index of the single-particle state.
+        Default: 0.
+    orbit0, orbit1 : int, optional, keyword-only
+        The orbit index of the single-particle state.
+        Default: 0.
+    coeff : int, float or complex, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
+    which : str, optional, keyword-only
+        Determine whether to generate a particle- or hole-pairing term.
         Valid values:
-            ["h" | "hole"] for hole-pairing
-            ["p" | "particle"] for particle-pairing
-        default: "h"
+            ["h" | "hole"] for hole-pairing;
+            ["p" | "particle"] for particle-pairing.
+        Default: "h".
 
     Returns
     -------
     term : ParticleTerm
-        The corresponding pairing term
+        The corresponding pairing term.
     """
 
     assert which in ("h", "hole", "p", "particle")
@@ -142,26 +142,26 @@ def PairingFactory(
 
 def HubbardFactory(site, *, orbit=0, coeff=1.0):
     """
-    Generate Hubbard term: '$U n_{i\\uparrow} n_{i\\downarrow}$'
+    Generate Hubbard term: '$U n_{i\\uparrow} n_{i\\downarrow}$'.
 
     This function is valid only for spin-1/2 system.
 
     Parameters
     ----------
     site : list, tuple or 1D np.ndarray
-        The coordinate of the localized single-particle state
+        The coordinates of the localized single-particle state.
         `site` should be 1D array with length 1,2 or 3.
-    orbit : int, keyword-only, optional
-        The orbit index of the single-particle state
-        default: 0
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    orbit : int, optional, keyword-only
+        The orbit index of the single-particle state.
+        Default: 0.
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term : ParticleTerm
-        The corresponding Hubbard term
+        The corresponding Hubbard term.
     """
 
     c_up = AoC(CREATION, site=site, spin=SPIN_UP, orbit=orbit)
@@ -175,7 +175,7 @@ def CoulombFactory(
         site0, site1, *, spin0=0, spin1=0, orbit0=0, orbit1=0, coeff=1.0
 ):
     """
-    Generate Coulomb interaction term: '$U n_i n_j$'
+    Generate Coulomb interaction term: '$U n_i n_j$'.
 
     These parameters suffixed with '0' are for the 1st operator and '1' for
     2nd operator.
@@ -183,22 +183,22 @@ def CoulombFactory(
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the localized single-particle state
+        The coordinates of the localized single-particle state.
         `site0` and `site1` should be 1D array with length 1, 2 or 3.
-    spin0, spin1 : int, keyword-only, optional
-        The spin index of the single-particle state
-        default: 0
-    orbit0, orbit1 : int, keyword-only, optional
-        The orbit index of the single-particle state
-        default: 0
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    spin0, spin1 : int, optional, keyword-only
+        The spin index of the single-particle state.
+        Default: 0.
+    orbit0, orbit1 : int, optional, keyword-only
+        The orbit index of the single-particle state.
+        Default: 0.
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term : ParticleTerm
-        The corresponding Coulomb interaction term
+        The corresponding Coulomb interaction term.
     """
 
     c0 = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
@@ -210,18 +210,18 @@ def CoulombFactory(
 
 def HeisenbergFactory(site0, site1, *, coeff=1.0):
     """
-    Generate Heisenberg interaction term: '$J S_i S_j$'
+    Generate Heisenberg interaction term: '$J S_i S_j$'.
 
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the lattice site on which the spin operator is
+        The coordinates of the lattice site on which the spin operator is
         defined. `site0` and `site1` should be 1D array with length 1,
         2 or 3. `site0` for the first spin operator and `site1` for the
         second spin operator.
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
@@ -247,26 +247,26 @@ def HeisenbergFactory(site0, site1, *, coeff=1.0):
 
 def IsingFactory(site0, site1, alpha, *, coeff=1.0):
     """
-    Generate Ising type spin interaction term: '$J S_i^{\\alpha} S_j^{\\alpha}$'
+    Generate Ising type spin interaction term:
+        '$J S_i^{\\alpha} S_j^{\\alpha}$'
 
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the lattice site on which the spin operator is
+        The coordinates of the lattice site on which the spin operator is
         defined. `site0` and `site1` should be 1D array with length 1,
         2 or 3. `site0` for the first spin operator and `site1` for the
         second spin operator.
-    alpha : str
-        Which type of spin operator is involved
-        Valid values: "x", "y" and "z"
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    alpha : {"x", "y" or "z"}
+        Which type of spin operator is involved.
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term: SpinInteraction
-        The corresponding spin interaction term
+        The corresponding spin interaction term.
     """
 
     assert alpha in ("x", "y", "z")
@@ -278,27 +278,27 @@ def IsingFactory(site0, site1, alpha, *, coeff=1.0):
 
 def TwoSpinTermFactory(site0, site1, alpha0, alpha1, *, coeff=1.0):
     """
-    Generate general two spin interaction term: '$J S_i^{\\alpha} S_j^{\\beta}$'
+    Generate general two spin interaction term:
+        '$J S_i^{\\alpha} S_j^{\\beta}$'
 
     Parameters
     ----------
     site0, site1 : list, tuple or 1D np.ndarray
-        The coordinate of the lattice site on which the spin operator is
+        The coordinates of the lattice site on which the spin operator is
         defined. `site0` and `site1` should be 1D array with length 1,
         2 or 3. `site0` for the first spin operator and `site1` for the
         second spin operator.
-    alpha0, alpha1 : str
-        Which type of spin operator is involved
-        Valid values: "x", "y" and "z"
+    alpha0, alpha1 : {"x", "y" or "z"}
+        Which type of spin operator is involved.
         `alpha0` for the first and `alpha1` for the second spin operator.
-    coeff : int or float, keyword-only, optional
-        The coefficient of this term
-        default: 1.0
+    coeff : int or float, optional, keyword-only
+        The coefficient of this term.
+        Default: 1.0.
 
     Returns
     -------
     term: SpinInteraction
-        The corresponding spin interaction term
+        The corresponding spin interaction term.
     """
 
     assert alpha0 in ("x", "y", "z")
