@@ -48,7 +48,7 @@ def CPFactory(site, *, spin=0, orbit=0, coeff=1.0):
 
     c = AoC(CREATION, site=site, spin=spin, orbit=orbit)
     a = AoC(ANNIHILATION, site=site, spin=spin, orbit=orbit)
-    return ParticleTerm((c, a), coeff=coeff)
+    return ParticleTerm((c, a), coeff=coeff, classification="number")
 
 
 def HoppingFactory(
@@ -92,7 +92,8 @@ def HoppingFactory(
 
     c = AoC(CREATION, site=site0, spin=spin0, orbit=orbit0)
     a = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
-    return ParticleTerm((c, a), coeff=coeff)
+    classification = "hopping" if c.state != a.state else "number"
+    return ParticleTerm((c, a), coeff=coeff, classification=classification)
 
 
 def PairingFactory(
@@ -168,7 +169,9 @@ def HubbardFactory(site, *, orbit=0, coeff=1.0):
     c_down = AoC(CREATION, site=site, spin=SPIN_DOWN, orbit=orbit)
     a_up = AoC(ANNIHILATION, site=site, spin=SPIN_UP, orbit=orbit)
     a_down = AoC(ANNIHILATION, site=site, spin=SPIN_DOWN, orbit=orbit)
-    return ParticleTerm((c_up, a_up, c_down, a_down), coeff=coeff)
+    return ParticleTerm(
+        (c_up, a_up, c_down, a_down), coeff=coeff, classification="Coulomb"
+    )
 
 
 def CoulombFactory(
@@ -205,7 +208,7 @@ def CoulombFactory(
     a0 = AoC(ANNIHILATION, site=site0, spin=spin0, orbit=orbit0)
     c1 = AoC(CREATION, site=site1, spin=spin1, orbit=orbit1)
     a1 = AoC(ANNIHILATION, site=site1, spin=spin1, orbit=orbit1)
-    return ParticleTerm((c0, a0, c1, a1), coeff=coeff)
+    return ParticleTerm((c0, a0, c1, a1), coeff=coeff, classification="Coulomb")
 
 
 def HeisenbergFactory(site0, site1, *, coeff=1.0):
