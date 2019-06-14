@@ -1,5 +1,5 @@
 """
-Some commonly used constant in this project
+Some commonly used constant in this project.
 """
 
 
