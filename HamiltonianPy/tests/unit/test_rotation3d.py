@@ -6,7 +6,8 @@ A test script for the `rotation3d` module.
 import numpy as np
 import pytest
 
-from HamiltonianPy.rotation3d import *
+from HamiltonianPy.rotation3d import RotationX, RotationY, RotationZ
+from HamiltonianPy.rotation3d import RotationEuler, RotationGeneral
 
 
 @pytest.fixture(scope="module")
