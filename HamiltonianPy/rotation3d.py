@@ -15,6 +15,11 @@ viewed from the positive side of the rotation-axis.
 
 __all__ = [
     "E", "INVERSION",
+    "RX30", "RX45", "RX60", "RX90", "RX180", "RX270",
+    "RY30", "RY45", "RY60", "RY90", "RY180", "RY270",
+    "RZ30", "RZ45", "RZ60", "RZ90", "RZ180", "RZ270",
+    "R111_60", "R111_120", "R111_180", "R111_240", "R111_300",
+    "AP0", "AP1", "AP2",
     "RotationX", "RotationY", "RotationZ",
     "RotationGeneral", "RotationEuler",
 ]
@@ -54,6 +59,166 @@ E = np.array(
 # Inversion transformation
 INVERSION = np.array(
     [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
+)
+
+# Rotation about the x-axis
+RX30 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, np.sqrt(3)/2, -0.5],
+        [0.0, 0.5, np.sqrt(3)/2],
+    ], dtype=np.float64
+)
+RX45 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 1/np.sqrt(2), -1/np.sqrt(2)],
+        [0.0, 1/np.sqrt(2), 1/np.sqrt(2)],
+    ], dtype=np.float64
+)
+RX60 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 0.5, -np.sqrt(3)/2],
+        [0.0, np.sqrt(3)/2, 0.5],
+    ], dtype=np.float64
+)
+RX90 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 1.0, 0.0],
+    ], dtype=np.float64
+)
+RX180 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0],
+        [0.0, 0.0, -1.0],
+    ], dtype=np.float64
+)
+RX270 = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.0, -1.0, 0.0],
+    ], dtype=np.float64
+)
+
+# Rotation about the y-axis
+RY30 = np.array(
+    [
+        [np.sqrt(3)/2, 0.0, 0.5],
+        [0.0, 1.0, 0.0],
+        [-0.5, 0.0, np.sqrt(3)/2],
+    ], dtype=np.float64
+)
+RY45 = np.array(
+    [
+        [1/np.sqrt(2), 0.0, 1/np.sqrt(2)],
+        [0.0, 1.0, 0.0],
+        [-1/np.sqrt(2), 0.0, 1/np.sqrt(2)],
+    ], dtype=np.float64
+)
+RY60 = np.array(
+    [
+        [0.5, 0.0, np.sqrt(3)/2],
+        [0.0, 1.0, 0.0],
+        [-np.sqrt(3)/2, 0.0, 0.5],
+    ], dtype=np.float64
+)
+RY90 = np.array(
+    [
+        [0.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0],
+        [-1.0, 0.0, 0.0],
+    ], dtype=np.float64
+)
+RY180 = np.array(
+    [
+        [-1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, -1.0],
+    ], dtype=np.float64
+)
+RY270 = np.array(
+    [
+        [0.0, 0.0, -1.0],
+        [0.0, 1.0, 0.0],
+        [1.0, 0.0, 0.0],
+    ], dtype=np.float64
+)
+
+# Rotation about the z-axis
+RZ30 = np.array(
+    [
+        [np.sqrt(3)/2, -0.5, 0.0],
+        [0.5, np.sqrt(3)/2, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+RZ45 = np.array(
+    [
+        [1/np.sqrt(2), -1/np.sqrt(2), 0.0],
+        [1/np.sqrt(2), 1/np.sqrt(2), 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+RZ60 = np.array(
+    [
+        [0.5, -np.sqrt(3)/2, 0.0],
+        [np.sqrt(3)/2, 0.5, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+RZ90 = np.array(
+    [
+        [0.0, -1.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+RZ180 = np.array(
+    [
+        [-1.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+RZ270 = np.array(
+    [
+        [0.0, 1.0, 0.0],
+        [-1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64
+)
+
+# Rotation about the [111] axis
+R111_60 = np.array(
+    [[2.0, -1.0, 2.0], [2.0, 2.0, -1.0], [-1.0, 2.0, 2.0]], dtype=np.float64
+) / 3
+R111_120 = np.array(
+    [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+)
+R111_180 = np.array(
+    [[-1.0, 2.0, 2.0], [2.0, -1.0, 2.0], [2.0, 2.0, -1.0]], dtype=np.float64
+) / 3
+R111_240 = np.array(
+    [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], dtype=np.float64
+)
+R111_300 = np.array(
+    [[2.0, 2.0, -1.0], [-1.0, 2.0, 2.0], [2.0, -1.0, 2.0]], dtype=np.float64
+) / 3
+
+# Anti-cyclic permutations
+AP0 = np.array(
+    [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]], dtype=np.float64
+)
+AP1 = np.array(
+    [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+)
+AP2 = np.array(
+    [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
 )
 
 
