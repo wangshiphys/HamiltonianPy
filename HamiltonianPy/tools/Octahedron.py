@@ -73,10 +73,8 @@ elevation = 20
 ax.view_init(elevation, azimuth)
 
 ax.set_axis_off()
-ax.set_aspect("equal")
 plt.show()
 fig.savefig(
-    "Octahedron_azimuth={0}_elevation={1}.jpg".format(azimuth, elevation),
-    dpi=200
+    "Octahedron_azimuth={0}_elevation={1}.png".format(azimuth, elevation),
 )
 plt.close("all")
