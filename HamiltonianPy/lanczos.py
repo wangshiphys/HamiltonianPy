@@ -34,7 +34,7 @@ import logging
 from time import time
 
 import numpy as np
-from numba import complex128, jit, prange, void
+from numba import jit, prange
 
 
 # |Values| <= `_VIEW_AS_ZERO` will be treated as zero in this module
@@ -45,20 +45,14 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 # Both `ket_new` and `ket` with shape: (N, )
-@jit(
-    void(complex128[:], complex128[:], complex128),
-    nopython=True, cache=True, parallel=True,
-)
+@jit(nopython=True, cache=True, parallel=True)
 def InplaceSubtract1D(ket_new, ket, coeff):
     for i in prange(ket_new.shape[0]):
         ket_new[i] -= coeff * ket[i]
 
 
 # Both `ket_new` and `ket` with shape: (N, 1)
-@jit(
-    void(complex128[:, :], complex128[:, :], complex128),
-    nopython=True, cache=True, parallel=True,
-)
+@jit(nopython=True, cache=True, parallel=True)
 def InplaceSubtract2D(ket_new, ket, coeff):
     for i in prange(ket_new.shape[0]):
         ket_new[i, 0] -= coeff * ket[i, 0]
