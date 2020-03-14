@@ -38,7 +38,7 @@ from numba import jit, prange
 
 
 # |Values| <= `_VIEW_AS_ZERO` will be treated as zero in this module
-_VIEW_AS_ZERO = 1E-10
+_VIEW_AS_ZERO = 1E-6
 ################################################################################
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -58,7 +58,7 @@ def InplaceSubtract2D(ket_new, ket, coeff):
         ket_new[i, 0] -= coeff * ket[i, 0]
 
 
-def set_threshold(threshold=1E-10):
+def set_threshold(threshold=1E-6):
     """
     Set the threshold for viewing a value as zero.
 
@@ -70,7 +70,7 @@ def set_threshold(threshold=1E-10):
     ----------
     threshold : float, optional
         The threshold value.
-        Default: 1E-10.
+        Default: 1E-6.
     """
 
     assert isinstance(threshold, float) and threshold >= 0

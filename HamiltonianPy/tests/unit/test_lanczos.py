@@ -15,11 +15,11 @@ from HamiltonianPy.quantumoperator.quantumstate import StateID
 
 
 def test_set_threshold():
-    assert lanczos._VIEW_AS_ZERO == 1E-10
+    assert lanczos._VIEW_AS_ZERO == 1E-6
     lanczos.set_threshold(1E-12)
     assert lanczos._VIEW_AS_ZERO == 1E-12
     lanczos.set_threshold()
-    assert lanczos._VIEW_AS_ZERO == 1E-10
+    assert lanczos._VIEW_AS_ZERO == 1E-6
 
     v0 = np.array([0, 0, 0, 0], dtype=np.float64)
     lanczos.set_threshold(1E-12)
