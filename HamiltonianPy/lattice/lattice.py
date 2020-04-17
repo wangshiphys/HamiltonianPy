@@ -125,7 +125,7 @@ class Lattice:
                 "There are duplicate points in the given `points`!"
             )
         else:
-            dists = np.insert(np.unique(np.ceil(tmp * _ZOOM)) / _ZOOM, 0, 0.0)
+            dists = np.insert(np.unique(np.rint(tmp * _ZOOM)) / _ZOOM, 0, 0.0)
 
         # Cache dists as `_all_distances attribute` for later use
         self._all_distances = dists
@@ -442,7 +442,7 @@ class Lattice:
         except IndexError:
             sites = self._sites_factory(scope=nth, no_inversion=False)
             self._all_distances = np.insert(
-                np.unique(np.ceil(pdist(sites) * _ZOOM)) / _ZOOM, 0, 0.0
+                np.unique(np.rint(pdist(sites) * _ZOOM)) / _ZOOM, 0, 0.0
             )
             return self._all_distances[nth]
 
