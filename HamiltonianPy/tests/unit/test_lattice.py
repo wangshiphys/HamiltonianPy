@@ -107,7 +107,7 @@ class TestLattice:
     def test_neighbor_distance(self, points, vectors, cluster):
         assert cluster.neighbor_distance(0) == 0.0
         assert cluster.neighbor_distance(1) == 1.0
-        assert cluster.neighbor_distance(2) == 1.4143
+        assert cluster.neighbor_distance(2) == 1.4142
 
     def test_bonds(self, points, vectors, cluster):
         def helper(bonds):
