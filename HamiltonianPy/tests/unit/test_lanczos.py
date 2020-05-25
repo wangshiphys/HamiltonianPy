@@ -15,32 +15,11 @@ from HamiltonianPy.quantumoperator.quantumstate import StateID
 
 
 def test_set_threshold():
-    assert lanczos._VIEW_AS_ZERO == 1E-6
+    assert lanczos._VIEW_AS_ZERO == 1E-4
     lanczos.set_threshold(1E-12)
     assert lanczos._VIEW_AS_ZERO == 1E-12
     lanczos.set_threshold()
-    assert lanczos._VIEW_AS_ZERO == 1E-6
-
-    v0 = np.array([0, 0, 0, 0], dtype=np.float64)
-    lanczos.set_threshold(1E-12)
-    v0[0] = 2E-12
-    tmp = lanczos._starting_vector(N=4, v0=v0)
-    assert np.all(tmp == np.array([[1], [0], [0], [0]]))
-
-    v0[0] = 1E-12
-    with pytest.raises(ValueError, match="`v0` is a zero vector"):
-        lanczos._starting_vector(N=4, v0=v0)
-    lanczos.set_threshold()
-
-
-def test_Schimdt():
-    v0 = np.array([1, 2, 3], dtype=np.float64)
-    v1 = np.array([4, 5, 6], dtype=np.float64)
-    vectors = [v0, v1]
-    v2, v3 = lanczos.Schmidt(vectors)
-    tmp = np.array([12.0/7, 3.0/7, -6.0/7], dtype=np.float64)
-    assert np.allclose(v2, v0 / np.sqrt(14))
-    assert np.allclose(v3, tmp / np.linalg.norm(tmp))
+    assert lanczos._VIEW_AS_ZERO == 1E-4
 
 
 @pytest.mark.slow
