@@ -18,7 +18,7 @@ from .quantumoperator import *
 from .bond import Bond
 from .hilbertspace import base_vectors
 from .indextable import IndexTable
-from .lanczos import KrylovSpace, KrylovRepresentation, MultiKrylov
+from .lanczos import KrylovRepresentation, MultiKrylov
 from .line2d import Line2D, Location
 from .rotation3d import RotationEuler, RotationGeneral, RotationX, RotationY, RotationZ
 from .version import version as __version__
@@ -27,7 +27,7 @@ from .version import version as __version__
 __all__ = [
     "__version__",
     "Bond", "base_vectors", "IndexTable",
-    "KrylovSpace", "KrylovRepresentation", "MultiKrylov",
+    "KrylovRepresentation", "MultiKrylov",
     "Line2D", "Location",
     "RotationEuler", "RotationGeneral",
     "RotationX", "RotationY", "RotationZ",
