@@ -26,7 +26,6 @@ __all__ = [
 
 
 import numpy as np
-from numba import jit, prange
 
 
 def GFSolverExactSingle(
@@ -44,13 +43,14 @@ def GFSolverExactSingle(
     HM : np.ndarray with shape (N, N)
         The model Hamiltonian matrix.
     excited_states : dict
-        A collection of related excited states.
+        A collection of related excited states. The values of
+        `excited_states` are np.ndarray with shape (N, ).
         For example, to calculate $G_{AB}(z)$, `excited_states` must contain
         excited_states[B] = $B |GS>$ and
         excited_states[A.dagger()] = $A^{+} |GS>$.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether $M = z - (HM - GE)$ or $M = z + (HM - GE)$.
@@ -69,18 +69,6 @@ def GFSolverExactSingle(
     B_dot_GS = excited_states[B]
     A_dagger_dot_GS = excited_states[A.dagger()]
     return np.vdot(A_dagger_dot_GS, np.linalg.solve(M, B_dot_GS))
-
-
-@jit(nopython=True, cache=True, parallel=True)
-def _IterateOverZsExact(zs, GE, HM, bras, kets, sign):
-    z_num = zs.shape[0]
-    I = np.identity(HM.shape[0])
-    res = np.empty((z_num, bras.shape[0], kets.shape[1]), dtype=np.complex128)
-    for i in prange(z_num):
-        M = (zs[i] - GE) * I + HM if sign == "+" else (zs[i] + GE) * I - HM
-        # The `@` operator performs matrix multiplication
-        res[i] = bras @ np.linalg.solve(M, kets)
-    return res
 
 
 def GFSolverExactMultiple(
@@ -103,7 +91,7 @@ def GFSolverExactMultiple(
         See also document of `GFSolverExactSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether $M = z - (HM - GE)$ or $M = z + (HM - GE)$.
@@ -113,35 +101,38 @@ def GFSolverExactMultiple(
         Default: "array".
 
     Returns
+    -------
     GFs : dict or np.ndarray
         If `structure="dict"`, the returned `GFs` is a dict,
         GFs[(A, B)] = GF_AB_vs_omegas, where GF_AB_vs_omegas is 1D np.ndarray
         with the same length as `omegas`, correspond to $G_{AB}(z)$ for all
         given `omegas`;
         If `structure="array"`, the returned `GFs` is a 3D np.ndarray with
-        shape (M, len(As), len(Bs)). The first dimension correspond to
-        different `omegas`, the second and third dimension correspond to
-        different `As` and `Bs`.
+        shape (len(As), len(Bs), M). The 1st and 2nd dimension correspond to
+        different `As` and `Bs`, the 3rd dimension correspond to different
+        `omegas`.
     """
 
-    Bs_dot_GS = np.concatenate(
-        [excited_states[B] for B in Bs], axis=1
-    ).astype(np.complex128)
-    As_dagger_dot_GS_dagger = np.concatenate(
-        [excited_states[A.dagger()] for A in As], axis=1
-    ).T.conj().astype(np.complex128)
+    zs = omegas + 1j * eta
+    I = np.identity(HM.shape[0])
+    GFs_Array = np.empty((len(As), len(Bs), len(zs)), dtype=np.complex128)
+    for ZIndex, z in enumerate(zs):
+        M = (z - GE) * I + HM if sign == "+" else (z + GE) * I - HM
+        for BIndex, B in enumerate(Bs):
+            ket = np.linalg.solve(M, excited_states[B])
+            for AIndex, A in enumerate(As):
+                GFs_Array[AIndex, BIndex, ZIndex] = np.vdot(
+                    excited_states[A.dagger()], ket
+                )
 
-    GFs_Array = _IterateOverZsExact(
-        omegas + 1j * eta, GE, HM, As_dagger_dot_GS_dagger, Bs_dot_GS, sign
-    )
-    if structure == "array":
-        return GFs_Array
-    else:
+    if structure == "dict":
         GFs_Dict = dict()
-        for row_index, A in enumerate(As):
-            for col_index, B in enumerate(Bs):
-                GFs_Dict[(A, B)] = GFs_Array[:, row_index, col_index]
+        for AIndex, A in enumerate(As):
+            for BIndex, B in enumerate(Bs):
+                GFs_Dict[(A, B)] = GFs_Array[AIndex, BIndex]
         return GFs_Dict
+    else:
+        return GFs_Array
 
 
 def GFSolverLanczosSingle(
@@ -149,7 +140,7 @@ def GFSolverLanczosSingle(
         eta=0.01, sign="+"
 ):
     """
-    Calculate the Green-Function term $G_{AB}(z)=<GS| A M^{1} B |GS>$.
+    Calculate the Green-Function term $G_{AB}(z) = <GS| A M^{-1} B |GS>$.
 
     Parameters
     ----------
@@ -168,7 +159,7 @@ def GFSolverLanczosSingle(
         See also `HamiltonianPy.lanczos`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether $M = z - (HM - GE)$ or $M = z + (HM - GE)$.
@@ -185,21 +176,10 @@ def GFSolverLanczosSingle(
     I = np.identity(HM.shape[0])
     temp = projected_vectors[B][B]
     B_dot_GS = np.zeros_like(temp)
-    B_dot_GS[0, 0] = temp[0, 0]
+    B_dot_GS[0] = temp[0]
     A_dagger_dot_GS = projected_vectors[B][A.dagger()]
     M = (z - GE) * I + HM if sign == "+" else (z + GE) * I - HM
     return np.vdot(A_dagger_dot_GS, np.linalg.solve(M, B_dot_GS))
-
-
-@jit(nopython=True, cache=True, parallel=True)
-def _IterateOverZsLanczos(zs, GE, HM, bra_dagger, ket, sign):
-    z_num = zs.shape[0]
-    I = np.identity(HM.shape[0])
-    res = np.empty(z_num, dtype=np.complex128)
-    for i in prange(z_num):
-        M = (zs[i] - GE) * I + HM if sign == "+" else (zs[i] + GE) * I - HM
-        res[i] = np.vdot(bra_dagger, np.linalg.solve(M, ket))
-    return res
 
 
 def GFSolverLanczosMultiple(
@@ -220,7 +200,7 @@ def GFSolverLanczosMultiple(
         See also document of `GFSolverLanczosSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether $M = z - (HM - GE)$ or $M = z + (HM - GE)$.
@@ -230,40 +210,42 @@ def GFSolverLanczosMultiple(
         Default: "array".
 
     Returns
-    GFs : dict or np.ndarray.
+    -------
+    GFs : dict or np.ndarray
         If `structure="dict"`, the returned `GFs` is a dict,
         GFs[(A, B)] = GF_AB_vs_omegas, where GF_AB_vs_omegas is 1D np.ndarray
         with the same length as `omegas`, correspond to $G_{AB}(z)$ for all
         given `omegas`;
         If `structure="array"`, the returned `GFs` is a 3D np.ndarray with
-        shape (M, len(As), len(Bs)). The first dimension correspond to
-        different `omegas`, the second and third dimension correspond to
-        different `As` and `Bs`.
+        shape (len(As), len(Bs), M). The 1st and 2nd dimension correspond to
+        different `As` and `Bs`, the 3rd dimension correspond to different
+        `omegas`.
     """
 
-    GFs_Dict = {}
-    for B in Bs:
-        # HM is real matrix
+    zs = omegas + 1j * eta
+    GFs_Array = np.empty((len(As), len(Bs), len(zs)), dtype=np.complex128)
+    for BIndex, B in enumerate(Bs):
         HM = projected_matrices[B]
+        I = np.identity(HM.shape[0])
         temp = projected_vectors[B][B]
-        B_dot_GS = np.zeros(len(temp), dtype=np.complex128)
-        B_dot_GS[0] = temp[0, 0]
-        for A in As:
-            # A_dagger_dot_GS is complex128
-            A_dagger_dot_GS = np.ravel(projected_vectors[B][A.dagger()])
-            GFs_Dict[(A, B)] = _IterateOverZsLanczos(
-                omegas + 1j * eta, GE, HM, A_dagger_dot_GS, B_dot_GS, sign
-            )
+        B_dot_GS = np.zeros_like(temp)
+        B_dot_GS[0] = temp[0]
+        for ZIndex, z in enumerate(zs):
+            M = (z - GE) * I + HM if sign == "+" else (z + GE) * I - HM
+            ket = np.linalg.solve(M, B_dot_GS)
+            for AIndex, A in enumerate(As):
+                GFs_Array[AIndex, BIndex, ZIndex] = np.vdot(
+                    projected_vectors[B][A.dagger()], ket
+                )
 
-    if structure == "array":
-        num = omegas.shape[0]
-        GFs_Array = np.empty((num, len(As), len(Bs)), dtype=np.complex128)
-        for row_index, A in enumerate(As):
-            for col_index, B in enumerate(Bs):
-                GFs_Array[:, row_index, col_index] = GFs_Dict[(A, B)]
-        return GFs_Array
-    else:
+    if structure == "dict":
+        GFs_Dict = dict()
+        for AIndex, A in enumerate(As):
+            for BIndex, B in enumerate(Bs):
+                GFs_Dict[(A, B)] = GFs_Array[AIndex, BIndex]
         return GFs_Dict
+    else:
+        return GFs_Array
 
 
 def RGFSolverExactSingle(
@@ -285,14 +267,14 @@ def RGFSolverExactSingle(
         See also document of `GFSolverExactSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}^{r}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}^{r}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether to add or subtract the two parts of the retarded
         Green-Function.
         Note: The meaning of the `sign` parameter in `RGFSolver*` functions is
         different from that in those `GFSolver*` functions.
-        Default: "+.
+        Default: "+".
 
     Returns
     -------
@@ -335,29 +317,29 @@ def RGFSolverExactMultiple(
         See also document of `GFSolverExactSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}^{r}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}^{r}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether to add or subtract the two parts of the retarded
         Green-Function.
         Note: The meaning of the `sign` parameter in `RGFSolver*` functions is
         different from that in those `GFSolver*` functions.
-        Default: "+.
+        Default: "+".
     structure : ["dict" | "array"], str, optional
         The data structure of the returned Green-Functions.
         Default: "array".
 
     Returns
     -------
-    RGFs : dict or np.ndarray.
+    RGFs : dict or np.ndarray
         If `structure="dict"`, the returned `RGFs` is a dict,
         RGFs[(A, B)] = RGF_AB_vs_omegas, where RGF_AB_vs_omegas is
         1D np.ndarray with the same length as `omegas`, correspond to
         $G_{AB}^{r}(z)$ for all given `omegas`;
         If `structure="array"`, the returned `RGFs` is a 3D np.ndarray with
-        shape (M, len(As), len(Bs)). The first dimension correspond to
-        different `omegas`, the second and third dimension correspond to
-        different `As` and `Bs`.
+        shape (len(As), len(Bs), M). The 1st and 2nd dimension correspond to
+        different `As` and `Bs`, the 3rd dimension correspond to different
+        `omegas`.
     """
 
     GFs_AB = GFSolverExactMultiple(
@@ -369,22 +351,22 @@ def RGFSolverExactMultiple(
         eta=eta, sign="+", structure="array"
     )
 
-    if structure == "array":
-        RGFs = np.empty_like(GFs_AB)
-        for i, A in enumerate(As):
-            for j, B in enumerate(Bs):
-                if sign == "+":
-                    RGFs[:, i, j] = GFs_AB[:, i, j] + GFs_BA[:, j, i]
-                else:
-                    RGFs[:, i, j] = GFs_AB[:, i, j] - GFs_BA[:, j, i]
-    else:
+    if structure == "dict":
         RGFs = dict()
         for i, A in enumerate(As):
             for j, B in enumerate(Bs):
                 if sign == "+":
-                    RGFs[(A, B)] = GFs_AB[:, i, j] + GFs_BA[:, j, i]
+                    RGFs[(A, B)] = GFs_AB[i, j] + GFs_BA[j, i]
                 else:
-                    RGFs[(A, B)] = GFs_AB[:, i, j] - GFs_BA[:, j, i]
+                    RGFs[(A, B)] = GFs_AB[i, j] - GFs_BA[j, i]
+    else:
+        RGFs = np.empty_like(GFs_AB)
+        for i, A in enumerate(As):
+            for j, B in enumerate(Bs):
+                if sign == "+":
+                    RGFs[i, j] = GFs_AB[i, j] + GFs_BA[j, i]
+                else:
+                    RGFs[i, j] = GFs_AB[i, j] - GFs_BA[j, i]
     return RGFs
 
 
@@ -406,14 +388,14 @@ def RGFSolverLanczosSingle(
         See also the document of `GFSolverLanczosSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}^{r}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}^{r}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether to add or subtract the two parts of the retarded
         Green-Function.
         Note: The meaning of the `sign` parameter in `RGFSolver*` functions is
         different from that in those `GFSolver*` functions.
-        Default: "+.
+        Default: "+".
 
     Returns
     -------
@@ -443,7 +425,7 @@ def RGFSolverLanczosMultiple(
     Parameters
     ----------
     omegas : 1D np.ndarray with shape (M, )
-    As, Bs : A collection of SpinOperators or AoCs.
+    As, Bs : A collection of SpinOperators or AoCs
     GE : float
         Ground state energy of model Hamiltonian.
     projected_matrices, projected_vectors : dict
@@ -451,55 +433,54 @@ def RGFSolverLanczosMultiple(
         See also the document of `GFSolverLanczosSingle`.
     eta : float, optional
         The broadening coefficient.
-        $omega + 1j * eta$ compose the `z' parameter in $G_{AB}^{r}(z)$.
+        $omega + 1j * eta$ compose the `z` parameter in $G_{AB}^{r}(z)$.
         Default: 0.01.
     sign : ["+" | "-"], str, optional
         Determining whether to add or subtract the two parts of the retarded
         Green-Function.
         Note: The meaning of the `sign` parameter in `RGFSolver*` functions is
         different from that in those `GFSolver*` functions.
-        Default: "+.
+        Default: "+".
     structure : ["dict" | "array"], str, optional
         The data structure of the returned Green-Functions.
         Default: "array".
 
     Returns
-    RGFs : dict or np.ndarray.
+    -------
+    RGFs : dict or np.ndarray
         If `structure="dict"`, the returned `RGFs` is a dict,
         RGFs[(A, B)] = RGF_AB_vs_omegas, where RGF_AB_vs_omegas is
         1D np.ndarray with the same length as `omegas`, correspond to
         $G_{AB}^{r}(z)$ for all given `omegas`;
         If `structure="array"`, the returned `RGFs` is a 3D np.ndarray with
-        shape (M, len(As), len(Bs)). The first dimension correspond to
-        different `omegas`, the second and third dimension correspond to
-        different `As` and `Bs`.
+        shape (len(As), len(Bs), M). The 1st and 2nd dimension correspond to
+        different `As` and `Bs`, the 3rd dimension correspond to different
+        `omegas`.
     """
 
     GFs_AB = GFSolverLanczosMultiple(
         omegas, As, Bs, GE, projected_matrices, projected_vectors,
-        eta=eta, sign="-", structure="dict",
+        eta=eta, sign="-", structure="array",
     )
     GFs_BA = GFSolverLanczosMultiple(
         omegas, Bs, As, GE, projected_matrices, projected_vectors,
-        eta=eta, sign="+", structure="dict",
+        eta=eta, sign="+", structure="array",
     )
 
-    if structure == "array":
-        RGFs = np.empty(
-            (omegas.shape[0], len(As), len(Bs)), dtype=np.complex128
-        )
+    if structure == "dict":
+        RGFs = dict()
         for i, A in enumerate(As):
             for j, B in enumerate(Bs):
                 if sign == "+":
-                    RGFs[:, i, j] = GFs_AB[(A, B)] + GFs_BA[(B, A)]
+                    RGFs[(A, B)] = GFs_AB[i, j] + GFs_BA[j, i]
                 else:
-                    RGFs[:, i, j] = GFs_AB[(A, B)] - GFs_BA[(B, A)]
+                    RGFs[(A, B)] = GFs_AB[i, j] - GFs_BA[j, i]
     else:
-        RGFs = dict()
-        for A in As:
-            for B in Bs:
+        RGFs = np.empty_like(GFs_AB)
+        for i, A in enumerate(As):
+            for j, B in enumerate(Bs):
                 if sign == "+":
-                    RGFs[(A, B)] = GFs_AB[(A, B)] + GFs_BA[(B, A)]
+                    RGFs[i, j] = GFs_AB[i, j] + GFs_BA[j, i]
                 else:
-                    RGFs[(A, B)] = GFs_AB[(A, B)] - GFs_BA[(B, A)]
+                    RGFs[i, j] = GFs_AB[i, j] - GFs_BA[j, i]
     return RGFs
