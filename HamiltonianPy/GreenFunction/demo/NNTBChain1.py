@@ -12,9 +12,7 @@ from time import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from HamiltonianPy import ANNIHILATION, CREATION, lattice_generator, \
-    base_vectors, IndexTable, StateID, AoC, HoppingFactory
-from HamiltonianPy.GreenFunction import RGFSolverExactMultiple
+import HamiltonianPy as HP
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout, format="%(asctime)s - %(message)s",
@@ -23,19 +21,21 @@ logging.info("Program start running")
 
 
 t = 1.0
-site_num = 10
-cell = lattice_generator("chain", num0=1)
-cluster = lattice_generator("chain", num0=site_num)
+site_num = 8
+cell = HP.lattice_generator("chain", num0=1)
+cluster = HP.lattice_generator("chain", num0=site_num)
 intra_bonds, inter_bonds = cluster.bonds(nth=1)
 terms = []
 for bond in intra_bonds + inter_bonds:
     p0, p1 = bond.endpoints
     p0_eqv, trash = cluster.decompose(p0)
     p1_eqv, trash = cluster.decompose(p1)
-    terms.append(HoppingFactory(p0_eqv, p1_eqv, coeff=t))
+    terms.append(HP.HoppingFactory(p0_eqv, p1_eqv, coeff=t))
 
-basis = base_vectors(site_num)
-state_indices_table = IndexTable(StateID(site=site) for site in cluster.points)
+basis = HP.base_vectors(site_num)
+state_indices_table = HP.IndexTable(
+    HP.StateID(site=site) for site in cluster.points
+)
 
 HM = 0.0
 t0 = time()
@@ -49,7 +49,7 @@ logging.info("Time spend on HM: %.3fs", t1 - t0)
 t0 = time()
 values, vectors = np.linalg.eigh(HM)
 GE = values[0]
-GS = vectors[:, [0]]
+GS = vectors[:, 0]
 t1 = time()
 logging.info("GE = %f", GE)
 logging.info("Time spend on GE: %.3fs", t1 - t0)
@@ -59,8 +59,8 @@ Cs = []
 excited_states = {}
 t0 = time()
 for site in cluster.points:
-    C = AoC(CREATION, site=site)
-    A = AoC(ANNIHILATION, site=site)
+    C = HP.AoC(HP.CREATION, site=site)
+    A = HP.AoC(HP.ANNIHILATION, site=site)
     Cs.append(C)
     As.append(A)
     excited_states[A] = A.matrix_repr(state_indices_table, basis).dot(GS)
@@ -72,7 +72,7 @@ omegas = np.linspace(-3, 3, 601)
 kpoints = np.dot([[i / site_num] for i in range(site_num + 1)], cell.bs)
 
 t0 = time()
-cluster_gfs = RGFSolverExactMultiple(
+cluster_gfs = HP.RGFSolverExactMultiple(
     omegas, As, Cs, GE, HM, excited_states, eta=0.05, structure="dict",
 )
 t1 = time()

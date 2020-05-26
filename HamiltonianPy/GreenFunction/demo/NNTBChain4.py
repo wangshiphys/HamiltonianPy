@@ -9,14 +9,14 @@ algorithm. The particle number and spin are conserved.
 import logging
 import sys
 from time import time
+
 import matplotlib.pyplot as plt
 import numpy as np
-
 from scipy.sparse.linalg import eigsh
-from HamiltonianPy import SPIN_DOWN, SPIN_UP, ANNIHILATION, CREATION
-from HamiltonianPy import lattice_generator, base_vectors, IndexTable
-from HamiltonianPy import StateID, AoC, HoppingFactory, MultiKrylov
-from HamiltonianPy.GreenFunction import RGFSolverLanczosMultiple
+
+import HamiltonianPy as HP
+
+SPINS = (HP.SPIN_DOWN, HP.SPIN_UP)
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout, format="%(asctime)s - %(message)s",
@@ -25,32 +25,32 @@ logging.info("Program start running")
 
 
 t = 1.0
-site_num = 10
-cell = lattice_generator("chain", num0=1)
-cluster = lattice_generator("chain", num0=site_num)
+site_num = 12
+cell = HP.lattice_generator("chain", num0=1)
+cluster = HP.lattice_generator("chain", num0=site_num)
 intra_bonds, inter_bonds = cluster.bonds(nth=1)
 terms = []
 for bond in intra_bonds + inter_bonds:
     p0, p1 = bond.endpoints
     p0_eqv, trash = cluster.decompose(p0)
     p1_eqv, trash = cluster.decompose(p1)
-    terms.append(HoppingFactory(p0_eqv, p1_eqv, spin0=SPIN_UP, coeff=t))
-    terms.append(HoppingFactory(p0_eqv, p1_eqv, spin0=SPIN_DOWN, coeff=t))
+    for spin in SPINS:
+        terms.append(HP.HoppingFactory(p0_eqv, p1_eqv, spin0=spin, coeff=t))
 
-state_indices_table = IndexTable(
-    StateID(site=site, spin=spin)
-    for spin in [SPIN_DOWN, SPIN_UP] for site in cluster.points
+state_indices_table = HP.IndexTable(
+    HP.StateID(site=site, spin=spin)
+    for spin in SPINS for site in cluster.points
 )
 spin_up_state_indices = [
-    state_indices_table(StateID(site=site, spin=SPIN_UP))
+    state_indices_table(HP.StateID(site=site, spin=HP.SPIN_UP))
     for site in cluster.points
 ]
 spin_down_state_indices = [
-    state_indices_table(StateID(site=site, spin=SPIN_DOWN))
+    state_indices_table(HP.StateID(site=site, spin=HP.SPIN_DOWN))
     for site in cluster.points
 ]
 
-basis = base_vectors(
+basis = HP.base_vectors(
     [spin_up_state_indices, site_num // 2],
     [spin_down_state_indices, site_num // 2],
 )
@@ -64,7 +64,9 @@ t1 = time()
 logging.info("Time spend on HM: %.3fs", t1 - t0)
 
 t0 = time()
-(GE, ), GS = eigsh(HM, k=1, which="SA")
+values, vectors = eigsh(HM, k=1, which="SA")
+GE = values[0]
+GS = vectors[:, 0]
 del HM
 t1 = time()
 logging.info("GE = %f", GE)
@@ -72,22 +74,22 @@ logging.info("Time spend on GE: %.3fs", t1 - t0)
 
 cluster_gfs = {}
 omegas = np.linspace(-3, 3, 601)
-for spin in [SPIN_DOWN, SPIN_UP]:
-    if spin == SPIN_UP:
-        basis_h = base_vectors(
+for spin in SPINS:
+    if spin == HP.SPIN_UP:
+        basis_h = HP.base_vectors(
             [spin_up_state_indices, site_num // 2 - 1],
             [spin_down_state_indices, site_num // 2],
         )
-        basis_p = base_vectors(
+        basis_p = HP.base_vectors(
             [spin_up_state_indices, site_num // 2 + 1],
             [spin_down_state_indices, site_num // 2],
         )
     else:
-        basis_h = base_vectors(
+        basis_h = HP.base_vectors(
             [spin_up_state_indices, site_num // 2],
             [spin_down_state_indices, site_num // 2 - 1],
         )
-        basis_p = base_vectors(
+        basis_p = HP.base_vectors(
             [spin_up_state_indices, site_num // 2],
             [spin_down_state_indices, site_num // 2 + 1],
         )
@@ -109,8 +111,8 @@ for spin in [SPIN_DOWN, SPIN_UP]:
     excited_states_p = {}
     t0 = time()
     for site in cluster.points:
-        C = AoC(CREATION, site=site, spin=spin)
-        A = AoC(ANNIHILATION, site=site, spin=spin)
+        C = HP.AoC(HP.CREATION, site=site, spin=spin)
+        A = HP.AoC(HP.ANNIHILATION, site=site, spin=spin)
         Cs.append(C)
         As.append(A)
         excited_states_h[A] = A.matrix_repr(
@@ -124,9 +126,11 @@ for spin in [SPIN_DOWN, SPIN_UP]:
     del basis_h, basis_p
 
     t0 = time()
-    projected_matrices, projected_vectors = MultiKrylov(HM_P, excited_states_p)
+    projected_matrices, projected_vectors = HP.MultiKrylov(
+        HM_P, excited_states_p
+    )
     del HM_P, excited_states_p
-    projected_matrices_h, projected_vectors_h = MultiKrylov(
+    projected_matrices_h, projected_vectors_h = HP.MultiKrylov(
         HM_H, excited_states_h
     )
     del HM_H, excited_states_h
@@ -136,7 +140,7 @@ for spin in [SPIN_DOWN, SPIN_UP]:
     logging.info("Time spend on Lanczos projection: %.3fs", t1 - t0)
 
     t0 = time()
-    cluster_gfs_temp = RGFSolverLanczosMultiple(
+    cluster_gfs_temp = HP.RGFSolverLanczosMultiple(
         omegas, As, Cs, GE, projected_matrices, projected_vectors,
         eta=0.05, structure="dict",
     )

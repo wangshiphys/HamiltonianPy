@@ -17,8 +17,7 @@ from time import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from HamiltonianPy import lattice_generator, SpinOperator, SpinInteraction
-from HamiltonianPy.GreenFunction import GFSolverExactMultiple
+import HamiltonianPy as HP
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout, format="%(asctime)s - %(message)s",
@@ -28,8 +27,8 @@ logging.info("Program start running")
 
 J = 1.0
 site_num = 10
-cell = lattice_generator("chain", num0=1)
-cluster = lattice_generator("chain", num0=site_num)
+cell = HP.lattice_generator("chain", num0=1)
+cluster = HP.lattice_generator("chain", num0=site_num)
 intra_bonds, inter_bonds = cluster.bonds(nth=1)
 
 HM = 0.0
@@ -38,10 +37,10 @@ for bond in intra_bonds + inter_bonds:
     p0, p1 = bond.endpoints
     index0 = cluster.getIndex(p0, fold=True)
     index1 = cluster.getIndex(p1, fold=True)
-    HM += SpinInteraction.matrix_function(
+    HM += HP.SpinInteraction.matrix_function(
         [(index0, "z"), (index1, "z")], total_spin=site_num, coeff=J / 2
     )
-    HM += SpinInteraction.matrix_function(
+    HM += HP.SpinInteraction.matrix_function(
         [(index0, "p"), (index1, "m")], total_spin=site_num, coeff=J / 2
     )
 HM += HM.getH()
@@ -52,7 +51,7 @@ logging.info("Time spend on HM: %.3fs", t1 - t0)
 t0 = time()
 values, vectors = np.linalg.eigh(HM)
 GE = values[0]
-GS = vectors[:, [0]]
+GS = vectors[:, 0]
 t1 = time()
 logging.info("GE = %f", GE)
 logging.info("Time spend on GE: %.3fs", t1 - t0)
@@ -63,11 +62,11 @@ excited_states = {}
 t0 = time()
 for site in cluster.points:
     index = cluster.getIndex(site, fold=False)
-    Sp = SpinOperator("p", site=site)
-    Sm = SpinOperator("m", site=site)
+    Sp = HP.SpinOperator("p", site=site)
+    Sm = HP.SpinOperator("m", site=site)
     As.append(Sp)
     Bs.append(Sm)
-    excited_states[Sm] = SpinOperator.matrix_function(
+    excited_states[Sm] = HP.SpinOperator.matrix_function(
         (index, "m"), total_spin=site_num
     ).dot(GS)
 t1 = time()
@@ -77,7 +76,7 @@ omegas = np.linspace(0, 2.5, 251)
 kpoints = np.dot([[i / site_num] for i in range(site_num + 1)], cell.bs)
 
 t0 = time()
-cluster_gfs = GFSolverExactMultiple(
+cluster_gfs = HP.GFSolverExactMultiple(
     omegas, As, Bs, GE, HM, excited_states,
     eta=0.05, sign="-", structure="dict",
 )
