@@ -1,5 +1,5 @@
 """
-HamiltonianPy setup file, used to install HamiltonianPy
+HamiltonianPy setup file, used to install HamiltonianPy.
 """
 
 
@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 
 setup_params = dict(
     name="HamiltonianPy",
-    version="1.2",
+    version="2.0.0",
     description="Construct and solve a model Hamiltonian numerically!",
     author="wangshiphys",
     author_email="wangshiphys@gmail.com",
